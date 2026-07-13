@@ -30,9 +30,11 @@ import re
 __all__ = [
     "ContentKind",
     "content_hash",
+    "excerpt",
     "kind_for_content_type",
     "normalize_html",
     "normalize_text",
+    "page_title",
     "passages",
 ]
 
@@ -114,6 +116,43 @@ def normalize_text(source: str) -> str:
 def passages(normalized: str) -> list[str]:
     """The diffable unit: one passage per line. Empty input yields no passages."""
     return [line for line in normalized.split("\n") if line]
+
+
+_TITLE_RE = re.compile(r"<title[^>]*>([\s\S]*?)</title>", re.IGNORECASE)
+
+
+def page_title(body: bytes) -> str:
+    """The page's own `<title>`, as the *page* states it — not as we hope it reads.
+
+    This is the single most useful string for a human verifying a registry entry: a page
+    titled "Office of Vital Statistics | Kansas Department of Health and Environment" is
+    evidence; a page titled "404 Page Not Found" served with HTTP 200 (which is what
+    `courts.oregon.gov` does) or "Request Access" (which is what `ecfr.gov` does) is the
+    trap this string exists to expose. Returned verbatim apart from whitespace collapsing —
+    we do not "clean it up", because the mess IS the signal.
+    """
+    match = _TITLE_RE.search(body.decode("utf-8", errors="replace"))
+    if not match:
+        return ""
+    title = html.unescape(_TAG_RE.sub(" ", match.group(1)))
+    return re.sub(r"\s+", " ", title).strip()
+
+
+def excerpt(normalized: str, *, max_passages: int = 12, max_chars: int = 900) -> str:
+    """The first few passages of normalized text — what a verifier actually reads.
+
+    Bounded twice (passages *and* characters) because the whole point is that a human can
+    read it in seconds; an "excerpt" that fills a terminal is one a tired reviewer scrolls
+    past, and a reviewer who scrolls past the evidence is rubber-stamping.
+    """
+    kept: list[str] = []
+    budget = max_chars
+    for line in passages(normalized)[:max_passages]:
+        if budget <= 0:
+            break
+        kept.append(line[:budget])
+        budget -= len(line)
+    return "\n".join(kept)
 
 
 def content_hash(body: bytes, content_type: str | None) -> tuple[str, str]:

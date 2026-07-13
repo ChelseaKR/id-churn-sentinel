@@ -24,7 +24,7 @@ import pytest
 from id_churn_sentinel.cli import main
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
-from id_churn_sentinel.core.registry import Source
+from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import SnapshotStore
 
 from .conftest import StubFetcher
@@ -32,12 +32,14 @@ from .conftest import StubFetcher
 pytestmark = pytest.mark.feed_integrity
 
 
-def test_unreviewed_drift_is_not_published(tmp_path: Path, observed_change: ChangeRecord) -> None:
+def test_unreviewed_drift_is_not_published(
+    tmp_path: Path, observed_change: ChangeRecord, registry: Registry
+) -> None:
     """THE GATE. A freshly-detected change — the state every change starts in — is
     withheld from both feed artifacts."""
     assert not observed_change.publishable
 
-    result = publish([observed_change], tmp_path)
+    result = publish([observed_change], tmp_path, registry=registry)
 
     assert result.published == 0
     assert observed_change.id not in (tmp_path / "feed.xml").read_text()
@@ -45,7 +47,9 @@ def test_unreviewed_drift_is_not_published(tmp_path: Path, observed_change: Chan
     assert payload["changes"] == []
 
 
-def test_an_unreviewed_removal_escalation_is_not_published(tmp_path: Path, source: Source) -> None:
+def test_an_unreviewed_removal_escalation_is_not_published(
+    tmp_path: Path, source: Source, registry: Registry
+) -> None:
     """THE GATE, on the M3 escalation path. "A federal page about passport sex markers has
     disappeared" is the single most explosive sentence this feed could emit, and it is
     exactly the sentence a machine must not emit on its own. A source going quiet for three
@@ -64,7 +68,7 @@ def test_an_unreviewed_removal_escalation_is_not_published(tmp_path: Path, sourc
     assert escalation.kind is ChangeKind.POSSIBLY_REMOVED
     assert not escalation.publishable
 
-    result = publish([escalation], tmp_path)
+    result = publish([escalation], tmp_path, registry=registry)
 
     assert result.published == 0
     assert escalation.id not in (tmp_path / "feed.xml").read_text()
@@ -72,7 +76,7 @@ def test_an_unreviewed_removal_escalation_is_not_published(tmp_path: Path, sourc
 
 
 def test_a_published_escalation_does_not_read_as_a_content_change(
-    tmp_path: Path, source: Source
+    tmp_path: Path, source: Source, registry: Registry
 ) -> None:
     """Once a human HAS confirmed it, it publishes — and it must say what it actually is.
     "[TX] birth_certificate — substantive change at <url>" would be a lie for a source that
@@ -94,7 +98,7 @@ def test_a_published_escalation_does_not_read_as_a_content_change(
         note="Confirmed by hand: the page 404s in a browser. TX removed it.",
     )
 
-    assert publish([confirmed], tmp_path).published == 1
+    assert publish([confirmed], tmp_path, registry=registry).published == 1
 
     feed = (tmp_path / "feed.xml").read_text()
     assert "SOURCE UNREACHABLE (possibly removed)" in feed
@@ -107,7 +111,9 @@ def test_a_published_escalation_does_not_read_as_a_content_change(
     assert item["reviewer"] == "Chelsea Kelly-Reif"
 
 
-def test_dismissed_changes_are_not_published(tmp_path: Path, observed_change: ChangeRecord) -> None:
+def test_dismissed_changes_are_not_published(
+    tmp_path: Path, observed_change: ChangeRecord, registry: Registry
+) -> None:
     """Reviewed noise is still noise. A consumer polling this feed should see only changes
     a person decided were worth someone's attention."""
     dismissed = observed_change.reviewed_by(
@@ -118,14 +124,14 @@ def test_dismissed_changes_are_not_published(tmp_path: Path, observed_change: Ch
     )
     assert not dismissed.publishable
 
-    result = publish([dismissed], tmp_path)
+    result = publish([dismissed], tmp_path, registry=registry)
 
     assert result.published == 0
     assert json.loads((tmp_path / "changes.json").read_text())["changes"] == []
 
 
 def test_a_confirmed_but_unclassified_record_cannot_be_published(
-    tmp_path: Path, observed_change: ChangeRecord
+    tmp_path: Path, observed_change: ChangeRecord, registry: Registry
 ) -> None:
     """Defence in depth. The types and the schema both refuse to *create* this record; if
     one were smuggled in anyway (a hand-edited DB, a bad migration), the publisher still
@@ -137,11 +143,11 @@ def test_a_confirmed_but_unclassified_record_cannot_be_published(
         reviewer="A Human",
     )
     assert not smuggled.publishable
-    assert publish([smuggled], tmp_path).published == 0
+    assert publish([smuggled], tmp_path, registry=registry).published == 0
 
 
 def test_a_confirmed_record_with_no_reviewer_cannot_be_published(
-    tmp_path: Path, observed_change: ChangeRecord
+    tmp_path: Path, observed_change: ChangeRecord, registry: Registry
 ) -> None:
     smuggled = replace(
         observed_change,
@@ -150,11 +156,14 @@ def test_a_confirmed_record_with_no_reviewer_cannot_be_published(
         reviewer=None,
     )
     assert not smuggled.publishable
-    assert publish([smuggled], tmp_path).published == 0
+    assert publish([smuggled], tmp_path, registry=registry).published == 0
 
 
 def test_only_the_reviewed_record_survives_a_mixed_batch(
-    tmp_path: Path, observed_change: ChangeRecord, confirmed_change: ChangeRecord
+    tmp_path: Path,
+    observed_change: ChangeRecord,
+    confirmed_change: ChangeRecord,
+    registry: Registry,
 ) -> None:
     dismissed = replace(
         observed_change,
@@ -165,7 +174,7 @@ def test_only_the_reviewed_record_survives_a_mixed_batch(
     )
     unreviewed = replace(observed_change, id="unreviewed1")
 
-    result = publish([unreviewed, dismissed, confirmed_change], tmp_path)
+    result = publish([unreviewed, dismissed, confirmed_change], tmp_path, registry=registry)
 
     assert result.published == 1
     payload = json.loads((tmp_path / "changes.json").read_text())
@@ -253,7 +262,7 @@ def test_the_end_to_end_cli_flow_withholds_until_a_human_reviews(
 
 
 def test_the_feed_requires_no_account_and_carries_no_tracking(
-    tmp_path: Path, confirmed_change: ChangeRecord
+    tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
     """A subscriber list for a trans-ID-law feed is a list of trans people. The safest way
     to protect that list is to never create one. So: no auth, no email capture, no analytics
@@ -261,7 +270,7 @@ def test_the_feed_requires_no_account_and_carries_no_tracking(
 
     See docs/RESPONSIBLE-TECH-AUDITS.md §C.
     """
-    publish([confirmed_change], tmp_path)
+    publish([confirmed_change], tmp_path, registry=registry)
     artifacts = (tmp_path / "feed.xml").read_text() + (tmp_path / "changes.json").read_text()
     lowered = artifacts.lower()
 
@@ -284,12 +293,12 @@ def test_the_feed_requires_no_account_and_carries_no_tracking(
 
 
 def test_the_json_feed_is_versioned_and_carries_its_disclaimer(
-    tmp_path: Path, confirmed_change: ChangeRecord
+    tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
     """Consumers pin against `schema_version`. And every payload restates, in-band, that a
     change to a page is not a claim about the law — because the disclaimer has to travel
     with the data, not live only on a README nobody re-reads."""
-    publish([confirmed_change], tmp_path)
+    publish([confirmed_change], tmp_path, registry=registry)
     payload = json.loads((tmp_path / "changes.json").read_text())
 
     assert payload["schema_version"] == FEED_SCHEMA_VERSION

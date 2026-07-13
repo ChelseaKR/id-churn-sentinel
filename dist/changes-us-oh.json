@@ -1,8 +1,60 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "generated_at": "2026-07-13T20:58:07.843726+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "OH",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
-  "changes": []
+  "registry_verification": {
+    "scope": "OH",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "oh-bmv",
+      "jurisdiction": "OH",
+      "document_class": "drivers_license",
+      "url": "https://bmv.ohio.gov/",
+      "authority": "Ohio Bureau of Motor Vehicles",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Ohio BMV'. A landing page; the guessed name-change deep link 404s. Ohio's health department host answers HTTP 404 to every non-browser client we have \u2014 see KNOWN GAPS \u2014 so Ohio has no birth-certificate source."
+    },
+    {
+      "source_id": "oh-oac-3701-5-vital-statistics",
+      "jurisdiction": "OH",
+      "document_class": "birth_certificate",
+      "url": "https://codes.ohio.gov/ohio-administrative-code/chapter-3701-5",
+      "authority": "Ohio Department of Health \u2014 OAC Chapter 3701-5, Vital Statistics (published by the Legislative Service Commission)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Chapter 3701-5 - Ohio Administrative Code | Ohio Laws', h1 'Chapter 3701-5 | Vital Statistics'. GAP FIX: odh.ohio.gov returns HTTP 404 to every non-browser client we have tried, including its own site root \u2014 a WAF wearing a 404's clothes. codes.ohio.gov publishes ODH's OWN administrative rules (the vital-statistics chapter ODH administers) and answers us with 200. 738 passages; stable."
+    },
+    {
+      "source_id": "oh-supreme-court",
+      "jurisdiction": "OH",
+      "document_class": "court_order_name_change",
+      "url": "https://www.supremecourt.ohio.gov/",
+      "authority": "Supreme Court of Ohio",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'The Supreme Court of Ohio & The Ohio Judicial System'. A landing page."
+    }
+  ]
 }

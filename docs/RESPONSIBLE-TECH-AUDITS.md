@@ -52,6 +52,26 @@ The last one belongs in this section rather than in §D, and it is the most dang
 
 ---
 
+## A2. An unverified registry that *reads* as authoritative
+
+**The risk, and it is a sibling of §A rather than a footnote to it.** The published site lists one official-looking URL per (jurisdiction, document class). A reader — a caseworker, a volunteer, a trans person — sees a row saying *"OH · Birth certificate · Ohio Department of Health · `<url>`"* and reads **"this is Ohio's official birth-certificate page."** That is a completely reasonable reading of a table like that, and **it is a claim nobody has made.** `0 of 152 sources are human-verified`. If the entry is wrong, the person who acted on it loses a day of work, a filing fee, or a document — and a wrong *citation* is worse than a wrong "no change", because it is actively directive: it does not merely fail to warn someone, it sends them somewhere.
+
+**Machine-checking cannot close this, and this repo has the receipts.** `courts.oregon.gov` serves a **soft 404** — HTTP 200, body titled *"404 Page Not Found"*. `ecfr.gov` answers our crawler with a **bot-wall titled "Request Access"**, served with **HTTP 200**. A status check blesses both; a title check blesses the second. A socket cannot tell you it is looking at the wrong page. Only a person opening it can.
+
+**What we do about it:**
+
+- **The status travels with the source, everywhere, as a word.** Every row of the published site carries **UNVERIFIED — machine-checked, not human-confirmed** (a *word*, never a colour or an icon — WCAG 2.2 AA 1.4.1, because the caseworker most likely to be reading this with a screen reader is exactly who a red dot fails). `sources.json`, `changes.json` and every per-jurisdiction feed carry a machine-readable `verification_status` on every source; every change record carries a `source_verification` block; every RSS channel states the count and every RSS item carries the status as a `<category>`.
+- **The site's front door says it above the fold**, before the coverage numbers and before the feed: these are *candidate* URLs, no human has confirmed them, do not rely on this list as authoritative guidance — and it says what the tool *does* claim (this URL changed; this is what changed in it) against what it never claims (what the law is).
+- **It is structural, not editorial.** `publish()` **requires** the registry, so there is no code path that can write an artifact without the thing that knows each source's status, and a merge-blocking gate (`-m source_labelling`, stage 6, alongside the no-unreviewed-in-feed gate it mirrors) asserts on the **published bytes** that no source appears in any artifact without it.
+- **`verified: true` cannot be asserted by a machine — or by a hurried human, or by an AI agent.** An entry claiming it without a **named verifier and a date** does not load. `sentinel verify` is the only writer, and it refuses to record a verification with no name. This one is deliberately aimed at the most likely way this project would become dishonest: not a lie, but a bulk edit that makes the file *look finished*.
+- **And the actual fix is the work, which is now cheap.** `sentinel verify` turns each entry into one screen (title, text excerpt, one question) and records the human's answer with their name and the date, resumably, highest-value sources first. `docs/VERIFYING.md` states the question, states what the verifier must *not* judge (they are not verifying what the law says), and states the honest cost: **≈3.5 hours for all 152**.
+
+**The residual risk, stated rather than implied.** A reader in a hurry can still take a table of one official-looking URL per state as a directory, no matter how many times the page says otherwise. **Disclosure reduces this risk; it does not eliminate it.** The only thing that eliminates it is 152 human verifications, and until they are done, the honest summary of this registry is: *every URL here is a lead, not a citation.*
+
+**Status:** disclosed structurally and gated; **the underlying gap is open, named, and is the top-priority work (M1).**
+
+---
+
 ## B. Auto-classifying legal significance is out of scope and forbidden
 
 **The risk.** The tool observes that bytes at a URL changed. It is *one small step* from there to a system that says "Texas substantively changed its gender-marker policy" — a heuristic on diff size, a keyword list, an LLM reading the passage. That step must not be taken.

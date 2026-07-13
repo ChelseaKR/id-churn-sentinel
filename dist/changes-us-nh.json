@@ -1,8 +1,60 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "generated_at": "2026-07-13T20:58:07.843726+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "NH",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
-  "changes": []
+  "registry_verification": {
+    "scope": "NH",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "nh-rsa-547-3-i-change-of-name",
+      "jurisdiction": "NH",
+      "document_class": "court_order_name_change",
+      "url": "https://www.gencourt.state.nh.us/rsa/html/LVI/547/547-3-i.htm",
+      "authority": "New Hampshire General Court \u2014 RSA 547:3-i (administered by the NH Circuit Court, Probate Division)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Section 547:3-i Change of Name.' GAP FIX: courts.nh.gov 403s our UA. RSA 547:3-i is the probate-court name-change statute. 12 passages of static statutory text, no volatile content, stable across two fetches."
+    },
+    {
+      "source_id": "nh-rsa-5c-87-birth-record-amendment",
+      "jurisdiction": "NH",
+      "document_class": "birth_certificate",
+      "url": "https://www.gencourt.state.nh.us/rsa/html/I/5-C/5-C-87.htm",
+      "authority": "New Hampshire General Court \u2014 RSA 5-C (administered by NH DHHS Division of Vital Records)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Section 5-C:87 Initiating Amendments and Corrections to Birth Records.' GAP FIX: every nh.gov host we tried 403s our descriptive UA, so NH had no source at all. RSA 5-C:87 is the statute that governs amending a New Hampshire birth record. Static statutory HTML, 20 passages, no session ticker and no date stamp; identical hash across two back-to-back fetches. Statutory surface, not the DHHS process page."
+    },
+    {
+      "source_id": "nh-saf-c-1000-driver-licensing-rules",
+      "jurisdiction": "NH",
+      "document_class": "drivers_license",
+      "url": "https://www.gencourt.state.nh.us/rules/state_agencies/saf-c1000.html",
+      "authority": "New Hampshire Department of Safety, Division of Motor Vehicles (Saf-C 1000, published by the NH General Court)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Saf-C 1000 Driver License'. GAP FIX: dmv.nh.gov 403s our UA. Saf-C 1000 is the DMV's own administrative rule chapter \u2014 the rules the licensing counter actually applies \u2014 published on the General Court's rules server, which answers us. 4,099 passages of static rule text; stable across two fetches."
+    }
+  ]
 }

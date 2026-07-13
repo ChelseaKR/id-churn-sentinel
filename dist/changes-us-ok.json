@@ -1,8 +1,60 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "generated_at": "2026-07-13T20:58:07.843726+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "OK",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
-  "changes": []
+  "registry_verification": {
+    "scope": "OK",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "ok-service-oklahoma",
+      "jurisdiction": "OK",
+      "document_class": "drivers_license",
+      "url": "https://oklahoma.gov/service.html",
+      "authority": "Service Oklahoma (state driver licence and ID agency)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Welcome to Service Oklahoma'. Oklahoma moved driver licensing from DPS to Service Oklahoma; the older /service/all-services/mobility/driver-license.html path 404s."
+    },
+    {
+      "source_id": "ok-vital-records",
+      "jurisdiction": "OK",
+      "document_class": "birth_certificate",
+      "url": "https://oklahoma.gov/health/services/birth-and-death-certificates.html",
+      "authority": "Oklahoma State Department of Health, Vital Records Service",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Oklahoma Vital Records'. High-signal: Oklahoma barred sex-designation amendments to birth certificates by executive order, and this is the office that would publish the consequence."
+    },
+    {
+      "source_id": "ok-vital-records-forms",
+      "jurisdiction": "OK",
+      "document_class": "birth_certificate",
+      "url": "https://oklahoma.gov/health/services/birth-and-death-certificates/vital-records-forms.html",
+      "authority": "Oklahoma State Department of Health, Vital Records Service",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Vital Records Forms'. The forms index \u2014 a form revision is often the first visible trace of a process change."
+    }
+  ]
 }

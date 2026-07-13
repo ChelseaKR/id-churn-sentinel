@@ -2,7 +2,26 @@
 
 **Cited, machine-checkable change detection for US transgender identity-document law and process.** It watches the *official* pages — state vital records, DMVs, courts, State Department, SSA, the Federal Register — hashes their normalized text on a polite weekly cadence, and when something moves it produces the **passage that changed**, not just a "something changed" ping. A named human reviews every detected change before it is published. The tool reports that a source changed; it never asserts what the law is.
 
-**Status:** `In build` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** MIT · **Runtime deps:** zero (stdlib only)
+**Status:** `In build` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** [MIT](./LICENSE) · **Runtime deps:** zero (stdlib only)
+
+## Read this before you rely on anything here
+
+**The source registry is not human-verified. `0 of 152 sources are human-verified`, and the published site says so next to every single entry.**
+
+Every URL in the registry was fetched by this tool's own crawler and had its title read. **That is a machine fact about a socket, not a person confirming the page is the right page**, and the difference is the entire reason this section is at the top rather than in an appendix. A reader who sees a table row saying *"OH · Birth certificate · Ohio Department of Health · <url>"* will reasonably read it as **"this is Ohio's official birth-certificate page"** — and nobody has checked that it is. If it is wrong, that implicit claim sends a trans person to the wrong office on a day they took off work.
+
+Machine-checking cannot close that gap, and this repo has the receipts: `courts.oregon.gov` serves a **soft 404 — HTTP 200 with a body titled "404 Page Not Found"**, and `ecfr.gov` answers our crawler with a **bot-wall titled "Request Access", also at HTTP 200**. A status code blesses both. A title check blesses the second. Only a person opening the page catches either.
+
+So, plainly:
+
+| | |
+|---|---|
+| **What this tool claims** | *This URL changed* · *this is the passage that changed* · *here is a reproducible hash of the page text before and after* |
+| **What it never claims** | *What the law is* · *what a change means legally* · *that an unverified URL is the right page* |
+| **What a consumer may rely on** | The change records (each reviewed and signed by a named human) and the honesty of the gaps list |
+| **What a consumer may NOT rely on** | The registry as a directory of official pages. It is a list of **candidates**. Every artifact carries a machine-readable `verification_status` per source; today every one of them reads `unverified` |
+
+The fix is not a disclaimer, it is the work: **`sentinel verify`** is the review aid that makes it cheap — it fetches each source, shows a human the page's own title and an excerpt of its text, asks one question, and records the answer **with the verifier's name and the date**. It refuses to record a verification without a name, and the registry will not even *load* a `verified: true` entry that has no human behind it. See [`docs/VERIFYING.md`](./docs/VERIFYING.md) — it is about three and a half hours of work for all 152, and it is the most valuable three and a half hours anyone could spend on this repo.
 
 ## The result that matters
 
@@ -68,7 +87,8 @@ Why this is worth building carefully: **a wrong "no change" is a safety failure.
 
 ## What it does
 
-- **Watches official sources only.** A committed registry (`sources/registry.json`) of https government URLs, keyed by jurisdiction (50 states + DC + a `US` federal bucket) and document class (birth certificate, driver's license, court-order name change, passport, Social Security, Selective Service). Each entry names its issuing authority and ships **`verified: false`** — the registry is *seeded*, and only a human who has actually opened the URL may flip that flag. Nothing in the codebase can.
+- **Watches official sources only.** A committed registry (`sources/registry.json`) of https government URLs, keyed by jurisdiction (50 states + DC + a `US` federal bucket) and document class (birth certificate, driver's license, court-order name change, passport, Social Security, Selective Service). Each entry names its issuing authority and ships **`verified: false`** — the registry is *seeded*, and only a human who has actually opened the URL may flip that flag. Nothing in the codebase decides it, and **the registry will not load an entry claiming `verified: true` without a named verifier and a date attached** — so the flag cannot be flipped by a hurried maintainer, a `sed`, or an AI agent asked to make the file look finished. `sentinel verify` is the one writer, and it refuses to record a verification without a name.
+- **Says "unverified" out loud, on every source, in every artifact.** The published site marks each source **UNVERIFIED — machine-checked, not human-confirmed** as a *word* (WCAG 2.2 AA: never a colour, never an icon); `sources.json`, `changes.json` and every per-jurisdiction feed carry a machine-readable `verification_status` on every source and on every change record's source; the RSS channel states the count and each item carries the status as a `<category>`. A merge-blocking gate asserts on the published bytes that no source appears anywhere without it. **An integrator cannot consume a source from this project without being told that nobody has confirmed it.**
 - **Refuses to watch a page it cannot watch honestly.** Some official pages re-roll a rotating widget on every single request — `dpbh.nv.gov` renders a *"Nevada state symbol"* trivia block (state fish → state reptile) into its footer, and hashes differently every time it is asked. A page like that would report a change **every week, forever**, and its diff would be a fact about the desert tortoise. The normalizer cannot save us: that rotating text is real, visible page text, and a normalizer that guesses which visible text "doesn't count" is a normalizer that can *hide a real change*. So the answer is not to normalize harder — it is to not watch the page, to say so in the registry's GAP list, and to ship the diagnostic that finds them: `sentinel sources check --twice`.
 - **Tells you *what* changed, not just *that* something did.** On drift it computes a unified diff of the **normalized text** and hands the reviewer the changed passages. `"+A court order is required to change the sex field"` is reviewable in thirty seconds. `"texas.gov changed"` is not, and in practice it means the alert gets acknowledged and the page never actually gets re-read.
 - **Ignores markup churn.** Government pages churn a rotated CSRF token, a re-minified stylesheet, and an `&nbsp;` far more often than they churn text. Normalization strips script/style/comments/tags and resolves entities before hashing, so a cosmetic re-deploy does not wake anyone up. (A watcher that cries wolf gets muted, and a muted watcher is worse than none.)
@@ -89,16 +109,20 @@ Why this is worth building carefully: **a wrong "no change" is a safety failure.
 make install                       # uv sync (Python 3.12+; zero runtime deps)
 make verify                        # the full 7-gate merge pipeline
 uv run sentinel sources validate   # the registry gate
-uv run sentinel coverage           # the coverage numbers, DERIVED from the registry
+uv run sentinel coverage           # the coverage numbers + the verification burn-down, DERIVED
 uv run sentinel coverage --check-docs  # …and the gate that fails if a doc disagrees
-uv run sentinel sources check      # live-fetch every URL (network) — the human's verification aid
+uv run sentinel sources check      # live-fetch every URL (network) — liveness only
 uv run sentinel sources check --twice  # find false-drift sources BEFORE they reach a reviewer
+uv run sentinel verify --verifier "Your Name" --federal-first   # THE VERIFICATION QUEUE (network)
+uv run sentinel verify --list      # what is still unverified. No network, no writes.
 uv run sentinel baseline check     # what moved since the committed baseline (needs no store)
 uv run sentinel watch              # fetch, normalize, hash, diff, record drift
 uv run sentinel diff <change-id>   # the changed passages
 uv run sentinel review <change-id> --reviewer "Your Name" --significance substantive --status confirmed
 uv run sentinel publish --out dist/    # site + RSS + JSON + per-jurisdiction feeds + inventory
 ```
+
+**Two different humans, two different commands, and they are not interchangeable.** `verify` is a judgment about a **source** (*"this URL is the official page for this document class in this jurisdiction"*). `review` is a judgment about a **change** (*"this diff matters"*). Both refuse to run without a name. Neither can be done by a machine, and nothing in this codebase tries.
 
 **Consuming it** (no account, no key, no email — see [`docs/CONSUMERS.md`](./docs/CONSUMERS.md)):
 
@@ -122,7 +146,8 @@ curl -s https://<host>/sources.json       | jq '.gaps[]'      # what we do NOT w
   6. **Do not assert what the law says.** Not in the feed, not in the docs, not in a helpful summary field. That job belongs to A4TE, Trans Lifeline, Namesake, and lawyers — and doing it badly is the harm.
   7. **Never add a source without running `sentinel sources check --twice` on it — and then reading its normalized text.** A page that re-rolls a widget on every request is a permanent false alarm, and one of those costs more trust than ten missing jurisdictions. Three were caught by `--twice`. Three *more* passed `--twice` cleanly and were caught only by reading the text (a live date, a session ticker, and a bot-wall served with HTTP 200). Both steps, every time.
   8. **Never hand-write a coverage number.** `sentinel coverage` derives them; `--check-docs` gates them. If a number in a doc is wrong, the fix is to run the command — never to edit the registry until the prose comes true.
-- **Commands:** `make verify` · `make coverage` · `make watch-weekly` · `make publish` · `make sources-check` · `make sources-stability` · `make baseline-check`.
+  9. **Never flip `verified: true`. Not for any reason.** It is a named human's judgment that they opened a government page and confirmed it is the right one. An agent cannot have that judgment, and an entry marked verified by a machine is strictly worse than one marked unverified, because it will be believed. The registry enforces it (no `verified: true` loads without a named verifier and a date), and the honest way to help is to make the human's job cheaper — which is what `sentinel verify` and [`docs/VERIFYING.md`](./docs/VERIFYING.md) are.
+- **Commands:** `make verify` · `make coverage` · `make watch-weekly` · `make publish` · `make sources-check` · `make sources-stability` · `make baseline-check` · `make verify-sources` (the human queue).
 - **Definition of done (M1):** every registry entry human-verified; a real weekly watch pass running; at least one reviewed change published to a feed an incumbent has actually subscribed to; all 7 gates green.
 
 ## Gates
@@ -135,17 +160,20 @@ curl -s https://<host>/sources.json       | jq '.gaps[]'      # what we do NOT w
 | 2 | `type` | `mypy --strict` |
 | 3 | `cov` | pytest, coverage floor **90%** |
 | 4 | `security` | `pip-audit` |
-| 5 | `sources-validate` | every registry entry: well-formed https official URL + known jurisdiction + known document class + named authority + unique id + no duplicate watch target — **and** `coverage --check-docs`: every coverage number in every doc is re-derived from the registry, and every unwatched (jurisdiction, document class) pair is a **named gap** |
-| 6 | `no-unreviewed-in-feed` | **safety** — unreviewed or dismissed drift cannot be published |
+| 5 | `sources-validate` | every registry entry: well-formed https official URL + known jurisdiction + known document class + named authority + unique id + no duplicate watch target + **no `verified: true` without a named human and a date** — **and** `coverage --check-docs`: every coverage number in every doc is re-derived from the registry (including *how many sources a human has verified*), and every unwatched (jurisdiction, document class) pair is a **named gap** |
+| 6 | `no-unreviewed-in-feed` | **safety** — unreviewed or dismissed drift cannot be published, **and no source can appear in any published artifact without its verification status rendered alongside it** (`-m "feed_integrity or source_labelling"`) |
 | 7 | `no-auto-classification` | **safety** — nothing is classified `substantive` without a named human |
 
 Gates 6 and 7 are not code-quality checks. They are the safety properties this tool exists to hold. If either goes red, the correct response is to stop, not to weaken the test.
+
+**Gate 6 holds two properties, and the second is new.** *Unreviewed drift never reaches a consumer* — and *a source never reaches a consumer stripped of the fact that no human has confirmed it*. They are the same discipline pointed at two different implicit claims: "a machine noticed this, so it must matter" and "this URL is in your list, so it must be the right page." Both are claims the tool would be making by omission, and neither is one it has earned. The second is enforced structurally as well as by test: `publish()` **requires** the registry, so there is no code path that can write an artifact without the thing that knows each source's status.
 
 The whole suite runs **with no network** — the fetcher is injected, and the tests hand it fixtures.
 
 ## Honest limits
 
-- **The registry is machine-checked, not human-verified.** 152 sources across **52 of 52 jurisdictions**, every one `verified: false`. Every URL in it has been live-fetched *by the tool's own fetcher*, its title read, **and its normalized text read**; **none of them has been confirmed by a human as the right page**, and that is a different, unfinished job. `sentinel sources validate` prints the count on every run and will keep printing it until someone does it. The `checked` block on each entry records *machine* facts (status, redirect target, reachability) and is deliberately a separate field from `verified` — a socket returning 200 is not a person confirming a page.
+- **The registry is machine-checked, not human-verified — and this is the biggest thing wrong with this repo.** 152 sources across **52 of 52 jurisdictions**, every one `verified: false`. Every URL in it has been live-fetched *by the tool's own fetcher*, its title read, **and its normalized text read**; **none of them has been confirmed by a human as the right page**, and that is a different, unfinished job. It is now a *cheap* job: `sentinel verify` is a review aid built for exactly this ([`docs/VERIFYING.md`](./docs/VERIFYING.md)), `sentinel coverage` prints the burn-down, and **every published artifact carries the status as a machine-readable field on every source** — so an integrator cannot consume one without being told, and a merge-blocking gate asserts that on the published bytes. The `checked` block on each entry records *machine* facts (status, redirect target, reachability) and is deliberately a separate field from `verified` — a socket returning 200 is not a person confirming a page.
+- **What a reader could still be misled by, stated rather than implied.** The site says "unverified" beside every source, and a reader in a hurry may still take a table of one official-looking URL per state as a directory. That risk does not go to zero by writing a better sentence; it goes to zero when the 152 are verified. Until then: *treat every URL here as a lead, not a citation.*
 - **12 named gaps remain**, each one a (jurisdiction, document class) pair we do not watch, with the host that refused us and the reason: `blocked-403` (5), `tls-unverifiable` (3), `robots-disallowed` (2), `spa-no-text` (2). They are **data, not prose** (`gaps` in `sources/registry.json`), they are on the published site, and the completeness gate proves that *every* unwatched pair is one of them. **We do not spoof a browser User-Agent, we do not disable certificate verification, and we do not route around a robots.txt.** A blocked source degrades the tool without corrupting it.
 - **The gaps used to be prose, and prose does not get checked.** DC and RI were each missing an entire document class that **no gap paragraph mentioned** — they were not decisions, they were omissions wearing the costume of decisions. The derived gate makes that unrepresentable: an unwatched pair that is not a named gap now fails the build. (RI is now watched; DC's courts 403 us and it is a named gap.)
 - **The TLS stack is part of the claim.** `jud.ct.gov` answers a legacy OpenSSL 1.1.1 client with 200 and refuses the tool's OpenSSL 3.5 handshake outright. "It loads in my browser" is not evidence that this tool can watch it, and a registry recording the browser's opinion would be quietly wrong. Several of these hosts ship an incomplete chain that a browser silently repairs by chasing the AIA extension; **the chain can be completed correctly, and it is the server's job to send it** — the fetcher does not relax verification to compensate, and it never will.

@@ -3,18 +3,26 @@
     sentinel sources validate                      the registry gate (merge-blocking)
     sentinel sources check                         live liveness check (network; NOT a gate)
     sentinel sources check --twice                 find false-drift sources (network; NOT a gate)
-    sentinel coverage                              the derived coverage numbers
+    sentinel verify [--jurisdiction TX]            THE HUMAN VERIFICATION QUEUE (network)
+    sentinel coverage                              the derived coverage numbers + the burn-down
     sentinel coverage --check-docs                 self-description drift gate (merge-blocking)
     sentinel watch [--jurisdiction TX]             fetch, hash, diff, record drift
     sentinel baseline write                        commit the store's hashes to sources/
     sentinel baseline check                        drift vs the COMMITTED baseline (no store)
     sentinel diff <change-id>                      the full diff for one change
-    sentinel review <change-id> --reviewer ...     the human gate
+    sentinel review <change-id> --reviewer ...     the human gate on a CHANGE
     sentinel publish --out dist/                   the site, the feeds, the inventory
+
+Two different humans, two different commands, and they are not interchangeable. `review` is a
+judgment about a **change** ("this diff matters"). `verify` is a judgment about a **source**
+("this URL is the official page"). Both refuse to run without a name; neither can be done by a
+machine; and today 0 of 152 sources have had the second one done to them, which every
+published artifact says out loud.
 
 The fetcher is a parameter of :func:`main`, not a global. `main()` with no fetcher and no
 `watch` subcommand opens no sockets, which is why every test in this repo runs offline: the
-suite calls `main([...], fetcher=StubFetcher())` and never once resolves a hostname.
+suite calls `main([...], fetcher=StubFetcher())` and never once resolves a hostname. `ask` is
+injected the same way, so the interactive verify loop is testable without a terminal.
 
 Exit codes: 0 success, 1 a real failure (invalid registry, unknown id, refused review), 2
 argparse usage error. `watch` exits 0 when it *finds* drift — drift is the tool working, not
@@ -26,7 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from id_churn_sentinel import __version__
@@ -46,8 +54,14 @@ from id_churn_sentinel.core.coverage import (
 from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.publish import publish
-from id_churn_sentinel.core.registry import Registry, default_registry_path, load_registry
+from id_churn_sentinel.core.registry import (
+    DOCUMENT_CLASSES,
+    Registry,
+    default_registry_path,
+    load_registry,
+)
 from id_churn_sentinel.core.store import SnapshotStore
+from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
 from id_churn_sentinel.errors import SentinelError
 
 __all__ = ["build_parser", "main", "run"]
@@ -85,6 +99,79 @@ def build_parser() -> argparse.ArgumentParser:
             "the two — a page that re-rolls a rotating widget on every request is a "
             "false-drift source and must not be watched as-is. Doubles the load on the "
             "host: an operator's diagnostic, never the weekly job."
+        ),
+    )
+
+    verify_cmd = sub.add_parser(
+        "verify",
+        help=(
+            "THE HUMAN VERIFICATION QUEUE: fetch each unverified source, show a human its "
+            "title and text, and record their confirm/reject WITH THEIR NAME (network)"
+        ),
+        description=(
+            "Work the source-verification queue. For each source it prints the jurisdiction, "
+            "document class, authority, URL, the page's own title and an excerpt of its "
+            "normalized text, and asks ONE question: is this the official page for this "
+            "document class in this jurisdiction? It records the answer in "
+            "sources/registry.json with the verifier's name and the date, immediately, so the "
+            "work is resumable. It will not record a verification without a name. It never "
+            "answers the question itself. See docs/VERIFYING.md."
+        ),
+    )
+    verify_cmd.add_argument(
+        "--verifier",
+        default="",
+        help=(
+            "the name of the human doing the verifying. Required to record anything — if it "
+            "is not given here, you are asked for it per decision, and an empty answer is "
+            "refused. An unsigned verification is indistinguishable from a machine's."
+        ),
+    )
+    verify_cmd.add_argument("--jurisdiction", help="only this jurisdiction, e.g. TX or US")
+    verify_cmd.add_argument(
+        "--document-class",
+        choices=sorted(DOCUMENT_CLASSES),
+        help="only this document class (e.g. verify every state's birth certificate in one sitting)",
+    )
+    verify_cmd.add_argument(
+        "--federal-first",
+        action="store_true",
+        help=(
+            "put the US federal sources (passport, Social Security, Selective Service) at the "
+            "front of the queue — they are the entries every jurisdiction's readers depend on"
+        ),
+    )
+    verify_cmd.add_argument(
+        "--limit", type=int, default=None, help="stop after this many sources (a sitting)"
+    )
+    verify_cmd.add_argument(
+        "--list",
+        action="store_true",
+        help="print the pending queue and exit. No network, no prompts, no writes.",
+    )
+    # The non-interactive path: one decision, one command, scriptable — and subject to exactly
+    # the same rule, because the rule is not about the interface. `--reason` is required to
+    # reject, and a name is required to do either.
+    verify_cmd.add_argument("--source-id", help="record a decision for ONE source, then exit")
+    decision = verify_cmd.add_mutually_exclusive_group()
+    decision.add_argument(
+        "--confirm",
+        action="store_true",
+        help="with --source-id: record `verified: true`, naming --verifier and today's date",
+    )
+    decision.add_argument(
+        "--reject",
+        action="store_true",
+        help="with --source-id: record that this is NOT the official page (needs --reason)",
+    )
+    verify_cmd.add_argument("--reason", default="", help="with --reject: why. Required.")
+    verify_cmd.add_argument(
+        "--gap",
+        action="store_true",
+        help=(
+            "with --reject: no right page exists to substitute, so move the entry OUT of the "
+            "registry and into the named-gap list (reason `wrong-page`) rather than leaving it "
+            "flagged for repair"
         ),
     )
 
@@ -163,32 +250,37 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None, *, fetcher: Fetcher | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    fetcher: Fetcher | None = None,
+    ask: Callable[[str], str] | None = None,
+) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        return _dispatch(args, fetcher)
+        return _dispatch(args, fetcher, ask)
     except SentinelError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
 
-def _dispatch(args: argparse.Namespace, fetcher: Fetcher | None) -> int:
+def _dispatch(
+    args: argparse.Namespace, fetcher: Fetcher | None, ask: Callable[[str], str] | None
+) -> int:
     registry = load_registry(args.registry)
     if args.command == "sources":
-        if args.sources_command == "check":
-            if args.twice:
-                return _cmd_sources_stability(registry, fetcher)
-            return _cmd_sources_check(registry, fetcher)
-        return _cmd_sources_validate(registry, args.registry or default_registry_path())
-    if args.command == "coverage":
-        return _cmd_coverage(args, registry)
-    if args.command == "watch":
-        return _cmd_watch(args, registry, fetcher)
+        return _dispatch_sources(args, registry, fetcher)
     if args.command == "baseline":
         if args.baseline_command == "check":
             return _cmd_baseline_check(args, registry, fetcher)
         return _cmd_baseline_write(args, registry)
+    if args.command == "verify":
+        return _cmd_verify(args, registry, fetcher, ask)
+    if args.command == "coverage":
+        return _cmd_coverage(args, registry)
+    if args.command == "watch":
+        return _cmd_watch(args, registry, fetcher)
     if args.command == "diff":
         return _cmd_diff(args)
     if args.command == "review":
@@ -196,13 +288,21 @@ def _dispatch(args: argparse.Namespace, fetcher: Fetcher | None) -> int:
     return _cmd_publish(args, registry)
 
 
+def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
+    if args.sources_command == "check":
+        if args.twice:
+            return _cmd_sources_stability(registry, fetcher)
+        return _cmd_sources_check(registry, fetcher)
+    return _cmd_sources_validate(registry, args.registry or default_registry_path())
+
+
 def _cmd_sources_validate(registry: Registry, path: Path) -> int:
     """The gate. Reaching this line means the registry loaded, which means every entry
     already passed: closed-vocabulary jurisdiction, closed-vocabulary document class,
     well-formed https URL with no fragment and no credentials, a named authority, a unique
-    id, and no duplicate watch target. `load_registry` raises otherwise — there is no
-    "warn and continue"."""
-    unverified = registry.unverified
+    id, and no duplicate watch target — and that no entry claims `verified: true` without a
+    named human and a date behind it. `load_registry` raises otherwise; there is no "warn and
+    continue"."""
     print(f"sources validate: {len(registry)} entr(ies) OK in {path}")
     print(f"  jurisdictions: {len({s.jurisdiction for s in registry.sources})}")
     print(f"  document classes: {len({s.document_class for s in registry.sources})}")
@@ -211,13 +311,94 @@ def _cmd_sources_validate(registry: Registry, path: Path) -> int:
         f"  watched in name only: {len(registry.unreachable)} "
         f"(registered, but our own crawler cannot fetch them)"
     )
-    # Loud, permanent, and deliberately not a failure. The registry is SEEDED, not
-    # verified; pretending otherwise would be the exact overclaim this tool exists to
-    # avoid. It prints every run until a human has checked each entry.
-    print(
-        f"  ⚠️  {len(unverified)}/{len(registry)} entries are `verified: false` — seeded, "
-        f"awaiting human verification (see docs/ROADMAP.md M1)"
+    print(f"  human-verified: {len(registry.verified_sources)}/{len(registry)}")
+    if registry.rejected:
+        print(f"  ✗ rejected by a human (wrong page, flagged for repair): {len(registry.rejected)}")
+    # Loud, permanent, and deliberately not a failure. The registry is SEEDED, not verified;
+    # pretending otherwise would be the exact overclaim this tool exists to avoid. It prints
+    # every run until a human has checked each entry — and now it says how to do that, because
+    # a warning with no next action is a warning people learn to scroll past.
+    if registry.unverified:
+        print(
+            f"  ⚠️  {len(registry.unverified)}/{len(registry)} entries are `verified: false` — "
+            f"machine-checked, awaiting human verification. Every published artifact says so, "
+            f"next to every source, in words. Burn it down:\n"
+            f"        sentinel verify --verifier 'Your Name' --federal-first   "
+            f"(see docs/VERIFYING.md)"
+        )
+    return 0
+
+
+def _cmd_verify(
+    args: argparse.Namespace,
+    registry: Registry,
+    fetcher: Fetcher | None,
+    ask: Callable[[str], str] | None,
+) -> int:
+    """The verification queue — the command that exists so the 152 can actually get done.
+
+    Note what it will not do. It will not confirm anything on its own; it will not suggest an
+    answer; it will not record a decision without a name. It fetches the page, shows the human
+    what the page says about itself, and writes down what the human decided. The machine's job
+    here is to make the human's job take thirty seconds instead of five minutes.
+    """
+    path = args.registry or default_registry_path()
+
+    if args.list:
+        queue = pending(
+            registry,
+            jurisdiction=args.jurisdiction,
+            document_class=args.document_class,
+            federal_first=args.federal_first,
+            limit=args.limit,
+        )
+        for source in queue:
+            print(f"  {source.jurisdiction:<3} {source.document_class:<24} {source.id}")
+            print(f"      {source.url}")
+        print(f"verify --list: {len(queue)} source(s) pending human verification")
+        return 0
+
+    if args.source_id:
+        return _cmd_verify_one(args, path)
+
+    outcome = run_verification(
+        registry,
+        path,
+        fetcher or HttpFetcher(),
+        ask or input,
+        print,
+        verifier=args.verifier,
+        jurisdiction=args.jurisdiction,
+        document_class=args.document_class,
+        federal_first=args.federal_first,
+        limit=args.limit,
     )
+    print(f"\nverify: {outcome.summary()}")
+    print("Everything decided is already written to the registry — re-run to continue.")
+    return 0
+
+
+def _cmd_verify_one(args: argparse.Namespace, path: Path) -> int:
+    """The scriptable single-source path. Same rules: a name, or nothing is written."""
+    if args.confirm:
+        recorded = confirm(path, args.source_id, verifier=args.verifier)
+    elif args.reject:
+        recorded = reject(
+            path,
+            args.source_id,
+            verifier=args.verifier,
+            reason=args.reason,
+            to_gap=args.gap,
+        )
+    else:
+        print(
+            "error: --source-id needs --confirm or --reject. This command records a HUMAN's "
+            "decision; it does not have one of its own.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"verify: {args.source_id} → {recorded.label}")
+    print(f"  written to {path}")
     return 0
 
 
@@ -294,7 +475,12 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
             "jurisdictions_total": report.jurisdictions_total,
             "named_gaps": report.gaps_total,
             "watched_in_name_only": report.unreachable_total,
-            "human_verified": 0,
+            # Derived. This was the literal integer `0`, which was true when it was typed and
+            # would have gone on being printed long after it stopped being true — the exact
+            # class of stale self-description this module exists to make impossible.
+            "human_verified": report.verified_total,
+            "unverified": report.unverified_total,
+            "rejected_by_a_human": report.rejected_total,
             "by_document_class": dict(report.by_document_class),
             "gaps_by_reason": dict(report.by_reason),
         }
@@ -497,6 +683,12 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
     )
     if unreviewed:
         print(f"  ({unreviewed} unreviewed change(s) withheld — they need a human first)")
+    if registry.unverified:
+        print(
+            f"  ⚠️  every artifact above states that {len(registry.unverified)} of "
+            f"{len(registry)} sources are UNVERIFIED — machine-checked, not human-confirmed. "
+            f"That is published as a field on every source, not as a footnote."
+        )
     return 0
 
 

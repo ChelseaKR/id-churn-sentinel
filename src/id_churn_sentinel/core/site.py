@@ -27,6 +27,16 @@ the published bytes, in the merge-blocking gate.
 *Honest.* The gaps are on the page, in the same table as the coverage, with the host that
 refused us and the reason. Coverage transparency that hides the holes is marketing.
 
+*And honest about itself first.* The page's opening section — before the coverage numbers,
+before the feed — says that **no human has confirmed a single one of these URLs**, and every
+row of every source table carries that status as a word. This page's most dangerous property
+is that it looks authoritative: a table headed *"OH · Birth certificate · Ohio Department of
+Health"* reads as *"this is Ohio's official birth-certificate page"*, and nobody has checked
+that it is. The disclosure is therefore structural — a `verification_status` field on the
+source everywhere it is published, not a footnote — and a merge-blocking gate
+(`tests/test_source_labelling.py`) asserts on the published bytes that no source appears in
+any artifact without it.
+
 *Derived.* Every number comes from `sources/registry.json` via `core/coverage.py`. Nothing
 on this page is typed by a human, so nothing on it can go stale while the registry moves.
 """
@@ -39,9 +49,14 @@ from datetime import datetime
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import CoverageReport
-from id_churn_sentinel.core.registry import Registry, Source
+from id_churn_sentinel.core.registry import REJECTED, Registry, Source
 
 __all__ = ["SITE_TITLE", "feed_slug", "render_site"]
+
+# Every published surface says this, and the site says it first — above the coverage numbers,
+# above the feed, above everything except the title. The numbers are the part a reader wants;
+# the status is the part they need in order to know what the numbers are worth.
+UNVERIFIED_HEADLINE = "UNVERIFIED — machine-checked, not human-confirmed"
 
 SITE_TITLE = "ID Churn Sentinel"
 
@@ -55,6 +70,8 @@ _CLASS_LABELS = {
 }
 
 _REASON_LABELS = {
+    "wrong-page": "A human verifier found the URL we had was not the official page, and no "
+    "replacement exists",
     "robots-disallowed": "Their robots.txt forbids us (honoured without appeal)",
     "blocked-403": "Serves a browser, 403s our User-Agent (we do not spoof one)",
     "blocked-404": "Returns 404 to every non-browser client (a WAF wearing a 404's clothes)",
@@ -107,9 +124,10 @@ def render_site(
             '<a class="skip" href="#main">Skip to main content</a>',
             _header(generated_at),
             '<main id="main">',
+            _verification_notice(report),
             _what_this_is(),
             _coverage_section(report),
-            _changes_section(records),
+            _changes_section(records, registry),
             _endpoints_section(registry),
             _sources_section(registry),
             _gaps_section(report),
@@ -135,6 +153,72 @@ def _header(generated_at: datetime) -> str:
             f'<p class="meta">Generated {_esc(stamp)} · No account · No tracking · '
             "Every published item reviewed by a named human</p>",
             "</header>",
+        ]
+    )
+
+
+def _verification_notice(report: CoverageReport) -> str:
+    """The first thing on the page, and the reason this page can be published at all.
+
+    A visitor lands here, scrolls to a table headed *"OH — Birth certificate — Ohio Department
+    of Health — <url>"*, and reads it as **"this is Ohio's official birth-certificate page."**
+    That reading is entirely reasonable and it is not something the registry has earned:
+    nobody has opened that URL and confirmed it. If it is wrong, the person acting on it loses
+    a day, a fee, or a document — and they are the person least able to absorb any of the
+    three.
+
+    A footnote at the bottom of a long page does not fix that. The disclosure has to be where
+    the reader is *before* they read the table, in the words they would use themselves, with
+    the numbers derived so the day it stops being true it stops saying so by itself.
+    """
+    verified = report.verified_total
+    total = report.sources_total
+    if verified == total and total > 0:
+        headline = f"All {total} sources are human-verified"
+    elif verified == 0:
+        # The sentence a reader must not be able to skim past, and it is the true one today.
+        headline = f"no human has confirmed any of these {total} sources"
+    else:
+        headline = f"only {verified} of {total} sources are human-verified"
+    return "\n".join(
+        [
+            '<section class="notice" aria-labelledby="verification">',
+            f'<h2 id="verification">Read this first: {_esc(headline)}</h2>',
+            f"<p><strong>Every source listed on this page is a <em>candidate</em> official "
+            f"URL.</strong> Our crawler fetched it and read its title. That is all that has "
+            f"happened to {report.unverified_total} of the {total} entries below: "
+            f"<strong>{_esc(UNVERIFIED_HEADLINE)}</strong>. "
+            "<strong>No human has confirmed that each one is the official page it claims to "
+            "be</strong> for that document class in that jurisdiction.</p>",
+            "<p><strong>Do not rely on this list as authoritative guidance, and do not hand it "
+            "to someone who will.</strong> A machine cannot tell a state's real "
+            "birth-certificate page from a convincing-looking one. It cannot even reliably tell "
+            "a live page from a bot-wall: one federal site answers our crawler with a page "
+            "titled <q>Request Access</q> and serves it with <strong>HTTP 200</strong>. A "
+            "status code is not a verification, and a title is not a verification. A person "
+            "is.</p>",
+            "<h3>What this tool does claim</h3>",
+            "<ul>",
+            "<li><strong>This URL changed</strong> — the text at this address is not the text "
+            "that was here last week.</li>",
+            "<li><strong>This is what changed in it</strong> — the passage, with a reproducible "
+            "hash before and after.</li>",
+            "</ul>",
+            "<h3>What this tool never claims</h3>",
+            "<ul>",
+            "<li><strong>What the law is</strong>, or what any change means legally. Not in the "
+            "feed, not in a summary field, not ever.</li>",
+            "<li><strong>That an unverified URL is the right page.</strong> Until a named human "
+            "has confirmed it, the entry is a lead, not a citation.</li>",
+            "</ul>",
+            '<p>Every source below, in <a href="sources.json">sources.json</a>, and in every '
+            "per-jurisdiction feed carries a machine-readable "
+            "<code>verification_status</code> field for exactly this reason — so that an "
+            "integrator cannot consume a source without being told what is behind it. The "
+            "verification queue and how it is worked: "
+            '<a href="https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/VERIFYING.md">'
+            "docs/VERIFYING.md</a>.</p>",
+            "</section>",
         ]
     )
 
@@ -186,13 +270,16 @@ def _coverage_section(report: CoverageReport) -> str:
             f"{report.jurisdictions_total}</dd></div>",
             f"<div><dt>Named gaps</dt><dd>{report.gaps_total}</dd></div>",
             f"<div><dt>Watched in name only</dt><dd>{report.unreachable_total}</dd></div>",
-            f"<div><dt>Human-verified</dt><dd>0 of {report.sources_total}</dd></div>",
+            f"<div><dt>Human-verified</dt>"
+            f"<dd>{report.verified_total} of {report.sources_total}</dd></div>",
+            f"<div><dt>Rejected by a human</dt><dd>{report.rejected_total}</dd></div>",
             "</dl>",
-            "<p><strong>Every source in this registry is machine-checked and "
-            "<em>not</em> human-verified.</strong> A live fetch confirmed each URL answers, "
-            "and its title was read. That is a fact about a socket, not a person confirming "
-            "it is the right page — those are different claims, and this project keeps them "
-            "in different fields.</p>",
+            f"<p><strong>{report.unverified_total} of the {report.sources_total} sources in "
+            "this registry are machine-checked and <em>not</em> human-verified.</strong> A "
+            "live fetch confirmed each URL answers, and its title was read. That is a fact "
+            "about a socket, not a person confirming it is the right page — those are "
+            "different claims, and this project keeps them in different fields, on every "
+            "source, in every artifact.</p>",
             f"<p><strong>{report.unreachable_total} of the {report.sources_total} registered "
             "sources cannot currently be fetched</strong> by our own crawler and are "
             "therefore <em>watched in name only</em>. They are listed as such in the "
@@ -209,7 +296,7 @@ def _coverage_section(report: CoverageReport) -> str:
     )
 
 
-def _changes_section(records: Sequence[ChangeRecord]) -> str:
+def _changes_section(records: Sequence[ChangeRecord], registry: Registry) -> str:
     if not records:
         body = [
             '<p class="empty"><strong>No reviewed changes yet. This log is empty, not '
@@ -221,7 +308,7 @@ def _changes_section(records: Sequence[ChangeRecord]) -> str:
             "risk. No change has been manufactured to make this page look alive.</p>",
         ]
     else:
-        body = [_change_article(record) for record in records]
+        body = [_change_article(record, registry) for record in records]
     return "\n".join(
         [
             '<section aria-labelledby="changes">',
@@ -232,15 +319,23 @@ def _changes_section(records: Sequence[ChangeRecord]) -> str:
     )
 
 
-def _change_article(record: ChangeRecord) -> str:
+def _change_article(record: ChangeRecord, registry: Registry) -> str:
     """One reviewed change. The diff is text in a `<pre>`, and the +/- markers carry the
     meaning — a diff rendered only in red and green is a diff a blind reviewer cannot read
-    (docs/ROADMAP.md §5)."""
+    (docs/ROADMAP.md §5).
+
+    It carries **two** human statuses, and they are not the same status. *Reviewed by* is the
+    person who read this diff and decided it mattered. *Source verification* is whether anyone
+    has ever confirmed that the URL underneath it is the page it claims to be. A change record
+    that named a reviewer and said nothing about the source would let a reader conclude both
+    had been checked — which, today, would be wrong 152 times out of 152.
+    """
     kind = (
         "Source unreachable (possibly removed)"
         if str(record.kind) == "possibly_removed"
         else "Content change"
     )
+    verification = registry.verification_of(record.source_id)
     return "\n".join(
         [
             '<article class="change">',
@@ -251,6 +346,8 @@ def _change_article(record: ChangeRecord) -> str:
             f"<div><dt>What the machine saw</dt><dd>{_esc(kind)}</dd></div>",
             f"<div><dt>What the human judged</dt><dd>{_esc(str(record.significance))}</dd></div>",
             f"<div><dt>Reviewed by</dt><dd>{_esc(record.reviewer or '')}</dd></div>",
+            f"<div><dt>Source verification</dt><dd><strong>"
+            f"{_esc(verification.label)}</strong><br>{_esc(verification.statement)}</dd></div>",
             f'<div><dt>Official source</dt><dd><a href="{_esc(record.url)}">'
             f"{_esc(record.url)}</a></dd></div>",
             f"<div><dt>Change id</dt><dd><code>{_esc(record.id)}</code></dd></div>",
@@ -314,7 +411,7 @@ def _sources_section(registry: Registry) -> str:
                     '<thead><tr><th scope="col">Document class</th>'
                     '<th scope="col">Issuing authority</th>'
                     '<th scope="col">Watched page</th>'
-                    '<th scope="col">Status</th></tr></thead>',
+                    '<th scope="col">Human verification · watch status</th></tr></thead>',
                     f"<tbody>\n{rows}\n</tbody>",
                     "</table>",
                 ]
@@ -326,7 +423,10 @@ def _sources_section(registry: Registry) -> str:
             '<h2 id="sources">What is watched</h2>',
             "<p>Every URL below was fetched by this tool's own crawler, with its own TLS "
             "stack and its own descriptive User-Agent, and its title read, before it was "
-            "added. None has been confirmed by a human as the right page.</p>",
+            "added. <strong>The verification column says whether a named human has since "
+            "opened it and confirmed it is the official page for that document class in that "
+            "jurisdiction</strong> — and for anything marked "
+            f"<strong>{_esc(UNVERIFIED_HEADLINE)}</strong>, nobody has.</p>",
             *blocks,
             "</section>",
         ]
@@ -334,16 +434,37 @@ def _sources_section(registry: Registry) -> str:
 
 
 def _source_row(source: Source) -> str:
-    # Status is a WORD, not a colour. A screen reader must get the same information a
-    # sighted reader gets, and "the red one is broken" is not information it can convey.
-    status = "Watched" if source.reachable else "Watched in name only — our crawler cannot fetch it"
+    """One source, and its status **as a word**.
+
+    Two independent statuses, deliberately never merged into one green tick:
+
+    * *can we fetch it* — a fact about our sockets;
+    * *has a human confirmed it is the right page* — a fact about a person, and the one that
+      decides whether a reader may act on the URL.
+
+    A source can be perfectly reachable and completely wrong, which is precisely the case this
+    column exists for. Neither status is signalled by colour: a red dot is invisible to the
+    screen-reader user this table is most likely to be read by, and "the red ones are the bad
+    ones" is not information a screen reader can convey (WCAG 2.2 AA, 1.4.1).
+    """
+    reach = "Watched" if source.reachable else "Watched in name only — our crawler cannot fetch it"
+    # A REJECTED row is the most dangerous row on this page: a human has established that the
+    # URL is wrong, and it is still listed (deleting it would take the finding with it, and
+    # would say nothing to whoever picked it up last week). So it carries the whole sentence —
+    # the reason and the instruction — rather than a status word a skimming reader can miss.
+    detail = (
+        f"<br><span>{_esc(source.verification.statement)}</span>"
+        if source.verification_status == REJECTED
+        else ""
+    )
     return (
         f'<tr><th scope="row">'
         f"{_esc(_CLASS_LABELS.get(source.document_class, source.document_class))}</th>"
         f"<td>{_esc(source.authority)}</td>"
         f'<td><a href="{_esc(source.url)}">{_esc(source.url)}</a><br>'
         f"<code>{_esc(source.id)}</code></td>"
-        f"<td>{_esc(status)}</td></tr>"
+        f"<td><strong>{_esc(source.verification.label)}</strong>{detail}<br>"
+        f"<span>{_esc(reach)}</span></td></tr>"
     )
 
 
@@ -440,6 +561,13 @@ thead th { background: var(--panel); }
 .stats div { border: 1px solid var(--line); padding: .75rem 1rem; min-width: 10rem; }
 .stats dt { color: var(--muted); font-size: .85rem; }
 .stats dd { margin: .25rem 0 0; font-size: 1.5rem; font-weight: 700; }
+/* The unverified-registry notice. It is bordered and panelled so it reads as a caution, but
+   the caution is carried entirely by the WORDS inside it — strip every style from this page
+   and the reader still learns that no human has confirmed these URLs. Colour decorates a
+   distinction the text has already made; it never makes one. */
+.notice { background: var(--panel); border: 2px solid var(--line);
+          border-left: .5rem solid var(--focus); padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }
+.notice h2 { margin-top: 0; padding-top: 0; border-top: 0; }
 .change { border: 1px solid var(--line); padding: 1rem; margin: 1rem 0; }
 .change dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .75rem; }
 .change dl div { display: contents; }

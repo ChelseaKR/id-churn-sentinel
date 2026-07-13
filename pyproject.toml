@@ -94,6 +94,7 @@ addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 filterwarnings = ["error"]
 markers = [
     "feed_integrity: merge-blocking — unreviewed drift can never reach the published feed",
+    "source_labelling: merge-blocking — no source reaches a consumer without its verification status",
     "no_auto_classification: merge-blocking — nothing is classified `substantive` without a human",
 ]
 

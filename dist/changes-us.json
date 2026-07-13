@@ -1,8 +1,102 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "generated_at": "2026-07-13T20:58:07.843726+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "US",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
-  "changes": []
+  "registry_verification": {
+    "scope": "US",
+    "sources": 6,
+    "human_verified": 0,
+    "unverified": 6,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "us-federal-register-sex-marker",
+      "jurisdiction": "US",
+      "document_class": "passport",
+      "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&order=newest&per_page=20&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=document_number&fields%5B%5D=html_url&fields%5B%5D=agencies",
+      "authority": "Office of the Federal Register (National Archives)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "REPAIRED 2026-07-13. The previous URL was the Federal Register's HTML search page (/documents/search?...), which federalregister.gov's robots.txt explicitly Disallows. Our fetcher honours robots.txt without appeal, so that entry was not merely noisy \u2014 it was UNFETCHABLE BY CONSTRUCTION and would have failed silently forever. Replaced with the public JSON API, which robots.txt does not disallow and which returns 200. This is the swap docs/ROADMAP.md M3 anticipated. LIMIT, stated plainly: the API returns single-line JSON, so it normalizes to one passage and a diff shows the whole line changing rather than a tidy per-rule delta. It still names the new rule titles in the diff, which is the signal that matters, and it is strictly better than a source we could never legally fetch."
+    },
+    {
+      "source_id": "us-passport-change-correct",
+      "jurisdiction": "US",
+      "document_class": "passport",
+      "url": "https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html",
+      "authority": "U.S. Department of State, Bureau of Consular Affairs",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it."
+    },
+    {
+      "source_id": "us-passport-sex-markers",
+      "jurisdiction": "US",
+      "document_class": "passport",
+      "url": "https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+      "authority": "U.S. Department of State, Bureau of Consular Affairs",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. MACHINE FACT worth keeping: travel.state.gov is SLOW and erratically so \u2014 measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal."
+    },
+    {
+      "source_id": "us-selective-service-register",
+      "jurisdiction": "US",
+      "document_class": "selective_service",
+      "url": "https://www.sss.gov/register/",
+      "authority": "U.S. Selective Service System",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "Registration requirements. In scope because Selective Service registration status is sex-assigned-at-birth-linked and gates federal benefits and some state licenses, which makes it a real, frequently-missed step for trans people \u2014 and a document class the incumbents mostly omit."
+    },
+    {
+      "source_id": "us-ssa-number-card",
+      "jurisdiction": "US",
+      "document_class": "social_security",
+      "url": "https://www.ssa.gov/number-card",
+      "authority": "U.S. Social Security Administration",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": false,
+      "notes": "SSA's SSN-card landing page, where name-change instructions live. Same ssa.gov WAF block as us-ssa-ss5-form: HTTP 403 to every client we tried, from every vantage point we tried. NOT confirmed alive and NOT confirmed dead \u2014 we simply cannot see it. A human with a browser must open this one; that is precisely the job `verified` exists to record."
+    },
+    {
+      "source_id": "us-ssa-ss5-form",
+      "jurisdiction": "US",
+      "document_class": "social_security",
+      "url": "https://www.ssa.gov/forms/ss-5.pdf",
+      "authority": "U.S. Social Security Administration",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": false,
+      "notes": "corpus-vetted. Form SS-5 (Application for a Social Security Card). A PDF: hashed as raw bytes, so drift here reports 'the form changed, open it' with no text diff \u2014 see core/normalize.py. BOT-BLOCKED, NOT DEAD: ssa.gov returns HTTP 403 to our descriptive UA, to a browser UA, and from two independent network vantage points \u2014 an edge WAF, not a missing file. A 403 is a fetch failure, and a fetch failure is never drift. Kept: the URL is right, the block is theirs. Expect this source to accrue a failure streak (see `possibly_removed` escalation in core/detect.py); the escalation record carries the literal error, so a reviewer can tell a block from a removal at a glance."
+    }
+  ]
 }

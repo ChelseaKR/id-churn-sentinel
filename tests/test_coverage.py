@@ -100,7 +100,8 @@ def test_a_doc_that_states_the_wrong_number_fails(tmp_path: Path, real_registry:
     caught, named, and the correct number is printed — so the fix is mechanical."""
     (tmp_path / "README.md").write_text(
         "We watch 999 sources across 3 of 52 jurisdictions, with 7 named gaps, and "
-        "1 of the 2 registered sources cannot currently be fetched.",
+        "1 of the 2 registered sources cannot currently be fetched. "
+        "140 of 152 sources are human-verified.",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -115,6 +116,10 @@ def test_a_doc_that_states_the_wrong_number_fails(tmp_path: Path, real_registry:
     assert any("3 of 52 jurisdictions" in d for d in drifts)
     assert any("7 named gaps" in d for d in drifts)
     assert any("cannot currently be fetched" in d for d in drifts)
+    # The burn-down is gated in exactly the same grammar, and it is the number most likely to
+    # go stale in the flattering direction: a doc claiming 140 of 152 verified when the
+    # registry says 0 is a doc telling a legal-aid org this list has been checked.
+    assert any("140 of 152 sources are human-verified" in d for d in drifts)
 
 
 def test_a_doc_that_stops_describing_coverage_at_all_also_fails(
@@ -133,7 +138,7 @@ def test_a_doc_that_stops_describing_coverage_at_all_also_fails(
     drifts = check_docs(coverage(real_registry), tmp_path)
 
     assert any("states no coverage numbers at all" in d for d in drifts)
-    assert any("must carry all four numbers" in d for d in drifts)
+    assert any("must carry all five numbers" in d for d in drifts)
 
 
 def test_a_third_partys_coverage_number_is_not_our_business(
@@ -146,12 +151,17 @@ def test_a_third_partys_coverage_number_is_not_our_business(
     (tmp_path / "README.md").write_text(
         "Namesake fully supports 2 of 51 jurisdictions. We watch 152 sources across "
         "52 of 52 jurisdictions, with 12 named gaps, and 6 of the 152 registered sources "
-        "cannot currently be fetched.",
+        "cannot currently be fetched. 0 of 152 sources are human-verified.",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
     (tmp_path / "sources").mkdir()
-    for stub in ("docs/ROADMAP.md", "docs/CONSUMERS.md", "docs/RESPONSIBLE-TECH-AUDITS.md"):
+    for stub in (
+        "docs/ROADMAP.md",
+        "docs/CONSUMERS.md",
+        "docs/RESPONSIBLE-TECH-AUDITS.md",
+        "docs/VERIFYING.md",
+    ):
         (tmp_path / stub).write_text("52 of 52 jurisdictions", encoding="utf-8")
     (tmp_path / "sources/registry.json").write_text("52 of 52 jurisdictions", encoding="utf-8")
 
@@ -185,3 +195,5 @@ def test_the_cli_emits_machine_readable_coverage(capsys: pytest.CaptureFixture[s
     assert payload["jurisdictions_covered"] == 52
     assert payload["named_gaps"] == 12
     assert payload["human_verified"] == 0
+    assert payload["unverified"] == 152
+    assert payload["rejected_by_a_human"] == 0

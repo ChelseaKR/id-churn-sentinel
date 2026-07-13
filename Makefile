@@ -4,13 +4,19 @@
 # Two of the seven stages are not ordinary code-quality gates. They are the safety
 # properties this tool exists to hold, and they are merge-blocking for that reason:
 #
-#   [6] no-unreviewed-in-feed   unreviewed drift can never reach a consumer
+#   [6] no-unreviewed-in-feed   unreviewed drift can never reach a consumer — AND no source
+#                               can reach one stripped of its verification status
 #   [7] no-auto-classification  the tool never calls a change "substantive" — a human does
 #
 # If either of those ever goes red, the correct response is to stop, not to weaken the test.
+#
+# Stage 6 holds two properties because they are one discipline aimed at two implicit claims:
+# "a machine noticed this, so it must matter" and "this URL is in your list, so it must be the
+# right page". Neither is a claim this tool has earned, and both would be made by omission.
 .DEFAULT_GOAL := help
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
-        sources-stability coverage no-unreviewed-in-feed no-auto-classification verify watch \
+        sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
+        no-auto-classification verify verify-sources watch \
         watch-weekly baseline-write baseline-check publish clean
 
 help: ## Show this help
@@ -66,8 +72,17 @@ sources-validate: ## [5/7] Registry gate: valid entries, no dupes, AND no doc ly
 	@# self-description is a fact about the artifact; compute it from the artifact.
 	uv run sentinel coverage --check-docs
 
-no-unreviewed-in-feed: ## [6/7] SAFETY GATE: unreviewed drift can never reach the published feed
-	uv run pytest -m feed_integrity -q
+no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, no unlabelled source in ANY artifact
+	@# Two properties, one stage, because they are one discipline. The feed gate stops the
+	@# claim "a machine noticed this, so it must matter". The labelling gate stops the claim
+	@# "this URL is in your list, so it must be the right page" — which the product would
+	@# otherwise make BY OMISSION, 152 times, to people who cannot afford to act on a wrong
+	@# citation. 0 of 152 sources are human-verified, and every artifact says so, on every
+	@# source, in a machine-readable field and in a word.
+	uv run pytest -m "feed_integrity or source_labelling" -q
+
+no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_source_labelling.py)
+	uv run pytest -m source_labelling -q
 
 no-auto-classification: ## [7/7] SAFETY GATE: the tool never classifies a change without a human
 	uv run pytest -m no_auto_classification -q
@@ -78,7 +93,7 @@ verify: ## The full merge gate — all seven stages, in order
 	@echo "== [3/7] tests + coverage (>=90) =="; $(MAKE) --no-print-directory cov
 	@echo "== [4/7] security (pip-audit) ==";   $(MAKE) --no-print-directory security
 	@echo "== [5/7] sources-validate + coverage-drift =="; $(MAKE) --no-print-directory sources-validate
-	@echo "== [6/7] no-unreviewed-in-feed ==";  $(MAKE) --no-print-directory no-unreviewed-in-feed
+	@echo "== [6/7] no-unreviewed-in-feed + no-unlabelled-source =="; $(MAKE) --no-print-directory no-unreviewed-in-feed
 	@echo "== [7/7] no-auto-classification =="; $(MAKE) --no-print-directory no-auto-classification
 	@echo ""
 	@echo "id-churn-sentinel: full gate green (7/7)"
@@ -88,8 +103,17 @@ verify: ## The full merge gate — all seven stages, in order
 coverage: ## Print the coverage numbers DERIVED from the registry (no network; never hand-written)
 	uv run sentinel coverage
 
-sources-check: ## Live-fetch every registry URL and report status. A human's verification aid.
+sources-check: ## Live-fetch every registry URL and report status. Liveness only — NOT verification.
 	uv run sentinel sources check
+
+verify-sources: ## THE HUMAN VERIFICATION QUEUE. 0 of 152 sources are human-verified; fix that.
+	@# The most valuable command in this Makefile, and the only one a machine cannot run for
+	@# you. It shows a human each source's title and text and records their yes/no WITH THEIR
+	@# NAME — it refuses to record one without. ~3.5 hours for all 152, resumable, federal
+	@# sources first. See docs/VERIFYING.md.
+	@printf 'Your name (recorded in the registry against every source you confirm): '; \
+	read -r name; \
+	uv run sentinel verify --verifier "$$name" --federal-first
 
 sources-stability: ## Fetch every source TWICE; name the false-drift sources. Run before adding a source.
 	@# A page that re-rolls a rotating widget on every request hashes differently every week,

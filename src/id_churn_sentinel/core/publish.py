@@ -29,6 +29,22 @@ subscribe to *today* and that will populate when something moves is worth far mo
 that appears the day of the emergency. `sources.json` publishes the whole inventory (and the
 gaps) so an integrator can map their own pages to our `source_id`s without reading this
 source code, and `index.html` is the human-readable front door.
+
+**A source never travels without its verification status.** This is the third merge-blocking
+property, and it is newer and more load-bearing than it looks. Every artifact here lists a
+source per (jurisdiction, document class), which a reader will reasonably take to mean *"this
+is Ohio's official birth-certificate page."* Today **no human has confirmed a single one of
+them** — they are machine-checked candidates, and a socket returning 200 at a plausible URL is
+not a person confirming it is the right page. If one of them is wrong, that implicit claim
+sends a trans person to the wrong office.
+
+So the status is not a footnote on the front page; it is a field on the source, in every
+document that carries the source, in words a screen reader can read (`unverified` ·
+`verified` · `rejected` — never a colour). And `registry` is a **required** argument to
+:func:`publish`: there is no way to write an artifact from this module without holding the
+registry that knows each source's verification status, which is what makes "a source cannot
+appear in a published artifact without its status alongside it" a structural fact rather than
+a promise. `tests/test_source_labelling.py` asserts it on the published bytes.
 """
 
 from __future__ import annotations
@@ -38,10 +54,16 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from email.utils import format_datetime
 from pathlib import Path
+from typing import Any
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord
 from id_churn_sentinel.core.coverage import coverage
-from id_churn_sentinel.core.registry import Registry
+from id_churn_sentinel.core.registry import (
+    UNVERIFIED,
+    Registry,
+    Source,
+    Verification,
+)
 from id_churn_sentinel.core.site import feed_slug, render_site
 from id_churn_sentinel.errors import PublishError
 
@@ -52,6 +74,7 @@ __all__ = [
     "changes_json",
     "feed_xml",
     "publish",
+    "source_payload",
     "sources_json",
 ]
 
@@ -76,6 +99,21 @@ FEED_DESCRIPTION = (
     "name and gender-marker changes on identity documents. Each item cites the official "
     "source URL and the passage that changed. This feed reports that a source changed; "
     "it does not assert what the law is."
+)
+
+# Said in every artifact, next to the sources themselves, because the registry's status is not
+# a detail about our process — it is the thing that decides how much weight a reader may put on
+# any given URL in it.
+REGISTRY_DISCLAIMER = (
+    "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our "
+    "own crawler fetched it and read its title, and its `verification_status` says whether a "
+    "named human has since confirmed it is the official page for that document class in that "
+    "jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real "
+    "birth-certificate page from a convincing-looking one — it cannot even tell a live page "
+    "from a bot-wall served with HTTP 200 — so do not rely on an unverified entry as "
+    "authoritative guidance, and do not present it to anyone as one. What this tool does "
+    "claim: this URL changed, and here is what changed in it. What it never claims: what the "
+    "law is."
 )
 
 
@@ -130,16 +168,22 @@ def publish(
     records: Iterable[ChangeRecord],
     out_dir: Path,
     *,
-    registry: Registry | None = None,
+    registry: Registry,
     feed_url: str = "https://github.com/ChelseaKR/id-churn-sentinel",
     now: datetime | None = None,
 ) -> PublishResult:
     """Write the whole published surface into `out_dir`. Reviewed records only.
 
-    Always: `feed.xml` + `changes.json`, and one `feed-us-xx.xml` + `changes-us-xx.json` per
-    jurisdiction. With a `registry` (the CLI always passes one): also `sources.json` — the
-    inventory an integrator maps their own pages against — and `index.html`, the accessible
-    front door that says what is watched, what is *not*, and why.
+    `feed.xml` + `changes.json`; one `feed-us-xx.xml` + `changes-us-xx.json` per jurisdiction;
+    `sources.json`, the inventory an integrator maps their own pages against; and
+    `index.html`, the accessible front door that says what is watched, what is *not*, and why.
+
+    **`registry` is required, and that is the gate.** It used to be optional, defaulting to
+    "publish the changes and skip the inventory" — which meant it was possible to write a feed
+    citing `source_id: oh-odh-vital-records` with no way of saying whether a human had ever
+    confirmed that entry. A source that appears in an artifact without its verification status
+    is an implicit claim of authority nobody made. There is now no code path that can produce
+    one: you cannot call this function without the registry that knows.
 
     The per-jurisdiction feeds are emitted for every jurisdiction **in the registry**, not
     merely for the ones that happen to have a published change. An org that serves one state
@@ -154,19 +198,16 @@ def publish(
     changes_path = out_dir / "changes.json"
 
     feed_path.write_text(
-        feed_xml(published, feed_url=feed_url, generated_at=generated_at), encoding="utf-8"
+        feed_xml(published, feed_url=feed_url, generated_at=generated_at, registry=registry),
+        encoding="utf-8",
     )
     changes_path.write_text(
-        changes_json(published, feed_url=feed_url, generated_at=generated_at), encoding="utf-8"
+        changes_json(published, feed_url=feed_url, generated_at=generated_at, registry=registry),
+        encoding="utf-8",
     )
 
-    jurisdictions = (
-        registry.jurisdictions
-        if registry is not None
-        else frozenset(record.jurisdiction for record in published)
-    )
     feeds: list[Path] = []
-    for jurisdiction in sorted(jurisdictions):
+    for jurisdiction in sorted(registry.jurisdictions):
         slug = feed_slug(jurisdiction)
         scoped = tuple(r for r in published if r.jurisdiction == jurisdiction)
         jurisdiction_feed = out_dir / f"feed-{slug}.xml"
@@ -175,6 +216,7 @@ def publish(
                 scoped,
                 feed_url=feed_url,
                 generated_at=generated_at,
+                registry=registry,
                 jurisdiction=jurisdiction,
             ),
             encoding="utf-8",
@@ -184,23 +226,21 @@ def publish(
                 scoped,
                 feed_url=feed_url,
                 generated_at=generated_at,
+                registry=registry,
                 jurisdiction=jurisdiction,
             ),
             encoding="utf-8",
         )
         feeds.append(jurisdiction_feed)
 
-    site_path: Path | None = None
-    sources_path: Path | None = None
-    if registry is not None:
-        report = coverage(registry)
-        sources_path = out_dir / "sources.json"
-        sources_path.write_text(sources_json(registry, generated_at=generated_at), encoding="utf-8")
-        site_path = out_dir / "index.html"
-        site_path.write_text(
-            render_site(registry, report, _sorted(published), generated_at=generated_at),
-            encoding="utf-8",
-        )
+    report = coverage(registry)
+    sources_path = out_dir / "sources.json"
+    sources_path.write_text(sources_json(registry, generated_at=generated_at), encoding="utf-8")
+    site_path = out_dir / "index.html"
+    site_path.write_text(
+        render_site(registry, report, _sorted(published), generated_at=generated_at),
+        encoding="utf-8",
+    )
 
     return PublishResult(
         feed_path=feed_path,
@@ -212,11 +252,52 @@ def publish(
     )
 
 
+def source_payload(source: Source) -> dict[str, Any]:
+    """One source, as an integrator receives it — **status included, always**.
+
+    Flat rather than nested, because the field that matters must be impossible to miss and
+    trivial to filter on: `jq '.sources[] | select(.verification_status != "verified")'` is a
+    query an integrator can write in ten seconds, and one they will write once and keep.
+    """
+    return {
+        "source_id": source.id,
+        "jurisdiction": source.jurisdiction,
+        "document_class": source.document_class,
+        "url": source.url,
+        "authority": source.authority,
+        "verification_status": source.verification_status,
+        "human_verified": source.verified,
+        "verified_by": source.verification.verifier,
+        "verified_at": source.verification.at,
+        "verification_statement": source.verification.statement,
+        "reachable_by_our_crawler": source.reachable,
+        "notes": source.notes,
+    }
+
+
+def _verification_summary(sources: Sequence[Source], *, scope: str) -> dict[str, Any]:
+    """The counts, plus a sentence that says what they mean. Machine-readable *and* readable:
+    an integrator who looks only at the numbers still gets the number that matters (0), and
+    one who looks only at the prose still gets told not to trust the list."""
+    verified = sum(1 for s in sources if s.verified)
+    rejected = sum(1 for s in sources if s.verification_status == "rejected")
+    unverified = sum(1 for s in sources if s.verification_status == UNVERIFIED)
+    return {
+        "scope": scope,
+        "sources": len(sources),
+        "human_verified": verified,
+        "unverified": unverified,
+        "rejected": rejected,
+        "statement": REGISTRY_DISCLAIMER,
+    }
+
+
 def changes_json(
     records: Sequence[ChangeRecord],
     *,
     feed_url: str,
     generated_at: datetime,
+    registry: Registry,
     jurisdiction: str | None = None,
 ) -> str:
     """The documented, versioned JSON feed. Sorted newest-first; stable, so a consumer
@@ -226,7 +307,21 @@ def changes_json(
     who has fetched `changes-us-tx.json` can tell, **from the document itself**, that its
     empty `changes` array is a statement about Texas and not about the United States. A
     scoped document that does not say what it is scoped to is a trap.
+
+    **The sources travel with the changes**, scoped the same way, each carrying its
+    `verification_status`. Two reasons, and the second is the important one. First, a Texas
+    clinic that subscribed to `changes-us-tx.json` should not need a second request to learn
+    which Texas pages we watch. Second — and this is the whole point — **the feed is currently
+    empty**, so a consumer who only ever reads this file would otherwise learn *nothing* about
+    the registry's status, and would go on believing that whatever we publish about Texas
+    comes from a verified list of Texas's official pages. It does not. Now the file says so,
+    in a field, before it says anything else.
     """
+    scoped_sources = tuple(
+        source
+        for source in sorted(registry.sources, key=lambda s: (s.jurisdiction, s.id))
+        if jurisdiction is None or source.jurisdiction == jurisdiction
+    )
     payload: dict[str, object] = {
         "schema_version": FEED_SCHEMA_VERSION,
         "generated_at": generated_at.isoformat(),
@@ -241,8 +336,28 @@ def changes_json(
         "means no human has confirmed a change yet — it is NOT a claim that nothing changed "
         "at any watched source."
     )
-    payload["changes"] = [record.to_dict() for record in _sorted(records)]
+    payload["registry_verification"] = _verification_summary(
+        scoped_sources, scope=jurisdiction or "all jurisdictions"
+    )
+    payload["changes"] = [
+        _change_payload(record, registry.verification_of(record.source_id))
+        for record in _sorted(records)
+    ]
+    payload["sources"] = [source_payload(source) for source in scoped_sources]
     return json.dumps(payload, indent=2, sort_keys=False) + "\n"
+
+
+def _change_payload(record: ChangeRecord, verification: Verification) -> dict[str, Any]:
+    """A published change, with the verification status of the source it cites.
+
+    Without this field, an item reading *"[OH] birth_certificate changed at <url>"* is an
+    implicit assertion that `<url>` **is** Ohio's birth-certificate page — which nobody has
+    checked. The status rides along with every single item, including into the RSS body, so
+    there is no surface on which the claim travels naked. If the cited source has since left
+    the registry, the status is `withdrawn` and says so; it is never omitted, and it is never
+    guessed.
+    """
+    return {**record.to_dict(), "source_verification": verification.to_dict()}
 
 
 def sources_json(registry: Registry, *, generated_at: datetime) -> str:
@@ -253,6 +368,12 @@ def sources_json(registry: Registry, *, generated_at: datetime) -> str:
     work described in `docs/CONSUMERS.md` possible without reading our source code. The gaps
     ship in the same file as the sources on purpose: an inventory that lists only what we
     cover invites a reader to infer that the rest is fine.
+
+    And every source carries `verification_status`, because there is a *second* inference this
+    document invites and must refuse: that a list of one official URL per (jurisdiction,
+    document class) is a list somebody checked. It is not, yet. The status is on each entry,
+    the counts are in `coverage`, and the sentence is in `disclaimer` — three places, because
+    an integrator will read exactly one of them and we do not get to choose which.
     """
     report = coverage(registry)
     payload = {
@@ -264,25 +385,17 @@ def sources_json(registry: Registry, *, generated_at: datetime) -> str:
             "jurisdictions_total": report.jurisdictions_total,
             "named_gaps": report.gaps_total,
             "watched_in_name_only": report.unreachable_total,
-            "human_verified": 0,
+            # Derived, not hard-coded. It was literally `0` in the source of this file — true
+            # on the day it was written, and a number that would have silently stayed 0 while
+            # a human burned down the whole queue. A count nobody recomputes is a claim that
+            # will eventually be false in whichever direction nobody is watching.
+            "human_verified": report.verified_total,
+            "unverified": report.unverified_total,
+            "rejected_by_a_human": report.rejected_total,
         },
-        "disclaimer": (
-            "Every entry is machine-checked and NOT human-verified: a live fetch confirmed "
-            "the URL answers and its title was read, which is a fact about a socket rather "
-            "than a person confirming it is the right page. The feed's silence about any "
-            "jurisdiction in `gaps` means nothing at all."
-        ),
+        "disclaimer": REGISTRY_DISCLAIMER,
         "sources": [
-            {
-                "source_id": source.id,
-                "jurisdiction": source.jurisdiction,
-                "document_class": source.document_class,
-                "url": source.url,
-                "authority": source.authority,
-                "human_verified": source.verified,
-                "reachable_by_our_crawler": source.reachable,
-                "notes": source.notes,
-            }
+            source_payload(source)
             for source in sorted(registry.sources, key=lambda s: (s.jurisdiction, s.id))
         ],
         "gaps": [
@@ -305,6 +418,7 @@ def feed_xml(
     *,
     feed_url: str,
     generated_at: datetime,
+    registry: Registry,
     jurisdiction: str | None = None,
 ) -> str:
     """RSS 2.0. Hand-written rather than via a library: it is forty lines of stdlib string
@@ -323,8 +437,19 @@ def feed_xml(
     single most dangerous thing a scoped feed can do is look like an unscoped one: a Texas
     clinic reading an empty `feed-us-tx.xml` must not be able to mistake it for a statement
     about the whole country, and vice versa.
+
+    **And the channel says how many of the sources behind it a human has actually confirmed.**
+    An RSS reader shows the channel description once and the items forever; if the registry's
+    status only lived on the website, a subscriber would never see it at all.
     """
-    items = "\n".join(_item_xml(record) for record in _sorted(records))
+    scoped_sources = tuple(
+        source
+        for source in registry.sources
+        if jurisdiction is None or source.jurisdiction == jurisdiction
+    )
+    items = "\n".join(
+        _item_xml(record, registry.verification_of(record.source_id)) for record in _sorted(records)
+    )
     if not items:
         scope = f" for {jurisdiction}" if jurisdiction else ""
         items = (
@@ -344,6 +469,7 @@ def feed_xml(
             f"evidence that nothing changed there."
         )
     )
+    description = f"{description} {_registry_sentence(scoped_sources, jurisdiction)}"
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<rss version="2.0">\n'
@@ -360,7 +486,23 @@ def feed_xml(
     )
 
 
-def _item_xml(record: ChangeRecord) -> str:
+def _registry_sentence(sources: Sequence[Source], jurisdiction: str | None) -> str:
+    """One sentence, in the channel description, stating the registry's verification state for
+    whatever this feed is scoped to. Counted, not asserted — it will read differently the day
+    someone finishes the burn-down, and it will read differently *by itself*."""
+    scope = jurisdiction or "the registry"
+    verified = sum(1 for s in sources if s.verified)
+    where = f"in {scope}" if jurisdiction else "in the registry"
+    if verified == len(sources) and sources:
+        return f"All {len(sources)} sources {where} are HUMAN-VERIFIED. {REGISTRY_DISCLAIMER}"
+    return (
+        f"SOURCE REGISTRY: {verified} of {len(sources)} sources {where} are human-verified; "
+        f"the rest are UNVERIFIED — machine-checked candidate URLs that no human has confirmed "
+        f"are the official page for their document class. {REGISTRY_DISCLAIMER}"
+    )
+
+
+def _item_xml(record: ChangeRecord, verification: Verification) -> str:
     # A published escalation must not read as a content change. "[TX] birth_certificate —
     # substantive change at <url>" would be actively misleading for a source that stopped
     # answering: a consumer would reasonably reword it as "Texas changed its page", when
@@ -381,6 +523,14 @@ def _item_xml(record: ChangeRecord) -> str:
         f"Jurisdiction: {record.jurisdiction}\n"
         f"Document class: {record.document_class}\n"
         f"Official source: {record.url}\n"
+        # Two different humans, two different jobs, and conflating them is the failure this
+        # line exists to prevent. `Reviewed by` is the person who read the DIFF. `Source
+        # verification` is whether anyone has ever confirmed that this URL is the page it
+        # claims to be — and today, for every source in the registry, nobody has. An item that
+        # named a reviewer but stayed silent about the source would read as though both had
+        # been checked.
+        f"Source verification: {verification.label}\n"
+        f"  {verification.statement}\n"
         f"Kind (machine-observed): {record.kind}\n"
         f"Significance (human-reviewed): {record.significance}\n"
         f"Reviewed by: {record.reviewer}\n"
@@ -398,6 +548,10 @@ def _item_xml(record: ChangeRecord) -> str:
         f"      <category>{_esc(record.jurisdiction)}</category>\n"
         f"      <category>{_esc(record.document_class)}</category>\n"
         f"      <category>{_esc(record.kind)}</category>\n"
+        # Machine-readable in RSS too, so a pipeline can filter on it without parsing prose.
+        # An RSS consumer who wants only human-verified sources can have that today; what they
+        # cannot have is a feed that forgot to tell them the difference exists.
+        f"      <category>source-verification:{_esc(verification.status)}</category>\n"
         f"      <description>{_esc(body)}</description>\n"
         "    </item>"
     )

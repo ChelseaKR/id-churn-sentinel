@@ -67,6 +67,11 @@ DOC_PATHS: tuple[str, ...] = (
     "docs/ROADMAP.md",
     "docs/CONSUMERS.md",
     "docs/RESPONSIBLE-TECH-AUDITS.md",
+    # The verifier's own instructions. It states how many sources are still unverified, which
+    # is the number a volunteer decides whether to help on — and the number most likely to be
+    # left stale *after someone has done the work*, which would quietly tell the next person
+    # the queue was never started.
+    "docs/VERIFYING.md",
     "sources/registry.json",
 )
 
@@ -83,6 +88,13 @@ DOC_PATHS: tuple[str, ...] = (
 _UNREACHABLE_RE = re.compile(
     r"\b(\d+) of the (\d+) registered sources cannot currently be fetched\b"
 )
+# The verification burn-down, in the gated grammar, for the same reason as every other number
+# here: it is the claim a reader most needs to be true, it moves every time a human works the
+# queue, and a README that still says "0 of 152 are human-verified" after forty have been
+# verified is *understating* — which sounds harmless and is not, because the next maintainer
+# reads it and concludes the work never started. It is scrubbed before `_SOURCES_RE` runs, so
+# the "152 sources" inside it is not double-counted as a coverage claim.
+_VERIFIED_RE = re.compile(r"\b(\d+) of (\d+) sources are human-verified\b")
 _SOURCES_RE = re.compile(r"\b(\d+) sources\b")
 _GAPS_RE = re.compile(r"\b(\d+) named gaps?\b")
 
@@ -111,21 +123,29 @@ class CoverageReport:
     gaps_total: int
     unreachable_total: int
     unverified_total: int
+    verified_total: int
+    rejected_total: int
     by_document_class: tuple[tuple[str, int], ...]
     by_reason: tuple[tuple[str, int], ...]
     gaps: tuple[Gap, ...]
     unreachable: tuple[Source, ...]
 
     def lines(self) -> list[str]:
-        """The human-readable summary `sentinel coverage` prints."""
+        """The human-readable summary `sentinel coverage` prints — including the burn-down,
+        which is the number this project is currently least entitled to be quiet about."""
         out = [
             f"sources:        {self.sources_total}",
             f"jurisdictions:  {self.jurisdictions_covered} of {self.jurisdictions_total}",
             f"named gaps:     {self.gaps_total}  "
             f"({', '.join(f'{r}={n}' for r, n in self.by_reason)})",
             f"watched in name only (registered, unreachable): {self.unreachable_total}",
-            f"human-verified: 0 of {self.sources_total}  "
-            f"({self.unverified_total} awaiting a human — see docs/ROADMAP.md M1)",
+            "",
+            "HUMAN VERIFICATION (the burn-down — see docs/VERIFYING.md):",
+            f"  {self.verified_total} of {self.sources_total} sources are human-verified",
+            f"  unverified (machine-checked only, NOT human-confirmed): {self.unverified_total}",
+            f"  rejected by a human (wrong page — flagged for repair): {self.rejected_total}",
+            f"  named gaps (deliberately not watched):                 {self.gaps_total}",
+            "",
             "by document class:",
         ]
         out.extend(f"  {cls:<24} {count}" for cls, count in self.by_document_class)
@@ -143,6 +163,8 @@ def coverage(registry: Registry) -> CoverageReport:
         gaps_total=len(registry.gaps),
         unreachable_total=len(registry.unreachable),
         unverified_total=len(registry.unverified),
+        verified_total=len(registry.verified_sources),
+        rejected_total=len(registry.rejected),
         by_document_class=tuple(sorted(by_class.items())),
         by_reason=tuple(sorted(by_reason.items())),
         gaps=registry.gaps,
@@ -189,9 +211,10 @@ def _check_one_doc(relative: str, text: str, report: CoverageReport) -> list[str
     drifts: list[str] = []
     found = False
 
-    # The unreachable phrase contains the substring "registered sources", so it is matched
-    # and blanked FIRST; otherwise `_SOURCES_RE` would read its numbers and report a drift
-    # that is really an overlap in our own regexes.
+    # The unreachable phrase contains the substring "registered sources", and the verified
+    # phrase contains "N sources", so both are matched and blanked FIRST; otherwise
+    # `_SOURCES_RE` would read their numbers and report a drift that is really an overlap in
+    # our own regexes.
     for match in _UNREACHABLE_RE.finditer(text):
         found = True
         if (int(match.group(1)), int(match.group(2))) != (
@@ -202,7 +225,17 @@ def _check_one_doc(relative: str, text: str, report: CoverageReport) -> list[str
                 f"{relative}: {match.group(0)!r} — registry says "
                 f"{report.unreachable_total} of {report.sources_total}"
             )
-    scrubbed = _UNREACHABLE_RE.sub("", text)
+    for match in _VERIFIED_RE.finditer(text):
+        found = True
+        if (int(match.group(1)), int(match.group(2))) != (
+            report.verified_total,
+            report.sources_total,
+        ):
+            drifts.append(
+                f"{relative}: {match.group(0)!r} — registry says "
+                f"{report.verified_total} of {report.sources_total} sources are human-verified"
+            )
+    scrubbed = _VERIFIED_RE.sub("", _UNREACHABLE_RE.sub("", text))
 
     checks = (
         (_SOURCES_RE, report.sources_total, "registry has"),
@@ -253,10 +286,15 @@ def check_docs(report: CoverageReport, root: Path | None = None) -> list[str]:
             (f"N of {report.jurisdictions_total} jurisdictions", jurisdictions_re),
             ("N named gaps", _GAPS_RE),
             ("N of the N registered sources cannot currently be fetched", _UNREACHABLE_RE),
+            # The fifth number, and the one this project is most tempted to leave out: how
+            # many of these official-looking URLs a *person* has actually confirmed. A README
+            # that states coverage and omits verification is describing a registry that does
+            # not exist.
+            ("N of N sources are human-verified", _VERIFIED_RE),
         ):
             if not pattern.search(text):
                 drifts.append(
                     f"README.md: does not state {label!r} anywhere. The README is the "
-                    f"document people believe; it must carry all four numbers."
+                    f"document people believe; it must carry all five numbers."
                 )
     return drifts

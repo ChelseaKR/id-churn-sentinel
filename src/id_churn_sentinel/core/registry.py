@@ -14,12 +14,20 @@ Two structural rules keep it honest:
   silently-unwatched source.
 * **`verified` starts false, and only a human flips it.** Every seeded entry ships
   `verified: false`. The flag means "a named human loaded this URL and confirmed it is the
-  official page it claims to be" — nothing in this codebase sets it. This mirrors the
+  official page it claims to be" — no machine in this codebase decides it. This mirrors the
   VERIFIERS discipline in trans-docs-navigator, where a record with a placeholder verifier
   is treated as unverified content rather than quietly served as fact.
 
+  **And a verification with no name on it is not a verification.** `verified: true` is only
+  loadable alongside a `verification` block naming the human and the date
+  (:class:`Verification`); a hand-edited `"verified": true` with nothing behind it does not
+  load, it raises. That closes the one way this flag could have been flipped without anybody
+  standing behind it — including by an agent editing the file. `sentinel verify` is the
+  supported path, and it refuses to write a verification without a name.
+
 Entries with `verified: false` are still watched. An unverified URL that changes is still
-worth a human's attention; what it is *not* is evidence about the law.
+worth a human's attention; what it is *not* is evidence about the law — and every published
+artifact that carries the source says so, in words, next to it.
 
 **And the holes are data, not prose.** A registry that lists what it watches, and describes
 what it does *not* watch in a paragraph of English, will drift — the paragraph is written
@@ -48,14 +56,41 @@ __all__ = [
     "GAP_REASONS",
     "JURISDICTIONS",
     "REGISTRY_VERSION",
+    "REJECTED",
+    "UNVERIFIED",
+    "VERIFICATION_STATUSES",
+    "VERIFIED",
+    "WITHDRAWN",
     "Gap",
     "Registry",
     "Source",
+    "Verification",
     "default_registry_path",
+    "dump_registry_text",
     "load_registry",
 ]
 
 REGISTRY_VERSION = "1.0"
+
+# The three states a registry entry can be in with respect to *a human having looked*, and a
+# fourth that only a published artifact can be in.
+#
+# These are not decoration. The single most dangerous thing this project publishes is a list
+# that reads as *"this is Ohio's official birth-certificate page"* when what it actually
+# means is *"a socket returned 200 at a URL somebody plausibly believed was Ohio's official
+# birth-certificate page."* Those are different claims, a trans person acting on the second
+# one can be sent to the wrong office, and the only thing that converts one into the other is
+# a named person opening the page.
+UNVERIFIED = "unverified"  # machine-checked (fetched, title read). NOBODY has confirmed it.
+VERIFIED = "verified"  # a named human opened the URL and confirmed it, on a given date.
+REJECTED = "rejected"  # a named human opened the URL and found it is NOT the official page.
+# Not a registry state: what `publish` says about a change record whose source has since left
+# the registry. We will not silently omit the status, and we will not invent one.
+WITHDRAWN = "withdrawn"
+
+VERIFICATION_STATUSES: frozenset[str] = frozenset({UNVERIFIED, VERIFIED, REJECTED})
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # 50 states + DC + `US`, the federal bucket (passport, SSA, Selective Service, and the
 # Federal Register itself). 52 keys, not 51: federal document policy is not a state.
@@ -112,10 +147,88 @@ GAP_REASONS: frozenset[str] = frozenset(
         "false-drift",  # the page is fine; watching it would cry wolf every week, forever
         "unreachable",  # completes no HTTP exchange at all
         "no-such-authority",  # the gap is in the world, not in the crawler
+        # The only reason in this list that a MACHINE cannot produce: a named human opened the
+        # seeded URL, found it is not the official page for that document class, and no right
+        # page exists to swap in. Written by `sentinel verify --reject --gap`.
+        "wrong-page",
     }
 )
 
 _ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+@dataclass(frozen=True, slots=True)
+class Verification:
+    """Whether a **human** has confirmed this URL is the page the entry claims it is.
+
+    Distinct from `Source.checked`, which records what a *socket* saw, and the distinction is
+    the whole point. A 200 with a plausible `<title>` is evidence that a page exists; it is
+    not evidence that it is *the official page for this document class in this jurisdiction*,
+    and the gap between those two sentences is a person driving to the wrong office.
+
+    `status` is the machine-readable field that travels with every published copy of the
+    source. `label` and `statement` are the words a reader sees — a **word**, never a colour
+    or an icon (WCAG 2.2 AA), because the reader most likely to be harmed by a wrong entry is
+    the one least likely to see a red dot.
+    """
+
+    status: str = UNVERIFIED
+    verifier: str = ""
+    at: str = ""
+    note: str = ""
+
+    @property
+    def label(self) -> str:
+        """The short status, status-word first. Goes in a table cell and in a feed item."""
+        if self.status == VERIFIED:
+            return f"VERIFIED — confirmed by {self.verifier} on {self.at}"
+        if self.status == REJECTED:
+            return f"REJECTED — {self.verifier} found this is not the official page ({self.at})"
+        if self.status == WITHDRAWN:
+            return "WITHDRAWN — this source is no longer in the registry"
+        return "UNVERIFIED — machine-checked, not human-confirmed"
+
+    @property
+    def statement(self) -> str:
+        """The full sentence. Said in-band, in every artifact, because a caveat that lives
+        only in a README nobody re-reads is decoration."""
+        if self.status == VERIFIED:
+            return (
+                f"VERIFIED — {self.verifier} opened this URL on {self.at} and confirmed it is "
+                f"the official page for this document class in this jurisdiction. That is the "
+                f"only claim it makes: it says nothing about what the law is."
+            )
+        if self.status == REJECTED:
+            reason = f" Reason given: {self.note}" if self.note else ""
+            return (
+                f"REJECTED — {self.verifier} opened this URL on {self.at} and found it is NOT "
+                f"the official page for this document class in this jurisdiction. It is flagged "
+                f"for repair and must not be relied on.{reason}"
+            )
+        if self.status == WITHDRAWN:
+            return (
+                "WITHDRAWN — the source this record cites is no longer in the registry, so its "
+                "verification status cannot be stated here. See sources.json."
+            )
+        return (
+            "UNVERIFIED — machine-checked, not human-confirmed. A live fetch confirmed this URL "
+            "answers and its title was read; NO HUMAN has confirmed that it is the official page "
+            "for this document class in this jurisdiction. Do not rely on it as authoritative "
+            "guidance."
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        """The machine-readable shape published alongside every source, everywhere."""
+        return {
+            "status": self.status,
+            "verifier": self.verifier,
+            "verified_at": self.at,
+            "note": self.note,
+            "statement": self.statement,
+        }
+
+
+WITHDRAWN_VERIFICATION = Verification(status=WITHDRAWN)
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,11 +243,17 @@ class Source:
     verified: bool
     notes: str
     checked: Mapping[str, Any] = field(default_factory=dict)
+    verification: Verification = field(default_factory=Verification)
 
     @property
     def host(self) -> str:
         """The host, used for per-host politeness (robots.txt, crawl spacing)."""
         return urlparse(self.url).netloc
+
+    @property
+    def verification_status(self) -> str:
+        """`unverified` | `verified` | `rejected` — the field an integrator reads."""
+        return self.verification.status
 
     @property
     def reachable(self) -> bool:
@@ -202,9 +321,33 @@ class Registry:
 
     @property
     def unverified(self) -> tuple[Source, ...]:
-        """Entries no human has confirmed yet. Surfaced by `sentinel sources validate`
-        as a standing count, so "seeded but unverified" can never quietly become "trusted"."""
-        return tuple(s for s in self.sources if not s.verified)
+        """Entries no human has looked at yet. Surfaced by `sentinel sources validate` as a
+        standing count, so "seeded but unverified" can never quietly become "trusted" — and
+        rendered next to the source in every published artifact, so a *reader* cannot make
+        that slide either."""
+        return tuple(s for s in self.sources if s.verification_status == UNVERIFIED)
+
+    @property
+    def verified_sources(self) -> tuple[Source, ...]:
+        """Entries a named human opened and confirmed. The burn-down's numerator."""
+        return tuple(s for s in self.sources if s.verification_status == VERIFIED)
+
+    @property
+    def rejected(self) -> tuple[Source, ...]:
+        """Entries a named human opened and found to be the *wrong page*. They stay in the
+        registry, flagged, rather than vanishing: an entry that was wrong and got quietly
+        deleted takes the finding with it."""
+        return tuple(s for s in self.sources if s.verification_status == REJECTED)
+
+    def verification_of(self, source_id: str) -> Verification:
+        """The verification status of a source id — or `WITHDRAWN` if it has left the
+        registry. Never `None`, and never absent: a published record that cites a source must
+        be able to say something true about that source's status, and "we don't know" is a
+        thing we say out loud rather than by omission."""
+        for source in self.sources:
+            if source.id == source_id:
+                return source.verification
+        return WITHDRAWN_VERIFICATION
 
     @property
     def unreachable(self) -> tuple[Source, ...]:
@@ -308,7 +451,69 @@ def _parse_source(entry: object, index: int) -> Source:
         verified=verified,
         notes=_require_str(entry, "notes", where),
         checked=checked,
+        verification=_parse_verification(entry.get("verification"), verified, where),
     )
+
+
+def _parse_verification(raw: object, verified: bool, where: str) -> Verification:
+    """Parse the human-verification block — and refuse an unsigned verification.
+
+    This is the load-bearing validation in this module, and it exists because of a specific,
+    easy, tempting failure: someone (a maintainer in a hurry, a script, an AI agent asked to
+    "make the registry look finished") sets `"verified": true` on 152 entries, and the
+    project's central honesty claim evaporates without a single test going red.
+
+    So `verified: true` is *unloadable* unless a named human and a date are attached to it.
+    There is no path — not a hand edit, not a bulk `sed` — that produces a verified entry
+    nobody signed. `sentinel verify` writes this block, and it refuses to write one without a
+    name (see `core/verify.py`).
+    """
+    if raw is None or raw == {}:
+        if verified:
+            raise RegistryError(
+                f"{where}.verified is true with no `verification` block. A verification with no "
+                f"named human and no date is not a verification — it is an assertion nobody is "
+                f"standing behind. Run `sentinel verify` (it records the name and the date), or "
+                f"set verified: false."
+            )
+        return Verification()
+
+    if not isinstance(raw, dict):
+        raise RegistryError(f"{where}.verification must be an object")
+
+    status = raw.get("status")
+    if status not in VERIFICATION_STATUSES:
+        raise RegistryError(
+            f"{where}.verification.status {status!r} is not one of: "
+            f"{', '.join(sorted(VERIFICATION_STATUSES))}"
+        )
+    if (status == VERIFIED) is not verified:
+        raise RegistryError(
+            f"{where}: `verified: {str(verified).lower()}` disagrees with "
+            f"`verification.status: {status!r}`. The boolean and the block are two views of one "
+            f"fact and they may never disagree — one of them is what a consumer will read."
+        )
+
+    verifier = raw.get("verifier", "")
+    at = raw.get("at", "")
+    note = raw.get("note", "")
+    if not isinstance(verifier, str) or not isinstance(at, str) or not isinstance(note, str):
+        raise RegistryError(f"{where}.verification fields must be strings")
+
+    if status in {VERIFIED, REJECTED}:
+        if not verifier.strip():
+            raise RegistryError(
+                f"{where}.verification.status is {status!r} but no `verifier` is named. A human "
+                f"judgment with no human attached is indistinguishable from a machine's."
+            )
+        if not _DATE_RE.match(at):
+            raise RegistryError(
+                f"{where}.verification.at must be an ISO date (YYYY-MM-DD) saying WHEN the "
+                f"human looked — a verification with no date cannot go stale, which means it "
+                f"can never be re-checked. Got {at!r}."
+            )
+
+    return Verification(status=status, verifier=verifier.strip(), at=at, note=note)
 
 
 def _parse_gap(entry: object, index: int) -> Gap:
@@ -387,6 +592,34 @@ def _require_str(entry: dict[str, Any], key: str, where: str) -> str:
     if not isinstance(value, str):
         raise RegistryError(f"{where}.{key} must be a string")
     return value
+
+
+# `"checked": { ... }` and `"verification": { ... }` are written on ONE line in the committed
+# file — they are leaf blocks of scalars, and exploding them over five lines each turns a
+# 152-entry registry into a file nobody scrolls through. `json.dumps(indent=2)` cannot do
+# this, so the writer re-collapses them, byte-for-byte in the committed style.
+#
+# Why this is worth thirty lines: `sentinel verify` REWRITES this file, once per source, up
+# to 152 times. A writer that reformats the whole file on first use would bury the one line
+# that changed — the human's name — under 800 lines of reflowed whitespace, and a diff nobody
+# can read is a diff nobody reviews. The verifier's own audit trail has to stay legible.
+_INLINE_BLOCK_RE = re.compile(r'"(checked|verification)": \{\n[^{}]*?\n\s*\}')
+
+
+def _inline_block(match: re.Match[str]) -> str:
+    key = match.group(1)
+    obj = json.loads("{" + match.group(0) + "}")[key]
+    body = ", ".join(
+        f"{json.dumps(k, ensure_ascii=False)}: {json.dumps(value, ensure_ascii=False)}"
+        for k, value in obj.items()
+    )
+    return f'"{key}": {{ {body} }}'
+
+
+def dump_registry_text(raw: Mapping[str, Any]) -> str:
+    """Serialize a raw registry mapping in the committed file's exact formatting."""
+    text = json.dumps(raw, indent=2, ensure_ascii=False) + "\n"
+    return _INLINE_BLOCK_RE.sub(_inline_block, text)
 
 
 def _reject_duplicates(sources: tuple[Source, ...]) -> None:

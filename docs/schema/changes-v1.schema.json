@@ -2,9 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/changes-v1.schema.json",
   "title": "ID Churn Sentinel — changes.json (schema_version 1.x)",
-  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a change at an OFFICIAL government URL that a NAMED HUMAN reviewed and confirmed. This feed reports that a source page changed and shows the passage that changed; it does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source.",
+  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a change at an OFFICIAL government URL that a NAMED HUMAN reviewed and confirmed. This feed reports that a source page changed and shows the passage that changed; it does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source. READ `registry_verification` BEFORE YOU BUILD: the source registry is machine-checked and NOT human-verified, every source carries a `verification_status`, and an `unverified` source is a candidate URL nobody has confirmed is the official page it claims to be.",
   "type": "object",
-  "required": ["schema_version", "generated_at", "feed_url", "disclaimer", "changes"],
+  "required": [
+    "schema_version",
+    "generated_at",
+    "feed_url",
+    "disclaimer",
+    "registry_verification",
+    "changes",
+    "sources"
+  ],
   "additionalProperties": false,
   "properties": {
     "schema_version": {
@@ -27,13 +35,88 @@
       "type": "string",
       "description": "Travels with the data on purpose. A disclaimer that lives only in a README nobody re-reads is decoration."
     },
+    "registry_verification": {
+      "type": "object",
+      "description": "HOW MUCH OF THE SOURCE LIST A HUMAN HAS ACTUALLY CONFIRMED, for whatever this document is scoped to. Read this before you treat any `url` in this feed as authoritative. Every source in this registry was fetched by our crawler and had its title read — that is a fact about a socket, not a person confirming the page is the right one, and a machine cannot tell a state's real birth-certificate page from a plausible-looking one (one federal site answers our crawler with a bot-wall titled 'Request Access' and serves it with HTTP 200). `human_verified` is the count of sources a NAMED person opened and confirmed. If it is 0, nobody has confirmed any of them.",
+      "required": ["scope", "sources", "human_verified", "unverified", "rejected", "statement"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "type": "string", "description": "The jurisdiction this count covers, or 'all jurisdictions'." },
+        "sources": { "type": "integer", "description": "Sources in scope." },
+        "human_verified": { "type": "integer", "description": "Confirmed by a named human as the official page for that document class in that jurisdiction." },
+        "unverified": { "type": "integer", "description": "Machine-checked only. NOBODY has confirmed these are the right pages. Do not present them as authoritative." },
+        "rejected": { "type": "integer", "description": "A named human opened it and found it is NOT the official page. Flagged for repair; do not use." },
+        "statement": { "type": "string", "description": "The same thing in a sentence, because an integrator will read exactly one of these fields and we do not get to choose which." }
+      }
+    },
     "changes": {
       "type": "array",
       "description": "Newest first. ONLY human-confirmed records ever appear here: unreviewed drift and dismissed noise are withheld by a merge-blocking gate (`make no-unreviewed-in-feed`).",
       "items": { "$ref": "#/$defs/change" }
+    },
+    "sources": {
+      "type": "array",
+      "description": "THE SOURCES BEHIND THIS FEED, scoped the same way the `changes` array is — each with its `verification_status`. They ship inside the feed rather than only in sources.json for one reason: the feed is currently EMPTY, so a consumer who polls only this file would otherwise learn nothing about the registry's status and would go on assuming the URLs behind it are confirmed. They are not. A source cannot appear in any published artifact of this project without its verification status alongside it; that is asserted on the published bytes by a merge-blocking gate.",
+      "items": { "$ref": "#/$defs/source" }
     }
   },
   "$defs": {
+    "verification": {
+      "type": "object",
+      "description": "Whether a HUMAN has confirmed this source URL is the official page for its document class and jurisdiction. Distinct from any HTTP status we recorded: a socket cannot confirm a page is the right page.",
+      "required": ["status", "verifier", "verified_at", "note", "statement"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unverified", "verified", "rejected", "withdrawn"],
+          "description": "`unverified`: machine-checked, NOT human-confirmed — treat the URL as a candidate, not a citation. `verified`: a named human opened it and confirmed it. `rejected`: a named human opened it and found it is NOT the official page — flagged for repair, do not use. `withdrawn`: the source this record cites has since left the registry, so its status cannot be stated here (we say so rather than omitting the field)."
+        },
+        "verifier": { "type": "string", "description": "The NAME of the human who ruled on this source. Empty when nobody has." },
+        "verified_at": { "type": "string", "description": "ISO date (YYYY-MM-DD) the human ruled on it. Empty when nobody has. A verification with no date could never go stale, which means it could never be re-checked." },
+        "note": { "type": "string", "description": "For a rejection: why it is not the official page. May be empty." },
+        "statement": { "type": "string", "description": "The status as a SENTENCE. Status is never signalled by a colour or an icon anywhere in this project — including here, where the field a lazy integrator renders is the one that has to carry the meaning." }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "jurisdiction",
+        "document_class",
+        "url",
+        "authority",
+        "verification_status",
+        "human_verified",
+        "verified_by",
+        "verified_at",
+        "verification_statement",
+        "reachable_by_our_crawler",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "jurisdiction": { "type": "string" },
+        "document_class": {
+          "type": "string",
+          "enum": ["birth_certificate", "drivers_license", "court_order_name_change", "passport", "social_security", "selective_service"]
+        },
+        "url": { "type": "string", "pattern": "^https://", "description": "The CANDIDATE official page. Whether it IS the official page is what `verification_status` answers." },
+        "authority": { "type": "string", "description": "The issuing authority the entry claims this page belongs to. Claimed by us; confirmed only if `verification_status` says so." },
+        "verification_status": {
+          "type": "string",
+          "enum": ["unverified", "verified", "rejected"],
+          "description": "THE FIELD TO FILTER ON. `jq '.sources[] | select(.verification_status != \"verified\")'` is the query, and today it returns everything."
+        },
+        "human_verified": { "type": "boolean", "description": "True only when a named human confirmed it. The registry will not even LOAD an entry that claims true without naming the human and the date." },
+        "verified_by": { "type": "string" },
+        "verified_at": { "type": "string" },
+        "verification_statement": { "type": "string" },
+        "reachable_by_our_crawler": { "type": "boolean", "description": "Whether OUR fetcher can reach it — a fact about our sockets, entirely separate from whether a human has confirmed the page. A source can be perfectly reachable and completely wrong." },
+        "notes": { "type": "string" }
+      }
+    },
     "change": {
       "type": "object",
       "required": [
@@ -51,10 +134,14 @@
         "review_status",
         "reviewer",
         "reviewed_at",
-        "review_note"
+        "review_note",
+        "source_verification"
       ],
       "additionalProperties": false,
       "properties": {
+        "source_verification": {
+          "$ref": "#/$defs/verification"
+        },
         "id": {
           "type": "string",
           "pattern": "^[0-9a-f]{16}$",

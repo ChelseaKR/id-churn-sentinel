@@ -37,7 +37,7 @@ import pytest
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
-from id_churn_sentinel.core.registry import DOCUMENT_CLASSES, JURISDICTIONS
+from id_churn_sentinel.core.registry import DOCUMENT_CLASSES, JURISDICTIONS, Registry
 from id_churn_sentinel.core.site import feed_slug
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
@@ -136,10 +136,28 @@ def _validate(
             errors.extend(_validate(item, item_schema, root, f"{path}[{index}]"))
         return errors
 
-    if expected == "string" and not isinstance(instance, str):
-        return [f"{path}: expected string, got {type(instance).__name__}"]
+    mistyped = _wrong_primitive_type(instance, expected)
+    if mistyped:
+        return [f"{path}: {mistyped}"]
 
     return _validate_scalar(instance, schema, path)
+
+
+def _wrong_primitive_type(instance: object, expected: object) -> str:
+    """`""` when the instance matches the expected primitive type, else the complaint.
+
+    `bool` is an `int` in Python, so the explicit exclusion matters: without it a schema
+    saying `"type": "integer"` would happily accept `true`, and a validator that accepts what
+    the schema forbids is reporting a success it did not earn.
+    """
+    got = type(instance).__name__
+    if expected == "string" and not isinstance(instance, str):
+        return f"expected string, got {got}"
+    if expected == "boolean" and not isinstance(instance, bool):
+        return f"expected boolean, got {got}"
+    if expected == "integer" and (isinstance(instance, bool) or not isinstance(instance, int)):
+        return f"expected integer, got {got}"
+    return ""
 
 
 def test_the_validator_actually_rejects_something() -> None:
@@ -151,6 +169,11 @@ def test_the_validator_actually_rejects_something() -> None:
     assert _validate({}, schema, schema, "$") != []
     assert _validate({"a": 1}, schema, schema, "$") != []
     assert _validate({"a": "ok"}, schema, schema, "$") == []
+
+    typed = {"type": "object", "properties": {"n": {"type": "integer"}, "b": {"type": "boolean"}}}
+    assert _validate({"n": True}, typed, typed, "$") != []  # a bool is not an integer here
+    assert _validate({"b": 1}, typed, typed, "$") != []
+    assert _validate({"n": 3, "b": False}, typed, typed, "$") == []
 
 
 def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:
@@ -174,25 +197,57 @@ def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:
 
 
 def test_the_schema_describes_every_field_the_code_emits(
-    schema: dict[str, Any], confirmed_change: ChangeRecord
+    tmp_path: Path,
+    schema: dict[str, Any],
+    confirmed_change: ChangeRecord,
+    registry: Registry,
 ) -> None:
-    """Add a field to `ChangeRecord.to_dict()` and forget the schema: this goes red. That is
-    the whole job — an integrator's parser is written against the schema, not against us."""
+    """Add a field to a published change and forget the schema: this goes red. That is the
+    whole job — an integrator's parser is written against the schema, not against us.
+
+    Compared against the **published item**, not against `ChangeRecord.to_dict()`. A published
+    item is the record plus what the *publisher* knows and the record does not: the
+    verification status of the source it cites. Comparing against `to_dict()` alone would have
+    let `source_verification` ship undocumented — the field that tells an integrator nobody has
+    confirmed the URL in the item they are about to act on.
+    """
+    publish([confirmed_change], tmp_path, registry=registry)
+    item = json.loads((tmp_path / "changes.json").read_text())["changes"][0]
+
     described = set(schema["$defs"]["change"]["properties"])
-    emitted = set(confirmed_change.to_dict())
+    emitted = set(item)
 
     assert emitted - described == set(), "the code emits fields the schema does not describe"
     assert described - emitted == set(), "the schema describes fields the code never emits"
     assert set(schema["$defs"]["change"]["required"]) == emitted
+    assert set(schema["$defs"]["verification"]["properties"]) == set(item["source_verification"])
+
+
+def test_the_schema_describes_every_field_of_a_published_source(
+    tmp_path: Path, schema: dict[str, Any], registry: Registry
+) -> None:
+    """The `sources` array ships inside every change feed, and every entry in it carries a
+    verification status. The schema has to describe that array exactly, for the same reason it
+    describes the change array: an integrator builds against the schema."""
+    publish([], tmp_path, registry=registry)
+    source = json.loads((tmp_path / "changes.json").read_text())["sources"][0]
+
+    described = set(schema["$defs"]["source"]["properties"])
+
+    assert set(source) == described
+    assert set(schema["$defs"]["source"]["required"]) == set(source)
+    assert source["verification_status"] == "unverified"
 
 
 def test_the_schema_version_matches_the_publisher(schema: dict[str, Any]) -> None:
     assert re.match(schema["properties"]["schema_version"]["pattern"], FEED_SCHEMA_VERSION)
 
 
-def test_real_published_output_validates(tmp_path: Path, confirmed_change: ChangeRecord) -> None:
+def test_real_published_output_validates(
+    tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
+) -> None:
     """Not a hand-written example — the actual bytes `publish()` writes."""
-    publish([confirmed_change], tmp_path)
+    publish([confirmed_change], tmp_path, registry=registry)
     document = json.loads((tmp_path / "changes.json").read_text())
 
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -200,11 +255,11 @@ def test_real_published_output_validates(tmp_path: Path, confirmed_change: Chang
     assert document["changes"][0]["review_status"] == "confirmed"
 
 
-def test_an_empty_feed_validates_too(tmp_path: Path) -> None:
+def test_an_empty_feed_validates_too(tmp_path: Path, registry: Registry) -> None:
     """The current, real state of this feed. If the empty document did not validate, every
     consumer's first poll would fail — and an integrator whose first poll errors concludes
     the feed is broken and never comes back."""
-    publish([], tmp_path)
+    publish([], tmp_path, registry=registry)
     document = json.loads((tmp_path / "changes.json").read_text())
 
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -213,11 +268,11 @@ def test_an_empty_feed_validates_too(tmp_path: Path) -> None:
 
 
 def test_a_per_jurisdiction_document_validates_and_says_what_it_is_scoped_to(
-    tmp_path: Path, confirmed_change: ChangeRecord
+    tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
     """A scoped document that does not say what it is scoped to is a trap: an empty
     `changes-us-tx.json` must not be mistakable for a statement about the whole country."""
-    publish([confirmed_change], tmp_path)
+    publish([confirmed_change], tmp_path, registry=registry)
     slug = feed_slug(confirmed_change.jurisdiction)
     document = json.loads((tmp_path / f"changes-{slug}.json").read_text())
 

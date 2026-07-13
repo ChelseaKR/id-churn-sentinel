@@ -34,6 +34,17 @@ from .conftest import StubFetcher
 GENERATED = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
 
+@pytest.fixture
+def registry(source: Source) -> Registry:
+    """A one-source registry, shadowing the shared fixture.
+
+    The shared `registry` carries three sources because `publish()` needs one per jurisdiction
+    it emits a feed for. These tests are about *one* source's baseline hash, and the assertions
+    below ("this source, and nothing else, is unreachable") are sharper with one.
+    """
+    return Registry(version="1.0", sources=(source,))
+
+
 def test_write_then_load_round_trips_the_hash(
     tmp_path: Path, registry: Registry, source: Source, store: SnapshotStore, fetcher: StubFetcher
 ) -> None:

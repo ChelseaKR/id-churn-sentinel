@@ -55,15 +55,28 @@ def test_committed_registry_loads() -> None:
         assert source.authority.strip()
 
 
-def test_committed_registry_ships_entirely_unverified() -> None:
-    """The seed is SEEDED. Nothing in this codebase flips `verified`, and no entry may
-    ship claiming a human confirmed it when none has. If someone verifies entries for
-    real, this test is what they must consciously update — which is the point."""
+def test_no_committed_entry_claims_a_verification_nobody_signed() -> None:
+    """The seed is SEEDED, and this is the invariant that survives the burn-down.
+
+    Not "nothing is verified" — the whole point of `sentinel verify` is that entries *will*
+    become verified, one named human at a time, and a test that went red on real progress
+    would be a test that discourages the most valuable work in the repo. What may never
+    happen is an entry claiming a human confirmed it with **no human named and no date**.
+    `load_registry` refuses to load one at all; this asserts it on the committed file.
+
+    (The standing count — `0 of 152 sources are human-verified` — is checked in
+    `test_verify.py` and gated in every doc by `sentinel coverage --check-docs`.)
+    """
     registry = load_registry(default_registry_path())
-    assert len(registry.unverified) == len(registry), (
-        "an entry claims verified: true — a human must have actually opened the URL and "
-        "confirmed it, and this assertion must be narrowed deliberately, not by accident"
-    )
+
+    for source in registry.sources:
+        if source.verified:
+            assert source.verification.verifier.strip(), (
+                f"{source.id} claims verified: true with nobody named. A verification with no "
+                f"human attached is indistinguishable from a machine's — which is the one thing "
+                f"this flag exists to not be."
+            )
+            assert source.verification.at, f"{source.id} is verified on no date"
 
 
 def test_committed_registry_covers_the_federal_bucket() -> None:

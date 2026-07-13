@@ -22,6 +22,28 @@ Everything below is published to a static URL and consumable with **no account, 
 
 Every item is a change **a named human reviewed and confirmed**, at an **official government URL**, with **the passage that changed**. Nothing unreviewed is ever published.
 
+## Before you build: what you can and cannot rely on
+
+**`0 of 152 sources are human-verified`.** Every URL in our registry was fetched by our crawler and had its title read — a machine fact about a socket. **No human has confirmed that any given entry is the official page it claims to be**, and a machine cannot establish that: `courts.oregon.gov` serves a soft 404 (HTTP 200, body titled "404 Page Not Found") and `ecfr.gov` serves a bot-wall titled "Request Access" (also HTTP 200). So:
+
+| You may rely on | You may **not** rely on |
+|---|---|
+| **The change records.** Each was reviewed and signed by a named human, cites an official URL, and carries the passage that changed and a reproducible hash. | **The registry as a directory of official pages.** It is a list of *candidates*. Do not republish our URLs as "the official page for X" — that is a claim nobody has made. |
+| **The gaps.** Every (jurisdiction, document class) pair we do not watch is a named gap with the host that refused us. | **Our silence.** An empty feed means no human has confirmed a change. It is not a claim that nothing changed. |
+| **`verification_status` being present, always.** It is a field on every source in every artifact, and a merge-blocking gate asserts it on the published bytes. | **`verification_status: "unverified"` meaning "probably fine".** It means *nobody has looked*. |
+
+**Read it in one line, and put it in your pipeline:**
+
+```sh
+# every source we have NOT had a human confirm — today, that is all of them
+curl -s https://<host>/sources.json | jq '.sources[] | select(.verification_status != "verified")'
+
+# the counts, straight from the feed you are already polling
+curl -s https://<host>/changes.json | jq '.registry_verification'
+```
+
+If you map a page of yours to one of our `source_id`s, **map it to the URL you already trust, not to ours** — and use our feed as an alarm on that URL, which is the job it is actually good at. When the burn-down finishes, `verification_status` flips to `verified` with the name of the person who confirmed it and the date they did, and this section shrinks.
+
 ## Integrator quickstart
 
 **1. Poll the JSON. That is the whole integration.**
@@ -70,6 +92,14 @@ curl -s https://<host>/sources.json | jq '.gaps[] | {jurisdiction, document_clas
 | `significance` | *What a human judged.* `editorial` or `substantive`. **Never machine-set.** |
 | `review_status` | Always `confirmed`. Unreviewed drift and dismissed noise never reach you. |
 | `reviewer` | The **name of the human** who stands behind the item. Never null, never "automated". |
+| `source_verification` | **Whether anyone has confirmed the URL in this item is the page it claims to be.** `{status, verifier, verified_at, note, statement}`; `status` is `unverified` \| `verified` \| `rejected` \| `withdrawn`. A different human from `reviewer`, doing a different job: `reviewer` read the *diff*; `source_verification` is about the *source*. Today every value is `unverified`. |
+
+Two further top-level fields ship in `changes.json` and in every per-jurisdiction `changes-us-xx.json`:
+
+| Field | Meaning |
+|---|---|
+| `registry_verification` | `{scope, sources, human_verified, unverified, rejected, statement}` — how much of the source list behind *this document* a human has actually confirmed. Read it before you treat any `url` here as authoritative. |
+| `sources` | **The sources behind this feed, scoped the same way `changes` is, each with its `verification_status`.** They ship inside the feed and not only in `sources.json` for one reason: the feed is currently *empty*, so a consumer polling only this file would otherwise learn nothing about the registry's status and would assume the URLs behind it had been confirmed. They have not been. |
 
 ### What the review states mean
 

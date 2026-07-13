@@ -8,6 +8,7 @@ __all__ = [
     "ReviewError",
     "SentinelError",
     "StoreError",
+    "VerificationError",
 ]
 
 
@@ -25,6 +26,15 @@ class StoreError(SentinelError):
 
 class ReviewError(SentinelError):
     """A review action was rejected — most often, a classification without a human reviewer."""
+
+
+class VerificationError(SentinelError):
+    """A source verification was refused — most often, a confirmation with no named verifier.
+
+    Same shape as `ReviewError`, and for the same reason: `verified: true` is a claim that a
+    *person* opened a government page and confirmed it is the right one. An anonymous
+    verification is indistinguishable from a machine's, and the machine's opinion is exactly
+    what this field exists to not be."""
 
 
 class PublishError(SentinelError):

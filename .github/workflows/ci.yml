@@ -35,10 +35,11 @@ jobs:
         run: make install
 
       # The full merge gate: lint · typecheck · tests+coverage(>=90) · pip-audit ·
-      # sources-validate · no-unreviewed-in-feed · no-auto-classification.
+      # sources-validate · no-unreviewed-in-feed + no-unlabelled-source · no-auto-classification.
       #
       # The suite makes NO network calls: the fetcher is injected and the tests pass it
-      # fixtures. If a future change makes CI depend on a state government's website being
-      # up, that is a bug in the test, not a flaky runner.
+      # fixtures — and so is the prompt, which is why the interactive `sentinel verify` loop
+      # is tested here without a terminal. If a future change makes CI depend on a state
+      # government's website being up, that is a bug in the test, not a flaky runner.
       - name: make verify
         run: make verify

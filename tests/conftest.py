@@ -79,8 +79,41 @@ def source() -> Source:
 
 
 @pytest.fixture
-def registry(source: Source) -> Registry:
-    return Registry(version="1.0", sources=(source,))
+def arizona_source() -> Source:
+    return Source(
+        id="az-mvd-driver-services",
+        jurisdiction="AZ",
+        document_class="drivers_license",
+        url="https://azdot.gov/mvd/services/driver-services",
+        authority="Arizona Department of Transportation, MVD",
+        verified=False,
+        notes="test fixture",
+    )
+
+
+@pytest.fixture
+def federal_source() -> Source:
+    return Source(
+        id="us-passport-sex-markers",
+        jurisdiction="US",
+        document_class="passport",
+        url="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+        authority="U.S. Department of State, Bureau of Consular Affairs",
+        verified=False,
+        notes="test fixture",
+    )
+
+
+@pytest.fixture
+def registry(source: Source, arizona_source: Source, federal_source: Source) -> Registry:
+    """The registry every `publish()` in the suite is given.
+
+    It is a required argument to `publish()`, not an optional one, and that is the point: a
+    published artifact cannot exist without the registry that knows each source's verification
+    status, so there is no code path — and therefore no test — in which a source reaches a
+    consumer with its status silently omitted.
+    """
+    return Registry(version="1.0", sources=(source, arizona_source, federal_source))
 
 
 @pytest.fixture

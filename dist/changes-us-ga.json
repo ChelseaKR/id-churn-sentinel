@@ -1,8 +1,60 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "generated_at": "2026-07-13T20:58:07.843726+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "GA",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
-  "changes": []
+  "registry_verification": {
+    "scope": "GA",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "ga-courts",
+      "jurisdiction": "GA",
+      "document_class": "court_order_name_change",
+      "url": "https://georgiacourts.gov/",
+      "authority": "Judicial Council of Georgia / Administrative Office of the Courts",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Welcome to the Georgia Judicial Gateway'. A landing page."
+    },
+    {
+      "source_id": "ga-dds",
+      "jurisdiction": "GA",
+      "document_class": "drivers_license",
+      "url": "https://dds.georgia.gov/",
+      "authority": "Georgia Department of Driver Services",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Georgia Department of Driver Services'. A landing page; the guessed /change-name-or-address deep link 404s, so it was not invented."
+    },
+    {
+      "source_id": "ga-dph-vital-records",
+      "jurisdiction": "GA",
+      "document_class": "birth_certificate",
+      "url": "https://dph.georgia.gov/VitalRecords",
+      "authority": "Georgia Department of Public Health, State Office of Vital Records",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200 (the post-redirect, case-normalized URL is recorded), h1 'Vital Records'."
+    }
+  ]
 }

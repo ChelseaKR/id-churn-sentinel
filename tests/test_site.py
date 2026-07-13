@@ -119,6 +119,64 @@ def test_the_published_site_makes_no_third_party_requests(
 
 
 @pytest.mark.feed_integrity
+def test_no_published_artifact_carries_a_tracker_including_the_per_jurisdiction_ones(
+    tmp_path: Path, confirmed_change: ChangeRecord
+) -> None:
+    """THE GATE, on **every byte we publish** — not just `index.html` and `changes.json`.
+
+    Publishing the real registry writes 108 more files than the two the original tests
+    covered: `feed-us-tx.xml`, `changes-us-tx.json`, and a pair for each of 52 jurisdictions.
+    Those are the artifacts a legal-aid clinic actually subscribes to, and "the promise holds
+    for the two files we happened to test" is not a promise — it is a coincidence with good
+    intentions. A tracking pixel in `feed-us-tx.xml` would tell a third party which state's
+    trans-ID feed someone reads, which is *more* identifying than the unscoped one, not less.
+
+    So the sweep is over the whole `dist/` directory, and it is by construction: a future
+    artifact nobody remembers to add to a list is covered the day it is written.
+    """
+    publish([confirmed_change], tmp_path, registry=load_registry())
+
+    artifacts = sorted(tmp_path.iterdir())
+    assert len(artifacts) > 100, "expected the full published surface, per-jurisdiction included"
+
+    for path in artifacts:
+        content = path.read_text().lower()
+        for forbidden in (
+            "<script",
+            "<iframe",
+            "<img",
+            "<form",
+            "<input",
+            "@import",
+            "googleapis",
+            "google-analytics",
+            "googletagmanager",
+            "doubleclick",
+            "facebook.com",
+            "segment.io",
+            "mixpanel",
+            "hotjar",
+            "utm_source",
+            "utm_medium",
+            "set-cookie",
+            "enter your email",
+            "api_key",
+            "apikey",
+            "token=",
+            "bearer ",
+            "src=",
+            "srcset=",
+            "@font-face",
+            # Nothing this project publishes is fetched from a host that is not ours. The
+            # only http(s) URLs in the bytes are OFFICIAL SOURCES we cite and our own repo —
+            # links a reader chooses to follow, never subresources a browser fetches for them.
+            "cdn.",
+            "analytics.",
+        ):
+            assert forbidden not in content, f"{path.name} must not carry {forbidden!r}"
+
+
+@pytest.mark.feed_integrity
 def test_unreviewed_drift_never_reaches_the_site(
     tmp_path: Path, site_registry: Registry, observed_change: ChangeRecord
 ) -> None:

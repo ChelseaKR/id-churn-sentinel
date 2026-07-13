@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+*.egg-info/
+
+# NOTE: `dist/` is deliberately NOT ignored, which is unusual for a Python project and is
+# the whole point. `dist/` is not a build artifact here — it is THE PUBLISHED FEED, and it
+# is the product: index.html, feed.xml, changes.json, sources.json, and a feed per
+# jurisdiction. Committing it means the site can be served by GitHub Pages, by any static
+# host, or by `python -m http.server` out of a clean clone, with **no build step and no CI
+# run**. That matters concretely: this account has an Actions spending limit, and a feed
+# that only exists after somebody else's billing system agrees to run a workflow is a feed
+# that does not exist. It also means a reviewer can see, in the diff, exactly what changed
+# in the published bytes before it reaches an org that acts on them.
+#
+# The one thing that must never appear in it is an unreviewed record — which is not a
+# gitignore's job to enforce, and is enforced by `make no-unreviewed-in-feed` instead.
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# The snapshot store: fetched government pages, regenerable, and not something to
+# commit (it grows without bound in a git history and adds nothing a reviewer needs).
+var/

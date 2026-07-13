@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/changes-v1.schema.json",
+  "title": "ID Churn Sentinel — changes.json (schema_version 1.x)",
+  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a change at an OFFICIAL government URL that a NAMED HUMAN reviewed and confirmed. This feed reports that a source page changed and shows the passage that changed; it does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "feed_url", "disclaimer", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Pin against the MAJOR version. THE PROMISE: a major bump means a BREAK (a field removed or renamed, a type changed, an enum value removed). Adding a new OPTIONAL field is not a break and bumps only the minor — so ignore unknown keys, as every sane JSON consumer already does, and you will not be broken by us. If we ever have to break you, the major goes to 2 and this URL keeps serving v1."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this document was written. NOT when anything changed — see `observed_at` on each item. A fresh `generated_at` with an empty `changes` array means we ran and had nothing confirmed to tell you."
+    },
+    "feed_url": { "type": "string", "format": "uri" },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Present ONLY on a per-jurisdiction document (changes-us-tx.json). Its presence means this document is scoped: its `changes` array is a statement about this jurisdiction and about no other. Absent on the all-jurisdictions changes.json.",
+      "enum": ["US", "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
+    },
+    "disclaimer": {
+      "type": "string",
+      "description": "Travels with the data on purpose. A disclaimer that lives only in a README nobody re-reads is decoration."
+    },
+    "changes": {
+      "type": "array",
+      "description": "Newest first. ONLY human-confirmed records ever appear here: unreviewed drift and dismissed noise are withheld by a merge-blocking gate (`make no-unreviewed-in-feed`).",
+      "items": { "$ref": "#/$defs/change" }
+    }
+  },
+  "$defs": {
+    "change": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_id",
+        "jurisdiction",
+        "document_class",
+        "url",
+        "observed_at",
+        "previous_hash",
+        "new_hash",
+        "diff_excerpt",
+        "kind",
+        "significance",
+        "review_status",
+        "reviewer",
+        "reviewed_at",
+        "review_note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "A DEDUPE KEY YOU CAN TRUST FOREVER. Deterministic in (source_id, previous_hash, new_hash), so re-running the watcher over the same drift re-derives the same id, and an id cited in an email six months ago still resolves. Store it; do not re-key on our timestamps."
+        },
+        "source_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "The registry entry that moved. Map YOUR pages to these — the full inventory, including everything we do NOT watch, is published as sources.json."
+        },
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["US", "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"],
+          "description": "A two-letter state, DC, or US for federal policy (passport, Social Security, Selective Service). A closed set: 50 states + DC + the federal bucket."
+        },
+        "document_class": {
+          "type": "string",
+          "enum": ["birth_certificate", "drivers_license", "court_order_name_change", "passport", "social_security", "selective_service"],
+          "description": "A closed set. A seventh value would be a product decision, not a config change, and would bump the major version."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "description": "The OFFICIAL government page that changed. Always https, never a mirror, never our summary of it. Go and read it."
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When our crawler saw the change. NOT when the agency made it — a page can sit changed for a week before our weekly pass sees it, and we will never claim otherwise."
+        },
+        "previous_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of the NORMALIZED text (markup stripped, whitespace collapsed, lowercased) before the change. Reproducible: we retain the bytes, so any published diff can be independently verified months later."
+        },
+        "new_hash": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{64})?$",
+          "description": "sha256 of the normalized text after the change. EMPTY STRING when `kind` is `possibly_removed` — there is no new content, because we could not fetch the page at all, and inventing a hash for bytes we never received would be a lie."
+        },
+        "diff_excerpt": {
+          "type": "string",
+          "description": "A unified diff of the changed passages — the reason this feed exists. `\"+A court order is required to change the sex field\"` is reviewable in thirty seconds; `\"texas.gov changed\"` is not. Truncated at 4000 characters. For a PDF or other binary source it says plainly that the bytes changed and cannot be diffed, rather than faking one. For `possibly_removed` it carries the literal fetch error and the streak length."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["content_drift", "possibly_removed"],
+          "description": "WHAT THE MACHINE OBSERVED — a fact about our sockets, on a different axis from `significance`. `content_drift`: we fetched the page and its normalized text hashed differently. `possibly_removed`: we could not fetch it AT ALL, N times running. `possibly_removed` does NOT say the page was taken down. It says we failed N times, here is the error, a human looked and confirmed it is worth telling you. Removed / blocked / down are three different worlds and the machine is not entitled to choose between them."
+        },
+        "significance": {
+          "type": "string",
+          "enum": ["editorial", "substantive"],
+          "description": "A HUMAN'S JUDGMENT, never a machine's. `unclassified` is a valid internal state and CAN NEVER APPEAR HERE — an unclassified record is unpublishable by construction (enforced in the type system, in a SQL CHECK constraint, in the CLI, and in a merge-blocking gate). If you ever see a third value in this field, we broke a promise; open an issue."
+        },
+        "review_status": {
+          "type": "string",
+          "const": "confirmed",
+          "description": "ALWAYS `confirmed`. It is a constant rather than an enum because that is the actual contract: unreviewed drift and dismissed noise never reach this feed. It is emitted anyway so you can assert on it, and so that a future value cannot appear without breaking your validator on purpose."
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The NAME OF THE HUMAN who stands behind this item. Never null in a published record, never a machine, never 'automated'. This is the whole value of the feed: an anonymous classification is indistinguishable from an automated one to the org consuming it."
+        },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "review_note": {
+          "type": "string",
+          "description": "Why the reviewer decided what they decided. May be empty."
+        }
+      }
+    }
+  }
+}

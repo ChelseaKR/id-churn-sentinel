@@ -1,0 +1,169 @@
+# ID Churn Sentinel
+
+**Cited, machine-checkable change detection for US transgender identity-document law and process.** It watches the *official* pages — state vital records, DMVs, courts, State Department, SSA, the Federal Register — hashes their normalized text on a polite weekly cadence, and when something moves it produces the **passage that changed**, not just a "something changed" ping. A named human reviews every detected change before it is published. The tool reports that a source changed; it never asserts what the law is.
+
+**Status:** `In build` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** MIT · **Runtime deps:** zero (stdlib only)
+
+## The result that matters
+
+A sentinel that cries wolf gets muted, and a muted sentinel is worse than none — so the first thing worth reporting is not the coverage number, it is what happened when the tool was pointed at the real internet twice in a row.
+
+**Run 1** baselined 125 live government pages. **Run 2, minutes later, reported 123 unchanged and 2 changed.** Both "changes" were false:
+
+| Source | What "changed" |
+|---|---|
+| `dpbh.nv.gov` (NV birth certificates) | a rotating *"Nevada state symbol"* trivia block in the footer: **state fish → state reptile**. It re-rolls on **every single request** — three back-to-back fetches gave three different hashes. |
+| `azdot.gov/mvd` (AZ driver's license) | a randomly-sampled *"frequently viewed links"* widget: `rest area rules` → `penalties`. |
+
+Neither is markup churn, so **the normalizer could not have caught them** — that is real, visible page text. And "normalize harder" is the wrong instinct: a normalizer that guesses which visible text doesn't count is one that can *hide a real change*, which is the one failure this repo will not trade for tidiness.
+
+So: Nevada's page was **removed** from the registry (the widget is site-wide across the nv.gov CMS — there is no stable Nevada vital-records page to substitute) and recorded as a named GAP. Arizona was **swapped** for a deeper page carrying the same content and no widget. Then the tool got a new command — **`sentinel sources check --twice`** — which fetches every source twice and names anything that hashes differently. Run across the whole registry it caught **a third**: `nebraskajudicial.gov` renders its "recently adopted rules" list in *non-deterministic order*, so the same rules come back shuffled. Swapped for the stable self-help page.
+
+**Re-baselined and re-run: 125 unchanged, 0 changed, 0 false positives.** The three sources that would have alerted every week forever are gone, and they are the finding — a monitor that had shipped without this pass would have been ignored inside a month.
+
+**And `--twice` is not enough, which is the second finding.** It catches a widget that re-rolls on every *request*. It cannot catch a page that rotates on a *slower* cycle — and three candidate sources fetched cleanly, hashed identically twice in a row, and would have drifted forever anyway:
+
+| Candidate | What it renders into the page |
+|---|---|
+| `leg.state.fl.us` (FL name-change statute) | **today's date**. A change record every day, whose diff is the date. |
+| `legislature.mi.gov` (MI statutes, HTML view) | a **live session ticker** — *"Senate adjourned until Wednesday, July 15, 2026 10:00 AM"*. |
+| `ecfr.gov` (the federal SSA regulations) | a bot-wall page titled **"Request Access" — served with HTTP 200**. |
+
+The last one is the nastiest thing in this repo. A status-code check *blesses* it, it hashes perfectly stably, and we would have watched a captcha for years and called it Social Security policy. None of the three is in the registry: they were caught by **reading the normalized text of every candidate before adding it**, which is now part of adding one.
+
+## Closing the map without lying to get there
+
+Michigan and New Hampshire used to be **absent entirely**: `michigan.gov` and every `nh.gov` host serve a browser and return **403 to our descriptive User-Agent**, and `courts.michigan.gov` normalizes to *zero passages*. There is a two-line change that "fixes" that — send a Chrome User-Agent — and a tool that lies about who it is, to a government server, on behalf of a population under surveillance, has not earned the trust it is asking for. So the gap stood.
+
+The honest fix is that **a state usually publishes the same policy content on a second official surface**, and that surface often answers us:
+
+| Was | Now watched instead |
+|---|---|
+| `michigan.gov` (403) · `courts.michigan.gov` (SPA, 0 passages) | the **Michigan Compiled Laws** section governing a new birth certificate *"to show a sex designation other than that designated at birth"* (MCL 333.2831), the licence-application statute, and the SCAO's **PC 51 name-change petition** — the form a Michigan name change actually runs on |
+| every `nh.gov` host (403) | **RSA 5-C:87** (amending a birth record), **Saf-C 1000** (the DMV's own licensing rules), **RSA 547:3-i** (probate-court name change) |
+| `odh.ohio.gov` (404s its own site root — a WAF wearing a 404's clothes) | **OAC 3701-5**, the vital-statistics rules ODH itself administers |
+| `sccourts.org` (`robots.txt` disallows us, site-wide) | the **S.C. Code** name-change chapter, whose robots.txt permits us |
+| `dmv.nv.gov` (JavaScript shell) · `dpbh.nv.gov` (rotating state-fish widget — *removed* in the pass above) | **NAC 483** and **NRS 440** on the Legislature's site, which carries no widget |
+| `dps.ms.gov` (unverifiable TLS chain) | the **Driver Service Bureau's own host**, same authority, chain that verifies |
+
+**Sixteen jurisdictions were closed this way, and the two absent ones are gone**: MI, NH, DE, HI, ID, KS, LA, MN, MS, MT, NC, NV, OH, RI, SC, TX. Coverage is now **52 of 52 jurisdictions**.
+
+Note precisely what these entries claim, because it is less than it looks: **a statute page is the law an agency administers, not the agency's own process page.** Every one of them says so in its notes. Watching Texas's Family Code Chapter 45 does not mean we watch a Texas county's filing process — Texas publishes no statewide name-change instructions at all, and we still say so.
+
+And what did *not* get fixed is the more interesting half. **12 named gaps remain**, and they are named rather than closed because the only ways to close them are the ways we will not use — 5 hosts that 403 our UA, 3 whose TLS chain does not verify, 2 whose robots.txt forbids us, 2 that are JavaScript shells with no text to hash. Colorado's statutes *are* published, but only as **year-stamped PDFs at a frozen URL**: a source that can never drift is worse than no source, because it is a wrong "no change" with a green light on it.
+
+## Why it matters
+
+Three organizations already document how to change your name and gender marker on an ID in the United States. All three cover the ground. **All three say, in their own words, that they cannot keep up with how fast it moves.**
+
+- **Advocates for Trans Equality (A4TE)** — the [ID Documents Center](https://transequality.org/documents) covers all 50 states, DC, 5 territories, and 5 federal document classes. It also says, verbatim: *"Due to the ever-changing nature of state laws and policies, we are working to keep the ID Documents Center as up to date as possible. If you see something that needs updating, please contact us."* Their freshness mechanism is **a contact form**.
+- **Trans Lifeline** — the [ID Change Library](https://translifeline.org/resources/id-change-library/) has been maintained by volunteers since 2016. It is self-acknowledged incomplete (entries are literally flagged *"Help Us Find It"*), publishes no API or export, and carries **no last-updated dates at all**.
+- **Namesake** ([namesake.fyi](https://namesake.fyi/)) — genuinely well-engineered, open-source, and the best software in this space. It fully supports **2 of 51 jurisdictions** (MA and RI). Forty-seven are marked *"No Support Yet."*
+
+**Coverage is not the gap. Freshness is.** Nobody publishes structured, cited, machine-checkable change detection over ID law and process. Every incumbent's stale-content problem is the same problem, and it is a *monitoring* problem, not a *writing* problem — they have the writers, the legal review, the community trust, and the context. What none of them has is a system that tells them **which of their pages went stale this week and why**.
+
+This repo is that missing layer. **Its intended consumers are those incumbents — not their users.** A4TE, Trans Lifeline, Namesake, and legal-aid orgs consume the feed and update their own, better-contextualized guidance from it. It is infrastructure for them, not a competitor to them. See [`docs/CONSUMERS.md`](./docs/CONSUMERS.md).
+
+Why this is worth building carefully: **a wrong "no change" is a safety failure.** Someone reads guidance that a monitor silently failed to flag as stale, drives to a DMV with the wrong documents, and loses a day of work, a filing fee, or — in the wrong state on the wrong day — considerably more. That asymmetry drives every design decision below.
+
+## What it does
+
+- **Watches official sources only.** A committed registry (`sources/registry.json`) of https government URLs, keyed by jurisdiction (50 states + DC + a `US` federal bucket) and document class (birth certificate, driver's license, court-order name change, passport, Social Security, Selective Service). Each entry names its issuing authority and ships **`verified: false`** — the registry is *seeded*, and only a human who has actually opened the URL may flip that flag. Nothing in the codebase can.
+- **Refuses to watch a page it cannot watch honestly.** Some official pages re-roll a rotating widget on every single request — `dpbh.nv.gov` renders a *"Nevada state symbol"* trivia block (state fish → state reptile) into its footer, and hashes differently every time it is asked. A page like that would report a change **every week, forever**, and its diff would be a fact about the desert tortoise. The normalizer cannot save us: that rotating text is real, visible page text, and a normalizer that guesses which visible text "doesn't count" is a normalizer that can *hide a real change*. So the answer is not to normalize harder — it is to not watch the page, to say so in the registry's GAP list, and to ship the diagnostic that finds them: `sentinel sources check --twice`.
+- **Tells you *what* changed, not just *that* something did.** On drift it computes a unified diff of the **normalized text** and hands the reviewer the changed passages. `"+A court order is required to change the sex field"` is reviewable in thirty seconds. `"texas.gov changed"` is not, and in practice it means the alert gets acknowledged and the page never actually gets re-read.
+- **Ignores markup churn.** Government pages churn a rotated CSRF token, a re-minified stylesheet, and an `&nbsp;` far more often than they churn text. Normalization strips script/style/comments/tags and resolves entities before hashing, so a cosmetic re-deploy does not wake anyone up. (A watcher that cries wolf gets muted, and a muted watcher is worse than none.)
+- **Treats an outage as an outage — but does not treat a *disappearance* as an outage.** **A fetch failure is never drift.** A 503, a WAF block, a timeout: the previous hash is held, no snapshot is written, no content change is recorded. A state's website falling over is not a state changing its policy. But a page that has been *taken down* used to look exactly like a brief outage — forever — and the tool answered that silence with silence. It now counts *consecutive* failures per source, and after a threshold escalates to a distinct `possibly_removed` record that a human must review. A government page about trans identity documents vanishing is itself a policy signal; it is never auto-classified as one.
+- **Keeps the bytes.** SQLite snapshot store retains the last N fetches per source — raw bytes, normalized text, sha256, timestamp, HTTP status — so any published diff is reproducible months later, after the state has quietly re-edited the page twice more. A diff you cannot reproduce is a claim, not evidence.
+- **Commits the baseline, so a clean clone has a memory.** The snapshot store is not committed (it is megabytes of government HTML and grows weekly), which used to mean a fresh checkout knew nothing: every source is a first sighting, a first sighting is a baseline rather than drift, and the tool could say nothing at all until it had watched for a week. `sources/baseline-hashes.json` — 125 hashes, mirroring `trans-docs-navigator/corpus/source-hashes.json` — closes that: `sentinel baseline check` answers *"which of these pages is not what it was?"* from a fresh clone, with no store. It is honest about its limit, too: it holds the hash, not the text, so it can tell you a page moved but not what moved. `sentinel watch` does that.
+- **Requires a human before it says anything.** Every detected change is born `unclassified` / `unreviewed`. A person classifies it (`editorial` | `substantive`) and confirms or dismisses it. Only confirmed, classified, human-signed records reach the feed.
+- **Publishes something an incumbent can actually consume, with no account.** A static site (`dist/index.html`), RSS (`feed.xml`), a versioned JSON feed against a [published schema](./docs/schema/changes-v1.schema.json) (`changes.json`), an inventory of every watched source *and every named gap* (`sources.json`), and **one feed per jurisdiction** (`feed-us-tx.xml`, `changes-us-tx.json`) so a clinic that serves one state is not made to consume all 52. No auth, no email capture, no tracking, no third-party request anywhere in the published bytes — asserted on the published output by a merge-blocking test. A subscriber list for a trans-ID-law feed is a list of trans people; the safest way to protect that list is to never create one.
+- **Cannot lie about its own coverage.** Every number in this README — sources, jurisdictions, gaps, unreachable — is *derived from the registry* by `sentinel coverage`, and `sentinel coverage --check-docs` fails the build if any doc disagrees, or if a jurisdiction/document-class pair is neither watched nor a **named gap**. A project whose pitch is *"we tell you what went stale"* cannot have a stale front page. It found two silent holes on the day it was written (see below).
+
+## Prior art this builds on
+
+`trans-docs-navigator/scripts/source-watch.ts` and `policy-watch.ts` already do content-hash drift detection, and this repo's normalization approach and its "a fetch failure is never drift" discipline are lifted directly from them. What they don't do — and what this repo exists to do — is cover more than the five jurisdictions that repo carries, say *what* changed rather than *that* something did, or publish anything at all.
+
+## Quickstart
+
+```sh
+make install                       # uv sync (Python 3.12+; zero runtime deps)
+make verify                        # the full 7-gate merge pipeline
+uv run sentinel sources validate   # the registry gate
+uv run sentinel coverage           # the coverage numbers, DERIVED from the registry
+uv run sentinel coverage --check-docs  # …and the gate that fails if a doc disagrees
+uv run sentinel sources check      # live-fetch every URL (network) — the human's verification aid
+uv run sentinel sources check --twice  # find false-drift sources BEFORE they reach a reviewer
+uv run sentinel baseline check     # what moved since the committed baseline (needs no store)
+uv run sentinel watch              # fetch, normalize, hash, diff, record drift
+uv run sentinel diff <change-id>   # the changed passages
+uv run sentinel review <change-id> --reviewer "Your Name" --significance substantive --status confirmed
+uv run sentinel publish --out dist/    # site + RSS + JSON + per-jurisdiction feeds + inventory
+```
+
+**Consuming it** (no account, no key, no email — see [`docs/CONSUMERS.md`](./docs/CONSUMERS.md)):
+
+```sh
+curl -s https://<host>/changes.json      | jq '.changes[] | select(.significance=="substantive")'
+curl -s https://<host>/changes-us-tx.json | jq '.changes[]'   # just Texas
+curl -s https://<host>/sources.json       | jq '.gaps[]'      # what we do NOT watch, and why
+```
+
+**The weekly run.** `make watch-weekly` is the operational job, and `.github/workflows/watch.yml` is the same thing on a cron. The workflow opens or updates a single human-review issue when a source moves and **cannot publish** — publication requires `sentinel review --reviewer`, a named human, and there is no path from CI to that command. Note that this repo's owner has an account-wide GitHub Actions spending limit, so **do not assume the hosted workflow ever runs**: the Makefile target is the primary path and the workflow is the convenience. A monitor whose only trigger is someone else's billing system is not a monitor.
+
+## For Claude Code
+
+- **Build entrypoint:** [`docs/ROADMAP.md`](./docs/ROADMAP.md) → *Implementation Plan* (M0–M5).
+- **Hard guardrails:**
+  1. **Never auto-classify legal significance.** The tool observes that bytes changed. A human decides what it means. This is enforced in four independent places (the detector has no vocabulary to classify; `reviewed_by` refuses an unnamed reviewer; a SQL `CHECK` constraint rejects a classified row with no reviewer; the CLI requires `--reviewer`) and gated by `make no-auto-classification`. A machine announcing *"Texas substantively changed its gender-marker policy"* on the strength of a sha256 comparison will be believed, and will sometimes be wrong.
+  2. **Unreviewed drift never reaches the feed.** Gated by `make no-unreviewed-in-feed`. An item in the published feed propagates outward into advice real people act on.
+  3. **A fetch failure is never drift.** Carry the old hash forward. An outage is not a content change. (But a *long* silence is escalated for human review rather than held forever — see `possibly_removed` in `core/detect.py`. Silence is not a safe default when a page may have been scrubbed.)
+  4. **Never fabricate a source.** The registry holds only official URLs someone can point at. It is better to cover 21 jurisdictions honestly than to seed 300 URLs nobody has opened. If a source's robots.txt forbids us, or its TLS cannot be verified, the answer is to remove it and say so — not to route around it.
+  5. **The feed requires no account, ever.** No auth, no email, no tracking, no analytics.
+  6. **Do not assert what the law says.** Not in the feed, not in the docs, not in a helpful summary field. That job belongs to A4TE, Trans Lifeline, Namesake, and lawyers — and doing it badly is the harm.
+  7. **Never add a source without running `sentinel sources check --twice` on it — and then reading its normalized text.** A page that re-rolls a widget on every request is a permanent false alarm, and one of those costs more trust than ten missing jurisdictions. Three were caught by `--twice`. Three *more* passed `--twice` cleanly and were caught only by reading the text (a live date, a session ticker, and a bot-wall served with HTTP 200). Both steps, every time.
+  8. **Never hand-write a coverage number.** `sentinel coverage` derives them; `--check-docs` gates them. If a number in a doc is wrong, the fix is to run the command — never to edit the registry until the prose comes true.
+- **Commands:** `make verify` · `make coverage` · `make watch-weekly` · `make publish` · `make sources-check` · `make sources-stability` · `make baseline-check`.
+- **Definition of done (M1):** every registry entry human-verified; a real weekly watch pass running; at least one reviewed change published to a feed an incumbent has actually subscribed to; all 7 gates green.
+
+## Gates
+
+`make verify` runs seven merge-blocking stages:
+
+| # | Gate | What it holds |
+|---|------|---------------|
+| 1 | `lint` | ruff (correctness, bandit security, import hygiene, no bare TODOs) |
+| 2 | `type` | `mypy --strict` |
+| 3 | `cov` | pytest, coverage floor **90%** |
+| 4 | `security` | `pip-audit` |
+| 5 | `sources-validate` | every registry entry: well-formed https official URL + known jurisdiction + known document class + named authority + unique id + no duplicate watch target — **and** `coverage --check-docs`: every coverage number in every doc is re-derived from the registry, and every unwatched (jurisdiction, document class) pair is a **named gap** |
+| 6 | `no-unreviewed-in-feed` | **safety** — unreviewed or dismissed drift cannot be published |
+| 7 | `no-auto-classification` | **safety** — nothing is classified `substantive` without a named human |
+
+Gates 6 and 7 are not code-quality checks. They are the safety properties this tool exists to hold. If either goes red, the correct response is to stop, not to weaken the test.
+
+The whole suite runs **with no network** — the fetcher is injected, and the tests hand it fixtures.
+
+## Honest limits
+
+- **The registry is machine-checked, not human-verified.** 152 sources across **52 of 52 jurisdictions**, every one `verified: false`. Every URL in it has been live-fetched *by the tool's own fetcher*, its title read, **and its normalized text read**; **none of them has been confirmed by a human as the right page**, and that is a different, unfinished job. `sentinel sources validate` prints the count on every run and will keep printing it until someone does it. The `checked` block on each entry records *machine* facts (status, redirect target, reachability) and is deliberately a separate field from `verified` — a socket returning 200 is not a person confirming a page.
+- **12 named gaps remain**, each one a (jurisdiction, document class) pair we do not watch, with the host that refused us and the reason: `blocked-403` (5), `tls-unverifiable` (3), `robots-disallowed` (2), `spa-no-text` (2). They are **data, not prose** (`gaps` in `sources/registry.json`), they are on the published site, and the completeness gate proves that *every* unwatched pair is one of them. **We do not spoof a browser User-Agent, we do not disable certificate verification, and we do not route around a robots.txt.** A blocked source degrades the tool without corrupting it.
+- **The gaps used to be prose, and prose does not get checked.** DC and RI were each missing an entire document class that **no gap paragraph mentioned** — they were not decisions, they were omissions wearing the costume of decisions. The derived gate makes that unrepresentable: an unwatched pair that is not a named gap now fails the build. (RI is now watched; DC's courts 403 us and it is a named gap.)
+- **The TLS stack is part of the claim.** `jud.ct.gov` answers a legacy OpenSSL 1.1.1 client with 200 and refuses the tool's OpenSSL 3.5 handshake outright. "It loads in my browser" is not evidence that this tool can watch it, and a registry recording the browser's opinion would be quietly wrong. Several of these hosts ship an incomplete chain that a browser silently repairs by chasing the AIA extension; **the chain can be completed correctly, and it is the server's job to send it** — the fetcher does not relax verification to compensate, and it never will.
+- **6 of the 152 registered sources cannot currently be fetched** by our own crawler — `ssa.gov` (×2), `nycourts.gov`, `health.ny.gov`, `cdph.ca.gov`, `ilsos.gov` — and are therefore *watched in name only*, carrying **no baseline hash at all**, because a hash we did not observe is not a hash. They are not deleted: deleting them would erase the fact that we cannot watch them.
+- **This detects change, it does not detect *importance*.** A state can gut a policy by an internal directive that never touches a web page, and this tool will see nothing. It is one signal, not a guarantee.
+- **Coverage is uneven by document class**, and a landing page is often the deepest honest target: several states publish no statewide page for a document class at all (Texas's name-change process is county-level). Where the office page is all there is, the office page is what is watched, and the entry says so. The feed's silence about a jurisdiction means nothing at all.
+- **The feed is currently, legitimately, empty.** `dist/feed.xml` is valid RSS 2.0 with zero `<item>`s and an XML comment saying it is empty rather than broken; the site says the same thing in prose. Nothing has been reviewed and confirmed by a human yet, so nothing is published, **and no change was manufactured to make the feed look alive.** An empty feed is **not** a claim that nothing changed anywhere.
+- **The site says when it was *generated*, which is not the same as when the watcher last ran.** A consumer could read a fresh `generated_at` as evidence that a watch pass ran and found nothing — a wrong "no change" with a friendly face on it. Publishing the last watch pass's own timestamp and outcome is the next thing that should ship (`docs/ROADMAP.md` §10).
+- **`dist/` is committed, deliberately.** It is not a build artifact; it is the product. Committing it means the site is servable from a clean clone with no build step and no CI run — which matters, because this account has an Actions spending limit and a feed that only exists once someone else's billing system agrees to run a workflow is a feed that does not exist.
+
+## Responsible technology
+
+The real risks are named and addressed in [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md): a wrong "no change" as a safety failure; auto-classification as an out-of-scope, forbidden capability; the subscriber list as a list of trans people; and polite crawling of public infrastructure.
+
+## Standards
+
+Inherits the portfolio's private engineering standards (`/STANDARDS`), fetched read-only at CI time rather than vendored. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
+
+## Provenance
+
+Built AI-assisted, within a portfolio that shares a common quality standard: every project ships merge-blocking gates for its core safety properties, and audit artifacts are committed rather than claimed.

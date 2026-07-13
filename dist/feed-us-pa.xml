@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>ID Churn Sentinel — reviewed changes to US transgender ID-document sources — PA</title>
+    <link>https://github.com/ChelseaKR/id-churn-sentinel</link>
+    <description>Human-reviewed changes detected at official US state and federal pages governing name and gender-marker changes on identity documents. Each item cites the official source URL and the passage that changed. This feed reports that a source changed; it does not assert what the law is. This feed is scoped to PA ONLY: it says nothing about any other jurisdiction, and its silence about PA is not evidence that nothing changed there.</description>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 13 Jul 2026 19:58:22 +0000</lastBuildDate>
+    <generator>id-churn-sentinel (schema 1.0)</generator>
+    <!-- No reviewed changes for PA yet. This feed is EMPTY, not broken: every
+         change the watcher detects is held until a named human reviews and
+         confirms it, and none has been confirmed so far. An empty feed is
+         not a claim that nothing changed at any watched source — see the
+         disclaimer in changes.json and docs/CONSUMERS.md. -->
+  </channel>
+</rss>

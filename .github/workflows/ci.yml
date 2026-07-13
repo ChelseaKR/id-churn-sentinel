@@ -1,0 +1,44 @@
+# CI runs exactly the Makefile targets `make verify` runs locally, in the same order.
+# Green locally means green here; there is no CI-only gate and no local-only gate.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so a newly-disclosed dependency vulnerability (stage 4) surfaces even
+    # when nobody has pushed. Note this does NOT run `sentinel watch` — the watch is an
+    # operational job with a persistent snapshot store, not a build step.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install (Python 3.12+, zero runtime deps)
+        run: make install
+
+      # The full merge gate: lint · typecheck · tests+coverage(>=90) · pip-audit ·
+      # sources-validate · no-unreviewed-in-feed · no-auto-classification.
+      #
+      # The suite makes NO network calls: the fetcher is injected and the tests pass it
+      # fixtures. If a future change makes CI depend on a state government's website being
+      # up, that is a bug in the test, not a flaky runner.
+      - name: make verify
+        run: make verify

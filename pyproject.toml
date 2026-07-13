@@ -1,0 +1,107 @@
+# pyproject.toml — single, declarative source of build, dependency, and tool config.
+# `make verify` is reproducible from these declarations alone, locally and in CI.
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "id-churn-sentinel"
+version = "0.1.0"
+description = "Cited, machine-checkable change detection for US transgender identity-document law and process."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Chelsea Kelly-Reif" }]
+keywords = [
+    "transgender",
+    "identity-documents",
+    "policy-monitoring",
+    "change-detection",
+    "civic-tech",
+    "rss",
+    "human-in-the-loop",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Legal Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Typing :: Typed",
+]
+
+# Zero runtime dependencies. Every capability this tool needs — HTTP (urllib), hashing
+# (hashlib), snapshots (sqlite3), diffing (difflib), the feed (hand-written XML) — is in
+# the standard library. A watcher that must run unattended for years on a solo-dev budget
+# should not carry a dependency tree that rots faster than the law it watches.
+dependencies = []
+
+[dependency-groups]
+# PEP 735 dependency group, installed via `uv sync --group dev`.
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.15",
+    "mypy>=1.18",
+    "pip-audit>=2.7",
+]
+
+[project.scripts]
+sentinel = "id_churn_sentinel.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/ChelseaKR/id-churn-sentinel"
+Source = "https://github.com/ChelseaKR/id-churn-sentinel"
+Issues = "https://github.com/ChelseaKR/id-churn-sentinel/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/id_churn_sentinel"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/F pyflakes, W warnings, I import order, N naming, B bugbear, UP pyupgrade,
+# S bandit (security), SIM simplify, PTH pathlib, RUF ruff-specific, C90 complexity,
+# PGH blanket-ignore hygiene.
+select = ["E", "F", "W", "I", "N", "B", "UP", "S", "SIM", "PTH", "RUF", "C90", "PGH"]
+ignore = ["E501"]  # line length is handled by the formatter
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert (S101) and construct throwaway URLs/paths on purpose.
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+no_implicit_reexport = true
+mypy_path = "src"
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+filterwarnings = ["error"]
+markers = [
+    "feed_integrity: merge-blocking — unreviewed drift can never reach the published feed",
+    "no_auto_classification: merge-blocking — nothing is classified `substantive` without a human",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["id_churn_sentinel"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

@@ -1,0 +1,770 @@
+{
+  "baseline_version": "1.0",
+  "_README": [
+    "COMMITTED BASELINE HASHES — the sha256 of the NORMALIZED TEXT each watched source",
+    "served, on the date given. Mirrors trans-docs-navigator/corpus/source-hashes.json.",
+    "",
+    "WHY THIS FILE EXISTS. The snapshot store (var/sentinel.db) is not committed — it holds",
+    "megabytes of retained government HTML and grows every week. Without these hashes, a",
+    "clean checkout has no memory at all: every source is a first sighting, a first sighting",
+    "is a baseline and not a change, and the tool cannot tell you that anything moved until",
+    "it has watched for a week. With them, `sentinel baseline check` answers 'which of these",
+    "pages is not what it was?' in one pass, from a fresh clone, with no store.",
+    "",
+    "WHAT A HASH IS AND IS NOT. It is the sha256 of the normalized text (markup stripped,",
+    "whitespace collapsed, lowercased — see core/normalize.py), so a cosmetic re-deploy does",
+    "not move it. It records what a URL served on a date. It is NOT a claim about the law, it",
+    "is NOT a human verification of the URL (see `verified` in registry.json, which is still",
+    "false for every entry), and it canNOT produce a diff: the text it was computed from is",
+    "not in this file. `sentinel watch`, which retains the bytes, is what produces the",
+    "reviewable passage diff that a human actually reviews.",
+    "",
+    "A SOURCE WE CANNOT FETCH HAS NO BASELINE, and is listed under `unreachable` rather than",
+    "given a fake one. A hash we did not observe is not a hash.",
+    "",
+    "REGENERATE: `sentinel watch && sentinel baseline write`. Never hand-edit a hash — a",
+    "hand-edited baseline is a claim that a page said something it may never have said."
+  ],
+  "generated_at": "2026-07-13T19:58:22.151806+00:00",
+  "registry_sources": 152,
+  "unreachable": [
+    "ca-cdph-vital-records",
+    "il-sos-drivers-license",
+    "ny-courts-name-change",
+    "ny-doh-vital-records",
+    "us-ssa-number-card",
+    "us-ssa-ss5-form"
+  ],
+  "baselines": {
+    "ak-courts-self-help": {
+      "url": "https://courts.alaska.gov/shc/",
+      "sha256": "be3c751b8f80a994339a8ae373ec57baff6583cef0fc15b8b11517f66dfcfa72",
+      "observed_at": "2026-07-13T19:56:31.924273+00:00"
+    },
+    "ak-havrs-vital-records": {
+      "url": "https://health.alaska.gov/en/division-of-public-health/health-analytics-vital-records/",
+      "sha256": "174f0f1693aeb9b92bd7af3823078edab5f8b15d981fff0a84afb636a9cd5881",
+      "observed_at": "2026-07-13T19:56:30.452700+00:00"
+    },
+    "al-adph-vital-records": {
+      "url": "https://www.alabamapublichealth.gov/vitalrecords/",
+      "sha256": "1fb90cdf367f32d770f3e945beaa0af2f992a0fdbc6e567dbff0aff77414f3e6",
+      "observed_at": "2026-07-13T19:56:29.197803+00:00"
+    },
+    "al-alea-driver-license": {
+      "url": "https://www.alea.gov/dps/driver-license",
+      "sha256": "ff79f80fd78adae1e513c1daf3c8655504f89cf6adfc5fff311fd90c878f52ab",
+      "observed_at": "2026-07-13T19:56:29.533821+00:00"
+    },
+    "al-judicial-system": {
+      "url": "https://judicial.alabama.gov/",
+      "sha256": "4591c5f7e44e251e6b25abc1ae11cc67eb2edf03a517f9a3cdf9208903e8722d",
+      "observed_at": "2026-07-13T19:56:30.174506+00:00"
+    },
+    "ar-adh-certificates-records": {
+      "url": "https://healthy.arkansas.gov/programs-services/certificates-records/",
+      "sha256": "2ec80d133ef9ef66fc29c6135993eda19e3db5b3aa29cf2162f68d7a1063b331",
+      "observed_at": "2026-07-13T19:56:34.412073+00:00"
+    },
+    "az-adhs-vital-records": {
+      "url": "https://www.azdhs.gov/licensing/vital-records/index.php",
+      "sha256": "5cd706f1c49c39264875831989fe15619323b8ec2899b1cbb8f935bc5f1bc5fb",
+      "observed_at": "2026-07-13T19:56:32.729208+00:00"
+    },
+    "az-adot-mvd": {
+      "url": "https://azdot.gov/mvd/services/driver-services",
+      "sha256": "361358c6cdc75b4897def3f21289dbfe28c8622f72b4daa9cf4f7039165fa0bb",
+      "observed_at": "2026-07-13T19:56:32.998335+00:00"
+    },
+    "az-courts-self-service": {
+      "url": "https://www.azcourts.gov/selfservicecenter",
+      "sha256": "31b1bf9cccba28ed5a2a35f79ad56cc1b1ff1d4ede6d7b5d22894d9eea43071e",
+      "observed_at": "2026-07-13T19:56:34.009699+00:00"
+    },
+    "ca-court-gender-recognition": {
+      "url": "https://selfhelp.courts.ca.gov/gender-recognition",
+      "sha256": "de7f0f5ed8f1fcc03495dabaa66b4cedec2c33f5684c5a9ec02b3d8fb57cea7c",
+      "observed_at": "2026-07-13T19:54:20.843456+00:00"
+    },
+    "ca-court-name-change": {
+      "url": "https://selfhelp.courts.ca.gov/name-change",
+      "sha256": "4829bb19239d7c1c22bd1ddcd03fbd9b80cef986243b7b139277cec16b63b27e",
+      "observed_at": "2026-07-13T19:54:20.605357+00:00"
+    },
+    "ca-dmv-update-dl-id": {
+      "url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/updating-information-on-your-driver-license-or-identification-dl-id-card/",
+      "sha256": "6c850324d82e2820c03d8987ff73faf1829c8f5c5ea92f7780ad2fad615a1322",
+      "observed_at": "2026-07-13T19:54:21.130638+00:00"
+    },
+    "co-judicial-name-change-adult": {
+      "url": "https://www.coloradojudicial.gov/self-help/adult",
+      "sha256": "6e739d715d46de823005eb1e344dfd95f2f572226c126a7f593c5bf57906aeb5",
+      "observed_at": "2026-07-13T19:56:18.951638+00:00"
+    },
+    "ct-dmv": {
+      "url": "https://portal.ct.gov/dmv",
+      "sha256": "fe9ad4b578c032bc9b615602b2c436e153b9e9da4ad7acd67509a77c940ee57e",
+      "observed_at": "2026-07-13T19:56:47.280338+00:00"
+    },
+    "ct-dph-vital-records": {
+      "url": "https://portal.ct.gov/dph/resources-and-records/vital-records",
+      "sha256": "de73d73a4bf59b9b21961d3c80f6b1019227748c2deb13b1864b6ec598f5e2a5",
+      "observed_at": "2026-07-13T19:56:35.813605+00:00"
+    },
+    "dc-dmv": {
+      "url": "https://dmv.dc.gov/",
+      "sha256": "e2102169241cf545a1d4adafc5897df18cf796f1d7619023b4d7cbd20091c995",
+      "observed_at": "2026-07-13T19:56:03.054551+00:00"
+    },
+    "dc-vital-records": {
+      "url": "https://dchealth.dc.gov/service/vital-records",
+      "sha256": "def2780a7836dc3049eff62c0127e85f3ae9d76366fd6c25ff3f4dcf294f1693",
+      "observed_at": "2026-07-13T19:56:02.782944+00:00"
+    },
+    "de-code-16-31-vital-statistics": {
+      "url": "https://delcode.delaware.gov/title16/c031/sc03/index.html",
+      "sha256": "b1fdb039cbecd4eedb81ae1a2609a4c8f97fe74a9575a4a2122dea32e5cf4d76",
+      "observed_at": "2026-07-13T19:57:46.502551+00:00"
+    },
+    "de-courts": {
+      "url": "https://courts.delaware.gov/",
+      "sha256": "947ecb0ef58ea2f69ece6d97f48ce64526be5a056bc0a08354718641a562819c",
+      "observed_at": "2026-07-13T19:56:49.202341+00:00"
+    },
+    "de-dmv": {
+      "url": "https://dmv.de.gov/",
+      "sha256": "bd1275d87f32c23b288c37be43ceb4619176dde6147ab8570b07bd13b23fd889",
+      "observed_at": "2026-07-13T19:56:48.278352+00:00"
+    },
+    "fl-doh-birth-certificates": {
+      "url": "https://www.floridahealth.gov/certificates-records/birth-certificates/",
+      "sha256": "5e784fdd91e08c8d0073883a906fd7d8933a0691360293de233d1a581a951a88",
+      "observed_at": "2026-07-13T19:56:03.389180+00:00"
+    },
+    "fl-hsmv-driver-licenses": {
+      "url": "https://www.flhsmv.gov/driver-licenses-id-cards/general-information/",
+      "sha256": "7972558615d862831c13004c708cef3ba1ab1f5d7afaccebdeb6703e0bc6f3a9",
+      "observed_at": "2026-07-13T19:56:04.113609+00:00"
+    },
+    "ga-courts": {
+      "url": "https://georgiacourts.gov/",
+      "sha256": "32733e8a70458af6a69515d6c2cf96d197a47232a0577e7dc74391b14d7629c2",
+      "observed_at": "2026-07-13T19:56:51.947606+00:00"
+    },
+    "ga-dds": {
+      "url": "https://dds.georgia.gov/",
+      "sha256": "9767cddcc27e763a3506f68580dbf9d8a452b99b3de5e5738b41a38c07a5aa67",
+      "observed_at": "2026-07-13T19:56:50.656653+00:00"
+    },
+    "ga-dph-vital-records": {
+      "url": "https://dph.georgia.gov/VitalRecords",
+      "sha256": "02ee62b8292484644145f97bff673bd709d39c0caedcdd077f205f79ce1bf195",
+      "observed_at": "2026-07-13T19:56:50.046328+00:00"
+    },
+    "hi-courts": {
+      "url": "https://www.courts.state.hi.us/",
+      "sha256": "756b46e4aff900f05cb4df8596fda3eec22107e88a37915f79c3550f2f49e7b9",
+      "observed_at": "2026-07-13T19:56:54.378527+00:00"
+    },
+    "hi-doh-vital-records": {
+      "url": "https://health.hawaii.gov/vitalrecords/",
+      "sha256": "de755275e606e6f2fc5b6bc53e53ff2a415376c7f02f84a875a399ef4e26119a",
+      "observed_at": "2026-07-13T19:56:52.214869+00:00"
+    },
+    "hi-hrs-286-102-licensing": {
+      "url": "https://www.capitol.hawaii.gov/hrscurrent/Vol05_Ch0261-0319/HRS0286/HRS_0286-0102.htm",
+      "sha256": "8c1760aadc2616e61b62568475c6b1913bcc370a254116c824552fad8ad5696f",
+      "observed_at": "2026-07-13T19:57:46.781249+00:00"
+    },
+    "ia-courts-representing-yourself": {
+      "url": "https://www.iowacourts.gov/for-the-public/representing-yourself",
+      "sha256": "b5702a69d923c5dbd8d2f4d83dd043a5e1a76a8e955bed22775afb04c1122531",
+      "observed_at": "2026-07-13T19:56:16.361528+00:00"
+    },
+    "ia-dot-dmv-services": {
+      "url": "https://iowadot.gov/dmv-services",
+      "sha256": "8383b06603170f3208f8ba9521835ff1f740d6660a018a7afd1ddb98ee7f1e1c",
+      "observed_at": "2026-07-13T19:56:15.805185+00:00"
+    },
+    "ia-hhs-vital-records": {
+      "url": "https://hhs.iowa.gov/family-community/vital-records",
+      "sha256": "d94444dbd879a628c43d61811c47764cc5d00c4259afcc262ce13ba6375cd6c1",
+      "observed_at": "2026-07-13T19:56:15.151902+00:00"
+    },
+    "id-code-49-306-license-application": {
+      "url": "https://legislature.idaho.gov/statutesrules/idstat/Title49/T49CH3/SECT49-306/",
+      "sha256": "3f48ed2a4709f314bbeaea94856cfa3a844875d1579e519be5f05ffebc0944c5",
+      "observed_at": "2026-07-13T19:57:47.731538+00:00"
+    },
+    "id-court-self-help": {
+      "url": "https://courtselfhelp.idaho.gov/",
+      "sha256": "e8688c5728a000495989efa5136b8b8135915bbed57f314816e2a52a3de3c29e",
+      "observed_at": "2026-07-13T19:56:11.563105+00:00"
+    },
+    "id-dhw-change-birth-certificate": {
+      "url": "https://healthandwelfare.idaho.gov/services-programs/birth-marriage-death-records/change-birth-certificate",
+      "sha256": "6cfaa47582ca1612a3b85df17e7e445dfa5123bf41bffe3303fe8e606d938c03",
+      "observed_at": "2026-07-13T19:56:11.103077+00:00"
+    },
+    "il-courts-self-help": {
+      "url": "https://www.illinoiscourts.gov/",
+      "sha256": "a5067f28a05f0ef27093d0ab1078b26d9bed41eb67281b20bdc15d84e72d0bf5",
+      "observed_at": "2026-07-13T19:55:58.503293+00:00"
+    },
+    "il-idph-vital-records": {
+      "url": "https://dph.illinois.gov/topics-services/birth-death-other-records.html",
+      "sha256": "19fb0f2fd27e7728a801c342bdb27cbd181958e38768768b4bdf7fee14ba4b4b",
+      "observed_at": "2026-07-13T19:55:57.489557+00:00"
+    },
+    "in-bmv": {
+      "url": "https://www.in.gov/bmv/",
+      "sha256": "5e5780d64da4708743045f65b8b5a57be2642ad1476e01ae0cdc78b83329cd3e",
+      "observed_at": "2026-07-13T19:56:17.674050+00:00"
+    },
+    "in-courts-self-service": {
+      "url": "https://www.in.gov/courts/selfservice/",
+      "sha256": "6268e1dbb034fffd698f87a3bd8b6ebe3f28ca5657ca5e56741f2763d8867d7b",
+      "observed_at": "2026-07-13T19:56:18.083758+00:00"
+    },
+    "in-doh-vital-records": {
+      "url": "https://www.in.gov/health/vital-records/",
+      "sha256": "21d1a9f7fffb5f16a9f7455dd620a6d8d91c5313be33138f1dc16ebdb207adb9",
+      "observed_at": "2026-07-13T19:56:17.138564+00:00"
+    },
+    "ks-dov-drivers": {
+      "url": "https://www.ksrevenue.gov/dovindex.html",
+      "sha256": "65866b0b3205938965c46e05163de53fb62486c000ff02a63e5933c999eedbc5",
+      "observed_at": "2026-07-13T19:56:06.500386+00:00"
+    },
+    "ks-kdhe-amend-birth-certificate": {
+      "url": "https://www.kdhe.ks.gov/1172/Amend-Adult-Birth-Certificates",
+      "sha256": "1803c21c6b00b58b85e2d7ac5394b2c813f65c56987a07f2f95a4b1ddd603785",
+      "observed_at": "2026-07-13T19:56:05.707066+00:00"
+    },
+    "ks-kdhe-vital-statistics": {
+      "url": "https://www.kdhe.ks.gov/1165/Office-of-Vital-Statistics",
+      "sha256": "3c96f836a78792cd9c8f6dc8356e208659d489293e1c576577f7e4d4bcdce954",
+      "observed_at": "2026-07-13T19:56:05.099517+00:00"
+    },
+    "ks-statute-60-1401-change-of-name": {
+      "url": "https://www.ksrevisor.gov/statutes/chapters/ch60/060_014_0001.html",
+      "sha256": "1eff3da3155c0cb2b8b862ff53752ce27c3b9443d1aa08fdc4aa76b38b016a75",
+      "observed_at": "2026-07-13T19:57:47.976733+00:00"
+    },
+    "ky-chfs-vital-statistics": {
+      "url": "https://www.chfs.ky.gov/agencies/dph/dehp/vsb/Pages/default.aspx",
+      "sha256": "10927c2d970d1026494b129e313727941d4a012f313c7f684e475f962ee0eff6",
+      "observed_at": "2026-07-13T19:56:55.576481+00:00"
+    },
+    "ky-courts": {
+      "url": "https://www.kycourts.gov/Pages/index.aspx",
+      "sha256": "5f1cf3f4fa13e74bef3bd76927868fea68ceab3af97c92eff5bb3c725162c8d6",
+      "observed_at": "2026-07-13T19:56:58.183963+00:00"
+    },
+    "ky-drive": {
+      "url": "https://drive.ky.gov/Pages/index.aspx",
+      "sha256": "c7046ab5eef1e49ee23445015bb70a0227126ff554584113c30a806faf3507e9",
+      "observed_at": "2026-07-13T19:56:57.123980+00:00"
+    },
+    "la-ldh-vital-record-amendments": {
+      "url": "https://ldh.la.gov/page/vital-record-amendments",
+      "sha256": "424b983464adbbfdd74ef7bec33a3ccbcad6f909b5287216231f2d8bf9ef6019",
+      "observed_at": "2026-07-13T19:56:59.387447+00:00"
+    },
+    "la-ldh-vital-records": {
+      "url": "https://ldh.la.gov/vital-records",
+      "sha256": "7a2104de2bd874ec987a6c94618848cbb4e1b0199d9acb80a6e1c00c5f255b2b",
+      "observed_at": "2026-07-13T19:56:58.841317+00:00"
+    },
+    "la-rs-13-4751-petition-for-name-change": {
+      "url": "https://www.legis.la.gov/legis/Law.aspx?d=77843",
+      "sha256": "d443c0bb30d1ac11e839655f6fc38a57d038d3c94326753ba8371c5c592abcf6",
+      "observed_at": "2026-07-13T19:57:48.653376+00:00"
+    },
+    "ma-courts-name-changes": {
+      "url": "https://www.mass.gov/name-changes",
+      "sha256": "55339a7051f0f1ce5e45b29d746689e51be5f52ae89821f33107cdbd39dd97f5",
+      "observed_at": "2026-07-13T19:56:01.741462+00:00"
+    },
+    "ma-rmv": {
+      "url": "https://www.mass.gov/orgs/massachusetts-registry-of-motor-vehicles",
+      "sha256": "cbafcc55e7a0b29fbf02198508f01d27728c2060d20064f180e9295eeab14d41",
+      "observed_at": "2026-07-13T19:56:00.510845+00:00"
+    },
+    "ma-rvrs-vital-records": {
+      "url": "https://www.mass.gov/orgs/registry-of-vital-records-and-statistics",
+      "sha256": "481737d48ca0e77a016ba9ddc6d85e481faf94eb5d05f4a71db872e2db90c59d",
+      "observed_at": "2026-07-13T19:55:59.840989+00:00"
+    },
+    "md-courts": {
+      "url": "https://www.mdcourts.gov/",
+      "sha256": "f721519cd366916fbbbb8bcbe9e0331ca7a3a6c93f43520594ad03b0ff87ae13",
+      "observed_at": "2026-07-13T19:57:02.854822+00:00"
+    },
+    "md-mva": {
+      "url": "https://mva.maryland.gov/",
+      "sha256": "0241983bdb2599b437c6c54880cf81a48e692c98c09afe910cb630ffd60ca842",
+      "observed_at": "2026-07-13T19:57:02.444548+00:00"
+    },
+    "md-vsa": {
+      "url": "https://health.maryland.gov/vsa/Pages/home.aspx",
+      "sha256": "27a9d57e375d75ab34397281f98c67a42d71c2b5850a3610f8264c2ddff854b8",
+      "observed_at": "2026-07-13T19:57:01.940222+00:00"
+    },
+    "me-bmv": {
+      "url": "https://www.maine.gov/sos/bmv",
+      "sha256": "e724c056a4b84a23a603f74c0b1f1af6d08aaef0231033beb55108806e2f0bf4",
+      "observed_at": "2026-07-13T19:57:00.111134+00:00"
+    },
+    "me-cdc-vital-records": {
+      "url": "https://www.maine.gov/dhhs/mecdc/vital-records",
+      "sha256": "c29f39986cf9f62e8a89ea21918eec22008ed3a817828fbab418124fc09811c3",
+      "observed_at": "2026-07-13T19:56:59.852970+00:00"
+    },
+    "me-courts": {
+      "url": "https://www.courts.maine.gov/",
+      "sha256": "146b70463d40b40a03044a9dad5d93d651406ebcdba20c34fa805e8347b95fb2",
+      "observed_at": "2026-07-13T19:57:00.902838+00:00"
+    },
+    "mi-mcl-257-307-license-application": {
+      "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf",
+      "sha256": "ba9caae555109c5abe14bb875a3b82a743dc911848b5f13589d91f5ef388178e",
+      "observed_at": "2026-07-13T19:57:42.519103+00:00"
+    },
+    "mi-mcl-333-2831-new-birth-certificate": {
+      "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf",
+      "sha256": "0f9691b751761b30c04eda0f01c26eca0662c6c7de8fd34106a192795f2d2d7e",
+      "observed_at": "2026-07-13T19:57:42.217921+00:00"
+    },
+    "mi-scao-pc51-name-change-petition": {
+      "url": "https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf",
+      "sha256": "9779b8c8e28efe30028d58c5cb92211f55542cf523a57f6055edcab76dc7ac3c",
+      "observed_at": "2026-07-13T19:57:42.884558+00:00"
+    },
+    "mn-doh-vital-records": {
+      "url": "https://www.health.state.mn.us/people/vitalrecords",
+      "sha256": "2e593f659e59f02bbdef20f2da8b9e4ed5cfa625fceed14b5b8ebdae2e2ed67b",
+      "observed_at": "2026-07-13T19:56:23.435068+00:00"
+    },
+    "mn-dvs": {
+      "url": "https://dps.mn.gov/divisions/dvs",
+      "sha256": "ebca8fb2cea29234f5a0390d659650bb328fb33a49ce5b147c411519ac377344",
+      "observed_at": "2026-07-13T19:56:23.780274+00:00"
+    },
+    "mn-statute-259-10-change-of-name": {
+      "url": "https://www.revisor.mn.gov/statutes/cite/259.10",
+      "sha256": "b3f3d2137e68c60aa8e254c83e0debd1f0224f7dac46882c46e568ef16596ec9",
+      "observed_at": "2026-07-13T19:57:49.492805+00:00"
+    },
+    "mo-courts": {
+      "url": "https://www.courts.mo.gov/",
+      "sha256": "01c240cbb57c106a9a55ccb2052dc95c09d1804c7d142fb7107e404d7d65f2af",
+      "observed_at": "2026-07-13T18:49:37.462673+00:00"
+    },
+    "mo-dhss-vital-records": {
+      "url": "https://health.mo.gov/data/vitalrecords/",
+      "sha256": "878bd9b9e5632295469ee4b9ae4dae49ac0548ac1448a17ff6dc3cc253d1a27b",
+      "observed_at": "2026-07-13T19:57:04.916379+00:00"
+    },
+    "mo-dor-driver-license": {
+      "url": "https://dor.mo.gov/driver-license/",
+      "sha256": "7dd70be142b8170a07cbfd541f5682eb53d326d89cdf9be88f89d7e7b3bd82e2",
+      "observed_at": "2026-07-13T19:57:05.560856+00:00"
+    },
+    "ms-courts": {
+      "url": "https://courts.ms.gov/",
+      "sha256": "ecb195aa93eacd165c2e9efc878a98b30391ab9dd1f3325b6f9abf6353a7aff6",
+      "observed_at": "2026-07-13T19:57:04.415295+00:00"
+    },
+    "ms-dps-driver-service-bureau": {
+      "url": "https://www.driverservicebureau.dps.ms.gov/",
+      "sha256": "a341be43ef7ff13a6284671f472668c76c79ad32e6badac7fba03513bc5c3df0",
+      "observed_at": "2026-07-13T19:57:50.449982+00:00"
+    },
+    "ms-msdh-vital-records": {
+      "url": "https://msdh.ms.gov/page/31,0,109.html",
+      "sha256": "c1807826d05ce931e13269e3fe5a760c63cba9c20143b46aaac9175c1d2ae744",
+      "observed_at": "2026-07-13T19:57:03.566811+00:00"
+    },
+    "mt-courts-forms": {
+      "url": "https://courts.mt.gov/forms/",
+      "sha256": "b426ab984d762d766f6f85f992ffc7966f117f7449f33a71f649579b66703bb1",
+      "observed_at": "2026-07-13T19:56:14.784603+00:00"
+    },
+    "mt-dphhs-vital-records": {
+      "url": "https://dphhs.mt.gov/vitalrecords/",
+      "sha256": "64d2991c2349d6e52eb652c04c460d5a698ee7c1b26067c671a8d67e88891085",
+      "observed_at": "2026-07-13T19:56:14.030946+00:00"
+    },
+    "mt-mca-61-5-111-drivers-license": {
+      "url": "https://leg.mt.gov/bills/mca/title_0610/chapter_0050/part_0010/section_0110/0610-0050-0010-0110.html",
+      "sha256": "66b8dd5dd2c2c6479f583cb82ea9f6173d4439c382c3fcf1dc48c3b1e370f560",
+      "observed_at": "2026-07-13T19:57:52.295021+00:00"
+    },
+    "nc-dmv": {
+      "url": "https://www.ncdot.gov/dmv/Pages/default.aspx",
+      "sha256": "6b9468eca6f67c13f1cdbfaa1099bc9df91a033f405921c05a77298be04cb4ac",
+      "observed_at": "2026-07-13T19:57:12.085854+00:00"
+    },
+    "nc-gs-101-name-change": {
+      "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/ByChapter/Chapter_101.html",
+      "sha256": "c9a00fa8095267a817d2fe44755277aae0cc66f438a81d7f991e0d71221ec794",
+      "observed_at": "2026-07-13T19:57:52.689108+00:00"
+    },
+    "nc-vital-records": {
+      "url": "https://vitalrecords.nc.gov/",
+      "sha256": "34616da48bd80ad429656d8d041295e08ae4798f8955308b26d7a8a0c74380d0",
+      "observed_at": "2026-07-13T19:57:10.766376+00:00"
+    },
+    "nd-courts": {
+      "url": "https://www.ndcourts.gov/",
+      "sha256": "60f5af6110b32b46985dbc0764cd9b28f4f1d53b1ac861ba37a442f766034ed9",
+      "observed_at": "2026-07-13T19:57:15.047433+00:00"
+    },
+    "nd-dot-driver": {
+      "url": "https://www.dot.nd.gov/driver",
+      "sha256": "568c563e69567d64fa4c1072d223586863fed01b22d2601e47a7f73db9a9b60c",
+      "observed_at": "2026-07-13T19:57:14.018703+00:00"
+    },
+    "nd-hhs-vital-records": {
+      "url": "https://www.hhs.nd.gov/vital",
+      "sha256": "500fd5e4afa1e8dba1b9df98b42cfc7bf762851916c89a2f476dc706556db0e1",
+      "observed_at": "2026-07-13T19:57:13.172186+00:00"
+    },
+    "ne-dhhs-vital-records": {
+      "url": "https://dhhs.ne.gov/pages/vital-records.aspx",
+      "sha256": "05fd676e901793b43b2b442168df81981e1d3863fc43341b44ba61885921160b",
+      "observed_at": "2026-07-13T19:57:07.004169+00:00"
+    },
+    "ne-dmv": {
+      "url": "https://dmv.nebraska.gov/",
+      "sha256": "418c7c46a5e03169450cf047f29739e0351fbaeae15aae5c9873eb29127ca927",
+      "observed_at": "2026-07-13T19:57:07.383198+00:00"
+    },
+    "ne-judicial": {
+      "url": "https://nebraskajudicial.gov/self-help",
+      "sha256": "850fa6873e50ccfae61b4a150ad9c95751b1aeeb9555aaa5c4feadc8952127c7",
+      "observed_at": "2026-07-13T19:57:07.804047+00:00"
+    },
+    "nh-rsa-547-3-i-change-of-name": {
+      "url": "https://www.gencourt.state.nh.us/rsa/html/LVI/547/547-3-i.htm",
+      "sha256": "1d6bfc1d7d16e404a46414c79a30d12bba9cf769e67e5c8b936a15f68586738f",
+      "observed_at": "2026-07-13T19:57:45.848904+00:00"
+    },
+    "nh-rsa-5c-87-birth-record-amendment": {
+      "url": "https://www.gencourt.state.nh.us/rsa/html/I/5-C/5-C-87.htm",
+      "sha256": "5016c20181878009dbb8d5c6c6abbd6f942566ac608a499c9b6280bf26f12293",
+      "observed_at": "2026-07-13T19:57:44.162255+00:00"
+    },
+    "nh-saf-c-1000-driver-licensing-rules": {
+      "url": "https://www.gencourt.state.nh.us/rules/state_agencies/saf-c1000.html",
+      "sha256": "41b44bd24b73c4d3b20b64a6da2f16969ac99e9c1ea7fd28cd6c498443776311",
+      "observed_at": "2026-07-13T19:57:45.267927+00:00"
+    },
+    "nj-courts": {
+      "url": "https://www.njcourts.gov/",
+      "sha256": "41a2709afae791bcc199f282f434ba64c806b2bace57110fedcdf4dee927aa41",
+      "observed_at": "2026-07-13T19:57:09.760648+00:00"
+    },
+    "nj-doh-vital-statistics": {
+      "url": "https://www.nj.gov/health/vital/",
+      "sha256": "647d92ba63d9933071a54dc33fc5b272da8bb9170566db715122212121ee4333",
+      "observed_at": "2026-07-13T19:57:08.677878+00:00"
+    },
+    "nj-mvc": {
+      "url": "https://www.nj.gov/mvc/",
+      "sha256": "1e08aeb7f0d70ff1dee6c8bd43acbec4d14e663a8d315830a7cf667de306587d",
+      "observed_at": "2026-07-13T19:57:08.974349+00:00"
+    },
+    "nm-courts": {
+      "url": "https://nmcourts.gov/",
+      "sha256": "00590aa978e759d4b37fac2a710e8fdcd4fe85c47d923ef98a9078529d6bf690",
+      "observed_at": "2026-07-13T19:56:28.445314+00:00"
+    },
+    "nm-doh-vital-records": {
+      "url": "https://www.nmhealth.org/about/erd/bvrhs/vrp/",
+      "sha256": "c19a22d6e4d9ba6b1e671d3458fd9d9ac81fc088757be2cdcd68e2315868ce91",
+      "observed_at": "2026-07-13T19:56:26.122360+00:00"
+    },
+    "nm-mvd": {
+      "url": "https://www.mvd.newmexico.gov/",
+      "sha256": "41d70b0a3df59e846e87925ae8fa94ccfe8d49abb5ec8bbac43f8d4a776d0844",
+      "observed_at": "2026-07-13T19:56:27.552112+00:00"
+    },
+    "nv-courts": {
+      "url": "https://nvcourts.gov/",
+      "sha256": "d47c482f82b5b65c826239cdbf3d1aa16b6bad6f92b4fb425d3640b789751ea9",
+      "observed_at": "2026-07-13T19:57:08.262349+00:00"
+    },
+    "nv-nac-483-drivers-licenses": {
+      "url": "https://www.leg.state.nv.us/NAC/NAC-483.html",
+      "sha256": "ccaf9ccc726a797fd3d8da406849bbad99fcbe4e6912ba69fd855f6e3ec6311c",
+      "observed_at": "2026-07-13T19:57:53.144125+00:00"
+    },
+    "nv-nrs-440-vital-statistics": {
+      "url": "https://www.leg.state.nv.us/NRS/NRS-440.html",
+      "sha256": "f59a701ac0ba93a12010baad54848b57f68e03e80bc5af46223d001b3803f5c5",
+      "observed_at": "2026-07-13T19:57:52.947432+00:00"
+    },
+    "ny-dmv-change-information": {
+      "url": "https://dmv.ny.gov/driver-license/change-information-on-dmv-photo-documents",
+      "sha256": "1ebd7cf1f346b2d8bb2f3360f1f3b5f6a16cc5f2c034bb95f01934465f4d439c",
+      "observed_at": "2026-07-13T19:54:21.767986+00:00"
+    },
+    "oh-bmv": {
+      "url": "https://bmv.ohio.gov/",
+      "sha256": "3b872a0c3e6d95583393dc5034e25941ac7222381ae364dc37ced782857e307b",
+      "observed_at": "2026-07-13T19:57:15.828455+00:00"
+    },
+    "oh-oac-3701-5-vital-statistics": {
+      "url": "https://codes.ohio.gov/ohio-administrative-code/chapter-3701-5",
+      "sha256": "026c5cdbea9217d0c18e13c071d84507edec3c67c65b18d14d149a4e3c004475",
+      "observed_at": "2026-07-13T19:57:54.471968+00:00"
+    },
+    "oh-supreme-court": {
+      "url": "https://www.supremecourt.ohio.gov/",
+      "sha256": "8261f95594892990f39fa5e6d3e9535a81c06adebe179b8eb7a0d82dea349bdd",
+      "observed_at": "2026-07-13T19:57:17.026545+00:00"
+    },
+    "ok-service-oklahoma": {
+      "url": "https://oklahoma.gov/service.html",
+      "sha256": "049e0deef2fdd232227c33fbeac95cdb1eb3707a27bdde8b5ed7f46fdeda140f",
+      "observed_at": "2026-07-13T19:56:13.190553+00:00"
+    },
+    "ok-vital-records": {
+      "url": "https://oklahoma.gov/health/services/birth-and-death-certificates.html",
+      "sha256": "ac5841a51f1e5d8b02740e8c56f483112b58f2c47f6a18091910252e11a6068f",
+      "observed_at": "2026-07-13T19:56:12.282306+00:00"
+    },
+    "ok-vital-records-forms": {
+      "url": "https://oklahoma.gov/health/services/birth-and-death-certificates/vital-records-forms.html",
+      "sha256": "53e7d1a975592ca58a93cfdfd6d088cc17a8eb23b4e40a2aa85d18ee4dd87816",
+      "observed_at": "2026-07-13T19:56:12.806637+00:00"
+    },
+    "or-courts-name-sex-change": {
+      "url": "https://www.courts.oregon.gov/programs/family/forms/Pages/name-sex-change.aspx",
+      "sha256": "ed9b9b0c80db19ed2133aac4d4cc6f481890d149f86cdde9fcbe22319e5d2210",
+      "observed_at": "2026-07-13T19:56:22.587960+00:00"
+    },
+    "or-dmv-gender-marker": {
+      "url": "https://www.oregon.gov/odot/dmv/pages/driverid/chg_gender_designation.aspx",
+      "sha256": "34622e5f41734887a34bc8374bac3ae62c5335efd6315d6fc5c1fb8be1c03709",
+      "observed_at": "2026-07-13T19:56:20.381733+00:00"
+    },
+    "or-dmv-name-change": {
+      "url": "https://www.oregon.gov/odot/dmv/pages/dv/chgname.aspx",
+      "sha256": "0511f628cbc30b5f9c19acaca57d8f46f776588e144855d0c70f23e01b666a59",
+      "observed_at": "2026-07-13T19:56:20.694653+00:00"
+    },
+    "or-oha-vital-records": {
+      "url": "https://www.oregon.gov/oha/ph/birthdeathcertificates/pages/index.aspx",
+      "sha256": "b748e861f28d6d7c8c6648efc3ca4c228aac2a13e49919b9a7d68fb9187e723f",
+      "observed_at": "2026-07-13T19:56:19.886595+00:00"
+    },
+    "pa-courts": {
+      "url": "https://www.pacourts.us/",
+      "sha256": "d3f147206fd7839e27733b5ba77b59e5f6466caca05183c49461c51a2274f2d2",
+      "observed_at": "2026-07-13T19:57:20.035792+00:00"
+    },
+    "pa-dmv": {
+      "url": "https://www.pa.gov/agencies/dmv",
+      "sha256": "bbb1e7b78b784c16126f16022b7cb9bcd513b28eff93d98cf61d3748265e51f9",
+      "observed_at": "2026-07-13T19:57:19.046760+00:00"
+    },
+    "pa-doh-vital-records": {
+      "url": "https://www.pa.gov/agencies/health/programs/vital-records",
+      "sha256": "cd6048c1fb997ec5d66de09cd81b9655fbf3d90b813c7458f98168c3a2a21dbf",
+      "observed_at": "2026-07-13T19:57:18.609874+00:00"
+    },
+    "ri-dmv-licenses": {
+      "url": "https://dmv.ri.gov/licenses-permits-ids",
+      "sha256": "ffeb265bf3634fa3500b542562f6ea35f93d4de0d0593a6d9527c3c9735d678e",
+      "observed_at": "2026-07-13T19:56:02.563914+00:00"
+    },
+    "ri-doh-vital-records": {
+      "url": "https://health.ri.gov/records/",
+      "sha256": "4343dc97f9b0b1f62b7179bc19d920e1a3a14ab4d483c13b7d92422da6cc2938",
+      "observed_at": "2026-07-13T19:56:02.171583+00:00"
+    },
+    "ri-gl-33-22-28-name-change": {
+      "url": "https://webserver.rilegislature.gov/Statutes/TITLE33/33-22/33-22-28.htm",
+      "sha256": "3cb96a44e5039e362118374cab6bc7a240ca865fd277911e4f36a7cfad99c18f",
+      "observed_at": "2026-07-13T19:57:56.182626+00:00"
+    },
+    "sc-code-15-49-change-of-name": {
+      "url": "https://www.scstatehouse.gov/code/t15c049.php",
+      "sha256": "00e131471b972aca5ab7233578ba5c4cfe619fb9727bae90271453ddbe994b3a",
+      "observed_at": "2026-07-13T19:57:56.529626+00:00"
+    },
+    "sc-dmv": {
+      "url": "https://dmv.sc.gov/",
+      "sha256": "9c4336aa3873690b964d145211882fc5fc7a986c14e98ffa455310253548f80f",
+      "observed_at": "2026-07-13T19:57:20.578610+00:00"
+    },
+    "sc-dph-vital-records": {
+      "url": "https://dph.sc.gov/public/vital-records",
+      "sha256": "3145ac3cbf1e4d1190ec5906aaae093a359924f8afebb020396e491a69579167",
+      "observed_at": "2026-07-13T19:57:20.349477+00:00"
+    },
+    "sd-doh-vital-records": {
+      "url": "https://doh.sd.gov/licensing-and-records/vital-records/",
+      "sha256": "2e9e31f2b623e1cd12ede3b444f4ea6ec658d7440a93344e87b9c9c973871871",
+      "observed_at": "2026-07-13T19:57:21.232259+00:00"
+    },
+    "sd-ujs": {
+      "url": "https://ujs.sd.gov/",
+      "sha256": "714b11ecb157414e295747c0a43740f2d75ce6760465e02dd42ed8036183bff7",
+      "observed_at": "2026-07-13T19:57:21.908602+00:00"
+    },
+    "tn-courts": {
+      "url": "https://www.tncourts.gov/",
+      "sha256": "37ee284c2f9c6b20ab3484d9869138fe87095a1b9b34510929d39adb0b683494",
+      "observed_at": "2026-07-13T19:56:10.035063+00:00"
+    },
+    "tn-doh-vital-records": {
+      "url": "https://www.tn.gov/health/vr.html",
+      "sha256": "e7de38f62213cbfc171425b89f4a0cec798597e650da9394fb2b2f3bfa55c898",
+      "observed_at": "2026-07-13T19:56:08.466963+00:00"
+    },
+    "tn-driver-services": {
+      "url": "https://www.tn.gov/safety/driver-services.html",
+      "sha256": "0eca377e039f817461a5d71626916f4990004ec1fc713c39ded9f2c67f21bd11",
+      "observed_at": "2026-07-13T19:56:08.950136+00:00"
+    },
+    "tx-dps-change-dl-id": {
+      "url": "https://www.dps.texas.gov/section/driver-license/how-change-information-your-driver-license-or-id-card",
+      "sha256": "75fb70d08394759a68af7c3e700c5c3f14bd19d839f832a84ae1d0bc07016596",
+      "observed_at": "2026-07-13T19:54:23.189373+00:00"
+    },
+    "tx-dshs-vital-statistics": {
+      "url": "https://www.dshs.texas.gov/vital-statistics",
+      "sha256": "5bdab871fd708693f6544f0d43b464278ed5ecbd6929be3f2c4cfaf42b08dd8f",
+      "observed_at": "2026-07-13T19:54:23.568930+00:00"
+    },
+    "tx-family-code-45-change-of-name": {
+      "url": "https://statutes.capitol.texas.gov/Docs/FA/htm/FA.45.htm",
+      "sha256": "e5addb58ecd89587e26c6cabaf8b616bc0d2fd190b7fc1881144bcdb3c1e4304",
+      "observed_at": "2026-07-13T19:57:57.234287+00:00"
+    },
+    "us-federal-register-sex-marker": {
+      "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&order=newest&per_page=20&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=document_number&fields%5B%5D=html_url&fields%5B%5D=agencies",
+      "sha256": "f5fabf0e0ddc8fa9dc3b733d7b65754b802683551972d7f195b1da5abaeb7ed2",
+      "observed_at": "2026-07-13T19:54:19.605313+00:00"
+    },
+    "us-passport-change-correct": {
+      "url": "https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html",
+      "sha256": "9445e3253279e3465550bc1350ded3054b6819c15166dc7559b1da71f1f7f2c2",
+      "observed_at": "2026-07-13T19:54:18.329016+00:00"
+    },
+    "us-passport-sex-markers": {
+      "url": "https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+      "sha256": "000d31ebe431156dc66519446f89b42f89f018d2d0523315af3ea2e4f8e258e2",
+      "observed_at": "2026-07-13T19:54:17.655797+00:00"
+    },
+    "us-selective-service-register": {
+      "url": "https://www.sss.gov/register/",
+      "sha256": "0a65dc52129b03cdb9f45f349d4844e3e19984467376afb5a1f5101c7e400dbd",
+      "observed_at": "2026-07-13T19:54:20.251403+00:00"
+    },
+    "ut-courts-name-change": {
+      "url": "https://www.utcourts.gov/en/self-help/case-categories/family/name-change.html",
+      "sha256": "cf2742291f5deb5a037aec00ca02668778744f8ee1e229ad32f5642cc8fb5282",
+      "observed_at": "2026-07-13T19:57:22.585483+00:00"
+    },
+    "ut-dld": {
+      "url": "https://dld.utah.gov/",
+      "sha256": "65e07074d7a634271bc020cd8a730e8a776b591e13a367311f70e6e7104a2c9c",
+      "observed_at": "2026-07-13T19:57:22.353852+00:00"
+    },
+    "ut-vital-records": {
+      "url": "https://vitalrecords.utah.gov/",
+      "sha256": "cc6ce896641a2ef1199666a267229606d05087234325daa2d89cb830103325d4",
+      "observed_at": "2026-07-13T19:57:22.136086+00:00"
+    },
+    "va-courts": {
+      "url": "https://www.vacourts.gov/",
+      "sha256": "d0ed2e17320b4fa4f612a052d78835963f6835d010a3096f90f681b5474a7f67",
+      "observed_at": "2026-07-13T19:57:27.895671+00:00"
+    },
+    "va-dmv": {
+      "url": "https://www.dmv.virginia.gov/",
+      "sha256": "6c8d41109450405f652451aab07345d4b4093b1e9e74c6d332683d5b1393d3de",
+      "observed_at": "2026-07-13T19:57:27.426116+00:00"
+    },
+    "va-vdh-vital-records": {
+      "url": "https://www.vdh.virginia.gov/vital-records/",
+      "sha256": "3c25b81968557ee6e589b7a1cdb15df238d655f90ce9c5e0e82732f683104815",
+      "observed_at": "2026-07-13T19:57:26.943995+00:00"
+    },
+    "vt-judiciary": {
+      "url": "https://www.vtcourts.gov/",
+      "sha256": "02e59c6c31fc7c5f6d0b315fa485ce482109f2947b0f272f2ad71de6ce3febab",
+      "observed_at": "2026-07-13T19:57:25.323269+00:00"
+    },
+    "vt-vital-records": {
+      "url": "https://www.healthvermont.gov/stats",
+      "sha256": "3e92ce4b5db6b25525d50ce243cac0de80dca49633648f1165133e735eb40ab1",
+      "observed_at": "2026-07-13T19:57:24.420773+00:00"
+    },
+    "wa-courts-name-change-form": {
+      "url": "https://www.courts.wa.gov/forms/?fa=forms.contribute&formID=49",
+      "sha256": "1850a7d150eb67b62e27eb73fd305f5a9d1d1851d6ffd2eb12eb8550810e68db",
+      "observed_at": "2026-07-13T19:54:24.681096+00:00"
+    },
+    "wa-doh-vital-records": {
+      "url": "https://doh.wa.gov/licenses-permits-and-certificates/vital-records",
+      "sha256": "708050c13793afffcb220757d79d288335f04e3593922e579d0f44a5b32565c8",
+      "observed_at": "2026-07-13T19:54:25.837024+00:00"
+    },
+    "wa-dol-gender-designation": {
+      "url": "https://dol.wa.gov/driver-licenses-and-permits/update-driver-license-information/change-your-gender-designation",
+      "sha256": "2a9edbfde6e4265102f19d7935f944322002afccb4697800cb21c57e340b0d8c",
+      "observed_at": "2026-07-13T19:54:23.857827+00:00"
+    },
+    "wi-courts": {
+      "url": "https://www.wicourts.gov/",
+      "sha256": "64e74d4873d6537d3e89957e7c4778405c3a6c411d20dc5d18bbb47daf0a5de0",
+      "observed_at": "2026-07-13T19:57:39.321199+00:00"
+    },
+    "wi-dhs-vital-records": {
+      "url": "https://www.dhs.wisconsin.gov/vitalrecords/index.htm",
+      "sha256": "45315133138c354ba837c98efdfa8584f64e8382255ca3709eb6ebcef43e1e4a",
+      "observed_at": "2026-07-13T19:57:37.428556+00:00"
+    },
+    "wi-dmv": {
+      "url": "https://wisconsindot.gov/Pages/online-srvcs/external/dmv.aspx",
+      "sha256": "bce65e33ac5d087a88833cda0a3b99303bb3583a6d8721bc119ebed79a790b07",
+      "observed_at": "2026-07-13T19:57:38.400914+00:00"
+    },
+    "wv-courts": {
+      "url": "https://www.courtswv.gov/",
+      "sha256": "9f0ff3a956caa7890e6390739a208d1fd453d289066337f720e55f2256ebdf52",
+      "observed_at": "2026-07-13T19:57:31.288135+00:00"
+    },
+    "wv-dmv": {
+      "url": "https://transportation.wv.gov/DMV/Pages/default.aspx",
+      "sha256": "7e861714949ed98139d1ceaa5e6eedd91eed3ceaac9fbb2157879857d7c496a6",
+      "observed_at": "2026-07-13T19:57:30.361995+00:00"
+    },
+    "wv-vital-registration": {
+      "url": "https://dhhr.wv.gov/HSC/VR/Pages/default.aspx",
+      "sha256": "554990f2c6b1a2c000f87e146485c0227732c9b81872e8896a38b6f4362e0774",
+      "observed_at": "2026-07-13T19:57:29.139591+00:00"
+    },
+    "wy-courts": {
+      "url": "https://www.wyocourts.gov/",
+      "sha256": "f4f0ddff6814a70af344b844b66e0536b2d82a4cb26a3e7eafe594d957954745",
+      "observed_at": "2026-07-13T19:57:41.323461+00:00"
+    },
+    "wy-driver-services": {
+      "url": "https://www.dot.state.wy.us/driverservices",
+      "sha256": "a1ff0747b0d560852f570e00a2dda3b746b9d5e5252538fcde73d24a9746b175",
+      "observed_at": "2026-07-13T19:57:40.468434+00:00"
+    },
+    "wy-health-vital-records": {
+      "url": "https://health.wyo.gov/admin/vitalstatistics/",
+      "sha256": "702738a75f29746e3ecae05a7bc9a94b60a422b1aca98be48f92431a78f25346",
+      "observed_at": "2026-07-13T19:57:39.704082+00:00"
+    }
+  }
+}

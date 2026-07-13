@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-13T19:58:22.239112+00:00",
+  "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
+  "jurisdiction": "NH",
+  "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
+  "changes": []
+}

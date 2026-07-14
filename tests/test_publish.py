@@ -111,7 +111,7 @@ def test_xml_special_characters_are_escaped(
 def test_publish_writes_both_artifacts(
     tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
-    result = publish([confirmed_change], tmp_path / "dist", registry=registry, now=GENERATED)
+    result = publish([confirmed_change], tmp_path / "published", registry=registry, now=GENERATED)
 
     assert result.feed_path.exists()
     assert result.changes_path.exists()
@@ -123,7 +123,7 @@ def test_publish_writes_both_artifacts(
 def test_publish_creates_the_output_directory(
     tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
-    out = tmp_path / "a" / "b" / "dist"
+    out = tmp_path / "a" / "b" / "published"
     publish([confirmed_change], out, registry=registry, now=GENERATED)
     assert (out / "feed.xml").exists()
 

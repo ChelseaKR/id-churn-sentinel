@@ -378,7 +378,7 @@ def test_publish_withholds_unreviewed_and_says_so(
 ) -> None:
     args, _ = drifted
     capsys.readouterr()
-    out_dir = tmp_path / "dist"
+    out_dir = tmp_path / "published"
 
     assert main([*args, "publish", "--out", str(out_dir)]) == 0
     out = capsys.readouterr().out
@@ -391,7 +391,7 @@ def test_publish_emits_a_reviewed_change(
     drifted: tuple[list[str], str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     args, change_id = drifted
-    out_dir = tmp_path / "dist"
+    out_dir = tmp_path / "published"
     main(
         [
             *args,

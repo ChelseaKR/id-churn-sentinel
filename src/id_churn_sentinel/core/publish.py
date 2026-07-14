@@ -30,6 +30,21 @@ that appears the day of the emergency. `sources.json` publishes the whole invent
 gaps) so an integrator can map their own pages to our `source_id`s without reading this
 source code, and `index.html` is the human-readable front door.
 
+**It is published from `docs/`, and that is a deployment fact with a reason.** GitHub Pages,
+on the free branch-based path, will serve exactly two source paths: the repository root or
+`/docs`. The Actions-based Pages deploy — which could serve any directory — is unavailable
+here, because this account has an account-wide Actions spending limit and a site that only
+exists once somebody else's billing system agrees to run a workflow is a site that does not
+exist. So the published surface lives in `docs/`, committed, servable straight from the
+branch with no build step and no CI run. See `docs/README.md`.
+
+Two consequences are load-bearing in this module. First, **every link this code emits must be
+relative** — Pages serves the site under `/<repo-name>/`, so a link beginning with `/` would
+resolve to the wrong origin path and 404 for every consumer. Second, `.nojekyll` is written
+alongside the artifacts: without it Pages runs Jekyll over the directory, and Jekyll silently
+drops files and directories whose names begin with an underscore. Neither failure is loud.
+Both are tested (`tests/test_site.py`).
+
 **A source never travels without its verification status.** This is the third merge-blocking
 property, and it is newer and more load-bearing than it looks. Every artifact here lists a
 source per (jurisdiction, document class), which a reader will reasonably take to mean *"this
@@ -64,7 +79,7 @@ from id_churn_sentinel.core.registry import (
     Source,
     Verification,
 )
-from id_churn_sentinel.core.site import feed_slug, render_site
+from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_site
 from id_churn_sentinel.errors import PublishError
 
 __all__ = [
@@ -77,6 +92,7 @@ __all__ = [
     "source_payload",
     "sources_json",
 ]
+
 
 # Bump on any breaking change to the `changes.json` shape. Consumers pin against it.
 #
@@ -164,19 +180,33 @@ def _guard(records: Iterable[ChangeRecord]) -> tuple[ChangeRecord, ...]:
     return selected
 
 
+# Written into the published directory, and it is not a formality. GitHub Pages runs the output
+# through Jekyll unless this file exists, and Jekyll **silently drops** any file or directory
+# whose name begins with an underscore, rewrites what it feels like, and reports none of it. The
+# published surface here is data an organisation acts on; a build step that quietly removes files
+# from it is exactly the kind of unwitnessed failure this project exists to refuse. So the file
+# is written by the publisher rather than left to a human to remember once.
+def _write_nojekyll(out_dir: Path) -> None:
+    """Turn Jekyll off over the published output. The file is empty by convention; its
+    existence is the whole signal."""
+    (out_dir / ".nojekyll").write_text("", encoding="utf-8")
+
+
 def publish(
     records: Iterable[ChangeRecord],
     out_dir: Path,
     *,
     registry: Registry,
-    feed_url: str = "https://github.com/ChelseaKR/id-churn-sentinel",
+    feed_url: str = REPO_URL,
     now: datetime | None = None,
 ) -> PublishResult:
-    """Write the whole published surface into `out_dir`. Reviewed records only.
+    """Write the whole published surface into `out_dir` (in this repo, `docs/`). Reviewed
+    records only.
 
     `feed.xml` + `changes.json`; one `feed-us-xx.xml` + `changes-us-xx.json` per jurisdiction;
-    `sources.json`, the inventory an integrator maps their own pages against; and
-    `index.html`, the accessible front door that says what is watched, what is *not*, and why.
+    `sources.json`, the inventory an integrator maps their own pages against; `index.html`, the
+    accessible front door that says what is watched, what is *not*, and why; and `.nojekyll`,
+    which is not decoration — see :func:`_write_nojekyll`.
 
     **`registry` is required, and that is the gate.** It used to be optional, defaulting to
     "publish the changes and skip the inventory" — which meant it was possible to write a feed
@@ -194,6 +224,7 @@ def publish(
     generated_at = now or datetime.now(UTC)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    _write_nojekyll(out_dir)
     feed_path = out_dir / "feed.xml"
     changes_path = out_dir / "changes.json"
 

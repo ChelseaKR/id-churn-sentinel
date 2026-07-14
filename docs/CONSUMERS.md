@@ -8,17 +8,44 @@ Three organizations already do the hard part of trans ID-document guidance — t
 
 Building a 52nd guidance website would be the obvious move and the wrong one. The world does not need another page telling a trans person what documents to bring; it needs the four pages that already exist to be *right this week*.
 
+## Where the feed actually lives — copy-pasteable, working today
+
+**There are two hosts, both free, both requiring nothing of you. The first one works right now, with nothing switched on.**
+
+| Base URL | Status | Use it when |
+|---|---|---|
+| **`https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs/`** | **Works today. Zero setup.** | Always. This is not a fallback or a hack — the published bytes are **committed to the repository**, so raw.githubusercontent.com serves every artifact straight off the `main` branch. No build, no CI, no Pages, no account. |
+| **`https://chelseakr.github.io/id-churn-sentinel/`** | Works once GitHub Pages is switched on for this repo (Settings → Pages → *Deploy from a branch* → `main` / `/docs`). | You want a human-readable site to send someone to, or nicer content types. |
+
+**Why the published output is committed, and why there is no CI deploy.** This repository's owner has an **account-wide GitHub Actions spending limit**, so an Actions-driven Pages build would simply never run — and a feed that only exists once somebody else's billing system agrees to run a job is a feed that does not exist. So the artifacts are committed and served **from the branch**, which is also why they live in `docs/` (branch-based Pages serves `/` or `/docs`, and nothing else). See [`docs/README.md`](./README.md).
+
+**The endpoint paths are identical under both bases**, so switching from one to the other is a change to a base URL and nothing else:
+
+```sh
+BASE=https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs
+# or, once Pages is on:
+# BASE=https://chelseakr.github.io/id-churn-sentinel
+
+curl -s "$BASE/changes.json"          # the versioned JSON feed — integrate against this
+curl -s "$BASE/feed.xml"              # RSS 2.0, every jurisdiction
+curl -s "$BASE/changes-us-tx.json"    # just Texas
+curl -s "$BASE/feed-us-tx.xml"        # just Texas, as RSS
+curl -s "$BASE/sources.json"          # the inventory: what we watch, and every named gap
+curl -s "$BASE/schema/changes-v1.schema.json"   # the normative shape of changes.json
+```
+
 ## What the feed actually gives a consumer
 
 Everything below is published to a static URL and consumable with **no account, no API key, no registration, and no email address**:
 
-| Artifact | What it is |
-|---|---|
-| **`index.html`** | The human front door: what is watched, **what is not and why**, and the reviewed-change log. Accessible (WCAG 2.2 AA), no JavaScript, no third-party request of any kind. |
-| **`changes.json`** | The versioned JSON feed. **This is the one you integrate.** Formal schema: [`docs/schema/changes-v1.schema.json`](./schema/changes-v1.schema.json). |
-| **`feed.xml`** | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
-| **`changes-us-tx.json`** · **`feed-us-tx.xml`** | **One feed per jurisdiction.** An org that serves one state is not made to consume all 52. |
-| **`sources.json`** | The inventory: every watched source **and every named gap**. This is what you map your own pages against. |
+| Artifact | Path | What it is |
+|---|---|---|
+| **The site** | `index.html` | The human front door: what is watched, **what is not and why**, and the reviewed-change log. Accessible (WCAG 2.2 AA), no JavaScript, no third-party request of any kind. |
+| **The JSON feed** | `changes.json` | The versioned JSON feed. **This is the one you integrate.** Formal schema: [`docs/schema/changes-v1.schema.json`](./schema/changes-v1.schema.json). |
+| **The RSS feed** | `feed.xml` | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
+| **One feed per jurisdiction** | `changes-us-tx.json` · `feed-us-tx.xml` | An org that serves one state is not made to consume all 52. `us-tx` for Texas, `us-dc` for DC, plain `us` for the federal bucket (passport, SSA, Selective Service). |
+| **The inventory** | `sources.json` | Every watched source **and every named gap**. This is what you map your own pages against. |
+| **The schema** | `schema/changes-v1.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
 
 Every item is a change **a named human reviewed and confirmed**, at an **official government URL**, with **the passage that changed**. Nothing unreviewed is ever published.
 
@@ -36,28 +63,30 @@ Every item is a change **a named human reviewed and confirmed**, at an **officia
 
 ```sh
 # every source we have NOT had a human confirm — today, that is all of them
-curl -s https://<host>/sources.json | jq '.sources[] | select(.verification_status != "verified")'
+curl -s $BASE/sources.json | jq '.sources[] | select(.verification_status != "verified")'
 
 # the counts, straight from the feed you are already polling
-curl -s https://<host>/changes.json | jq '.registry_verification'
+curl -s $BASE/changes.json | jq '.registry_verification'
 ```
 
 If you map a page of yours to one of our `source_id`s, **map it to the URL you already trust, not to ours** — and use our feed as an alarm on that URL, which is the job it is actually good at. When the burn-down finishes, `verification_status` flips to `verified` with the name of the person who confirmed it and the date they did, and this section shrinks.
 
 ## Integrator quickstart
 
+Every snippet below uses `$BASE` — either of the two base URLs [above](#where-the-feed-actually-lives--copy-pasteable-working-today). Nothing here needs a key, an account, or a signup.
+
 **1. Poll the JSON. That is the whole integration.**
 
 ```sh
 # every confirmed change, newest first
-curl -s https://<host>/changes.json | jq '.changes[]'
+curl -s $BASE/changes.json | jq '.changes[]'
 
 # only the substantive ones, only in Texas
-curl -s https://<host>/changes.json \
+curl -s $BASE/changes.json \
   | jq '.changes[] | select(.significance=="substantive" and .jurisdiction=="TX")'
 
 # or skip the filtering: subscribe to the state you actually serve
-curl -s https://<host>/changes-us-tx.json | jq '.changes[]'
+curl -s $BASE/changes-us-tx.json | jq '.changes[]'
 ```
 
 **2. Dedupe on `id`.** It is deterministic in `(source_id, previous_hash, new_hash)`, so a re-run cannot hand you the same change under a new key, and an `id` cited in an email six months ago still resolves. Store it. Do not re-key on our timestamps.
@@ -65,16 +94,39 @@ curl -s https://<host>/changes-us-tx.json | jq '.changes[]'
 **3. Map your pages to `source_id`s, once.**
 
 ```sh
-curl -s https://<host>/sources.json | jq '.sources[] | {source_id, jurisdiction, document_class, url}'
+curl -s $BASE/sources.json | jq '.sources[] | {source_id, jurisdiction, document_class, url}'
 ```
 
 **4. Read the gaps before you trust the silence.**
 
 ```sh
-curl -s https://<host>/sources.json | jq '.gaps[] | {jurisdiction, document_class, reason}'
+curl -s $BASE/sources.json | jq '.gaps[] | {jurisdiction, document_class, reason}'
 ```
 
 **5. Or do none of this and put the RSS in a Slack channel.** For a name-change clinic that is genuinely the right integration, and it costs nothing.
+
+### Polling the RSS — including your state, and only your state
+
+RSS is the zero-engineering path, and for most legal-aid orgs it is the *right* path. There is no push, no webhook, and no subscription: **you poll a static file.** Nobody is told that you did.
+
+```sh
+# the whole country
+curl -s $BASE/feed.xml
+
+# Texas only. An org that serves one state should never have to consume all 52.
+curl -s $BASE/feed-us-tx.xml
+
+# the federal bucket — passport, Social Security, Selective Service
+curl -s $BASE/feed-us.xml
+```
+
+- **The slug is `us-` + the lowercased jurisdiction**: `feed-us-tx.xml`, `feed-us-ny.xml`, `feed-us-dc.xml`. The federal bucket is plain `feed-us.xml`. Both `.xml` (RSS) and `.json` forms exist for all 52.
+- **Every jurisdiction's feed exists right now, whether or not it has any items yet.** A URL that only appears the day of the emergency is a URL nobody was subscribed to. Point your reader at it today.
+- **Paste the URL into Slack, Feedly, Thunderbird, Zapier, or a cron job.** Slack's `/feed subscribe <url>` is a complete integration for a name-change clinic, and it takes about fifteen seconds.
+- **A polite cadence is weekly**, which is how often the watcher itself runs. Polling every minute costs you nothing and tells you nothing new.
+- **Deduping in RSS is on `<guid>`**, which carries the same permanent `id` as the JSON feed (`isPermaLink="false"` — it is an identifier, not a URL).
+- **Each item's `<category>` elements** carry the jurisdiction, the document class, the machine-observed `kind`, and `source-verification:<status>` — so a pipeline can filter RSS without parsing prose.
+- **An empty feed is a correct feed.** It has zero `<item>` elements and an XML comment saying it is empty rather than broken. Do not alert your team on it. See below.
 
 ### What the fields mean
 
@@ -121,6 +173,16 @@ Two further top-level fields ship in `changes.json` and in every per-jurisdictio
 
 The normative document is [`docs/schema/changes-v1.schema.json`](./schema/changes-v1.schema.json) — JSON Schema 2020-12, and a merge-blocking test asserts that the schema and the code agree about every field and every enum, and that real published output validates against it. A schema that has drifted from its implementation is worse than none, because you built against it.
 
+**It is published at the same base as the feed, so you can validate in CI without vendoring anything:**
+
+```sh
+curl -sO $BASE/schema/changes-v1.schema.json
+curl -s  $BASE/changes.json > changes.json
+check-jsonschema --schemafile changes-v1.schema.json changes.json   # or any 2020-12 validator
+```
+
+Validate the per-jurisdiction documents against **the same schema** — `changes-us-tx.json` is the same shape as `changes.json` plus a `jurisdiction` field naming its scope.
+
 ```jsonc
 {
   "schema_version": "1.0",           // pin against the MAJOR; see the promise below
@@ -159,7 +221,9 @@ The normative document is [`docs/schema/changes-v1.schema.json`](./schema/change
 - **`id` is permanently stable** for a given `(source_id, previous_hash, new_hash)` transition.
 - **`review_status` is always `confirmed`.** If you ever see another value, we broke a promise — open an issue.
 - **The feed will never require a credential.**
-- **Endpoint URLs are stable.** `changes.json`, `feed.xml`, `sources.json`, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
+- **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `schema/changes-v1.schema.json`, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
+- **The two *base* URLs are both supported, and the raw one is not going away.** The raw base serves the committed bytes off the branch and needs nothing enabled; the Pages base serves the identical bytes. If a third host ever appears, the paths above will be identical there too — the base is the only thing you should ever have to change.
+- **A `feed_url` field appears in every document.** It is the project's canonical home, so an item that reaches someone out of context can be traced back. It is not a fetch endpoint — use the bases above.
 
 ### The feed is currently empty, and that is a real state — not a broken build
 
@@ -212,9 +276,12 @@ There is no SDK, no auth, no rate limit, no account, and no signup form. That is
 - **No user model exists in the codebase.** There is nothing to log in to.
 - **No tracking of any kind** in the published bytes: no analytics, no beacon, no pixel, no cookie, no UTM parameter — and the published *site* additionally makes **no third-party request at all**: no CDN script, no external stylesheet, no web font, no image. Every external request is a request that tells a third party who is reading about trans ID law, and a page that surveils the people it claims to protect would be a disgrace.
 - **This is enforced, not promised.** `test_the_feed_requires_no_account_and_carries_no_tracking` and `test_the_published_site_makes_no_third_party_requests` assert it on the **published bytes** and run in the merge-blocking `feed_integrity` gate. If someone adds a font from Google, the build goes red.
+- **There is nothing to subscribe *to*.** Both consumption paths are you fetching a static file. No webhook, no mailing list, no push, no registration — and therefore no list of who reads this.
 - **Consequently we cannot report readership, and never will.** We do not know who consumes this or how many of you there are. That is a deliberate trade: the metric is worth less than the risk. If you integrate, we would love to hear from you — but nothing makes you tell us, and nothing observes you if you don't.
 
-**The one honest limit:** we cannot control the access logs of whoever *hosts* the static files. Those logs will exist and will contain IP addresses. What we control is that they are not ours, are not enriched with identity, and are not required to consume anything. Fetch it over Tor if you want to; nothing about the feed makes that harder.
+**The one honest limit, stated concretely rather than vaguely: the files are hosted on GitHub** (raw.githubusercontent.com, and github.io once Pages is on). **GitHub's access logs exist, and they contain the IP address of anyone who fetches a file** — including which per-jurisdiction feed they fetched, which is more revealing than the unscoped one, not less. We do not control those logs, we do not receive them, we cannot delete them, and no amount of care in this repository changes that.
+
+What we *do* control, and do: the logs are **not ours**, are **not enriched with any identity**, and are **not required** in order to consume anything. There is no account to tie an IP to. If that residual risk matters for your threat model, fetch over Tor or a VPN, or mirror the artifacts once and serve them internally — nothing about the feed makes any of that harder, and mirroring is explicitly fine (MIT).
 
 ## The sustainability thesis
 

@@ -23,6 +23,7 @@ import pytest
 
 from id_churn_sentinel.cli import main
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.coverage import repo_root
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import SnapshotStore
@@ -30,6 +31,10 @@ from id_churn_sentinel.core.store import SnapshotStore
 from .conftest import StubFetcher
 
 pytestmark = pytest.mark.feed_integrity
+
+# The published surface, as committed. Not a build directory: these are the exact bytes GitHub
+# Pages serves off the branch, with no CI step in between to re-check them.
+PUBLISHED = repo_root() / "docs"
 
 
 def test_unreviewed_drift_is_not_published(
@@ -211,7 +216,7 @@ def test_the_end_to_end_cli_flow_withholds_until_a_human_reviews(
         encoding="utf-8",
     )
     db = tmp_path / "cli.db"
-    out = tmp_path / "dist"
+    out = tmp_path / "published"
     base = ["--registry", str(registry_path), "--db", str(db)]
     stub = StubFetcher({source.url: (fixture_before, "text/html")})
 
@@ -290,6 +295,43 @@ def test_the_feed_requires_no_account_and_carries_no_tracking(
         "token=",
     ):
         assert tracker not in lowered, f"the feed must not carry {tracker!r}"
+
+
+def test_the_committed_published_feed_holds_the_safety_property() -> None:
+    """THE GATE, on the bytes that are actually served.
+
+    Every other test in this file publishes into a `tmp_path` and asserts on what came out —
+    which proves the *publisher* is safe. It does not prove the *repository* is: the site is
+    served from the branch (`docs/`, committed), so what a consumer fetches is whatever is in
+    the commit, and nothing stands between the two. There is no CI deploy step to re-check it,
+    because Actions cannot run under this account's spending limit — which is precisely why the
+    published bytes are committed in the first place.
+
+    So a hand-edited `changes.json`, a bad merge, or a `publish` run against a tampered store
+    would reach A4TE, Trans Lifeline, and a legal-aid clinic exactly as written. This asserts
+    the safety property where it actually has to hold.
+    """
+    payload = json.loads((PUBLISHED / "changes.json").read_text(encoding="utf-8"))
+
+    for change in payload["changes"]:
+        assert change["review_status"] == "confirmed", (
+            f"published change {change['id']} is {change['review_status']!r} — only records a "
+            f"named human confirmed may be served, and these bytes are served as committed"
+        )
+        assert change["significance"] in {"editorial", "substantive"}
+        assert change["reviewer"], "a published change with no human behind it"
+
+
+def test_the_committed_site_is_servable_by_pages_from_the_branch() -> None:
+    """The published directory is the deployment. Pages serves `docs/` off `main`, so the
+    entry point has to exist and Jekyll has to be off — and `.nojekyll` is the kind of file
+    that gets deleted by a tidy-up six months from now, at which point Jekyll starts silently
+    dropping anything whose name begins with an underscore and nobody is told.
+    """
+    assert (PUBLISHED / "index.html").exists(), "no Pages entry point at docs/index.html"
+    assert (PUBLISHED / ".nojekyll").exists(), "Pages would run Jekyll over the published feed"
+    for artifact in ("feed.xml", "changes.json", "sources.json", "schema"):
+        assert (PUBLISHED / artifact).exists()
 
 
 def test_the_json_feed_is_versioned_and_carries_its_disclaimer(

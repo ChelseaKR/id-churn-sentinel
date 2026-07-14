@@ -43,7 +43,7 @@ on:
 # Read the code, write an issue. That is the whole blast radius.
 #
 # `contents` is deliberately READ-only: this job never commits, never rewrites the committed
-# baseline, and never touches dist/. `issues: write` is the single capability it needs — the
+# baseline, and never touches docs/. `issues: write` is the single capability it needs — the
 # most it is allowed to do is tell a human to look. Widening this to `contents: write` would
 # be the first step on the road to a bot that publishes its own findings, and that road is
 # closed on purpose (docs/RESPONSIBLE-TECH-AUDITS.md §B).
@@ -122,7 +122,7 @@ jobs:
               'uv run sentinel diff <change-id>      # read the passage that actually changed',
               'uv run sentinel review <change-id> --reviewer "Your Name" \\',
               '    --significance editorial|substantive --status confirmed|dismissed',
-              'uv run sentinel publish --out dist/',
+              'uv run sentinel publish --out docs/',
               '```',
               '',
               'Note `baseline check` gives you the *hash*, not the passage — run `sentinel watch`',

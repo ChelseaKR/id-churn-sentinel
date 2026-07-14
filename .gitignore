@@ -3,20 +3,28 @@ __pycache__/
 *.py[cod]
 .venv/
 build/
+dist/
 *.egg-info/
 
-# NOTE: `dist/` is deliberately NOT ignored, which is unusual for a Python project and is
-# the whole point. `dist/` is not a build artifact here — it is THE PUBLISHED FEED, and it
-# is the product: index.html, feed.xml, changes.json, sources.json, and a feed per
-# jurisdiction. Committing it means the site can be served by GitHub Pages, by any static
-# host, or by `python -m http.server` out of a clean clone, with **no build step and no CI
-# run**. That matters concretely: this account has an Actions spending limit, and a feed
-# that only exists after somebody else's billing system agrees to run a workflow is a feed
-# that does not exist. It also means a reviewer can see, in the diff, exactly what changed
-# in the published bytes before it reaches an org that acts on them.
+# NOTE: `docs/` is deliberately NOT ignored, and it is not documentation-only. It holds THE
+# PUBLISHED FEED — index.html, feed.xml, changes.json, sources.json, a feed per jurisdiction,
+# and the JSON Schema — alongside the prose docs. It is not a build artifact; it is the
+# product, and it is committed on purpose.
 #
-# The one thing that must never appear in it is an unreviewed record — which is not a
-# gitignore's job to enforce, and is enforced by `make no-unreviewed-in-feed` instead.
+# Committing it means the site can be served by GitHub Pages, by any static host, or by
+# `python -m http.server` out of a clean clone, with **no build step and no CI run**. That
+# matters concretely: this account has an account-wide GitHub Actions spending limit, and a
+# feed that only exists after somebody else's billing system agrees to run a workflow is a
+# feed that does not exist. It also means a reviewer can see, in the diff, exactly what
+# changed in the published bytes before it reaches an org that acts on them.
+#
+# It lives in `docs/` rather than the `dist/` it used to, because branch-based GitHub Pages
+# serves exactly two source paths — `/` or `/docs` — and `/` would publish the source tree.
+# The Actions-based deploy that could have served `dist/` will never run here, for the billing
+# reason above. So `dist/` is now an ordinary Python build directory again, and is ignored.
+#
+# The one thing that must never appear in the published bytes is an unreviewed record — which
+# is not a gitignore's job to enforce, and is enforced by `make no-unreviewed-in-feed`.
 
 # Tooling
 .pytest_cache/

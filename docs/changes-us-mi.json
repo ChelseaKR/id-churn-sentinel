@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-14T02:22:24.655721+00:00",
+  "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
+  "jurisdiction": "MI",
+  "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
+  "registry_verification": {
+    "scope": "MI",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "mi-mcl-257-307-license-application",
+      "jurisdiction": "MI",
+      "document_class": "drivers_license",
+      "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf",
+      "authority": "Michigan Legislature \u2014 Michigan Vehicle Code (administered by Michigan Secretary of State)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff."
+    },
+    {
+      "source_id": "mi-mcl-333-2831-new-birth-certificate",
+      "jurisdiction": "MI",
+      "document_class": "birth_certificate",
+      "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf",
+      "authority": "Michigan Legislature \u2014 Public Health Code (administered by MDHHS Vital Records)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute \u2014 'New certificate of birth; establishment; requirements' \u2014 and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page \u2014 the entry claims only that this is an official Michigan page for this document class."
+    },
+    {
+      "source_id": "mi-scao-pc51-name-change-petition",
+      "jurisdiction": "MI",
+      "document_class": "court_order_name_change",
+      "url": "https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf",
+      "authority": "Michigan Supreme Court, State Court Administrative Office (SCAO)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. GAP FIX: courts.michigan.gov's name-change landing page is a client-rendered SPA that normalizes to ZERO passages \u2014 hashing it would watch a template, not a policy. The SCAO-approved form PC 51 ('Petition for Name Change') is the operative document a Michigan name-change actually runs on, it is served as a static PDF by the same official host, and it answers us with 200. A revision to the form is exactly the change a legal-aid clinic needs to know about. Hashed as raw bytes (no passage diff)."
+    }
+  ]
+}

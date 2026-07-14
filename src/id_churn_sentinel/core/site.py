@@ -3,11 +3,20 @@
 **Why a site at all, when the product is a feed.** `docs/CONSUMERS.md` argues that the
 customers are the incumbents — A4TE, Trans Lifeline, Namesake, legal-aid clinics — and that
 they cannot keep up with churn. Until now they could not actually consume anything: the
-artifacts existed in `dist/` in a git repo, the source inventory existed only as a JSON file
-a Python program parses, and the gaps existed as a paragraph in a README. An integrator's
-first question is not "what changed?" — it is **"what do you watch, and what don't you?"**,
-because the answer decides whether our silence about Vermont means anything. This page
-answers that question first and the feed second, on purpose.
+artifacts existed in a git repo, the source inventory existed only as a JSON file a Python
+program parses, and the gaps existed as a paragraph in a README. An integrator's first
+question is not "what changed?" — it is **"what do you watch, and what don't you?"**, because
+the answer decides whether our silence about Vermont means anything. This page answers that
+question first and the feed second, on purpose.
+
+**Every link on this page is relative, and that is a hosting constraint, not a style.** The
+site is served from `docs/` on GitHub Pages, which means it lives under a **subpath** —
+`https://chelseakr.github.io/id-churn-sentinel/` — not at the root of a domain. An `href`
+beginning with `/` would resolve to `https://chelseakr.github.io/feed.xml`, which is somebody
+else's site, and it would 404 for every consumer while looking perfectly correct in a local
+`python -m http.server` run at the root. It is the classic way a static site breaks on the day
+it is deployed and not one minute before, so `test_every_link_on_the_page_is_subpath_safe`
+asserts it instead of a reviewer remembering it.
 
 **Four properties, and they are not decoration:**
 
@@ -51,7 +60,30 @@ from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import CoverageReport
 from id_churn_sentinel.core.registry import REJECTED, Registry, Source
 
-__all__ = ["SITE_TITLE", "feed_slug", "render_site"]
+__all__ = [
+    "PAGES_URL",
+    "RAW_BASE_URL",
+    "REPO_URL",
+    "SITE_TITLE",
+    "feed_slug",
+    "render_site",
+]
+
+# The three URLs a consumer can actually use. They are declared once, here, because they are
+# rendered into the site, defaulted into every feed, and quoted in five documents — and a stale
+# URL in a published feed is a broken integration nobody tells you about.
+#
+# **`RAW_BASE_URL` works today, with zero setup, and it is a legitimate consumption path.** The
+# published bytes are committed, so raw.githubusercontent.com serves every one of them straight
+# out of the branch: no Pages, no CI, no build. **`PAGES_URL` works once Pages is switched on**
+# for `main` with a source path of `/docs` — which is the only non-root path branch-based Pages
+# will serve, and the whole reason the published surface lives in `docs/`. There is deliberately
+# no Actions-based Pages deploy: this account has an account-wide Actions spending limit, so a
+# workflow-driven build would simply never run, and a site that exists only once somebody else's
+# billing system agrees to run a job is a site that does not exist.
+REPO_URL = "https://github.com/ChelseaKR/id-churn-sentinel"
+RAW_BASE_URL = "https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs"
+PAGES_URL = "https://chelseakr.github.io/id-churn-sentinel/"
 
 # Every published surface says this, and the site says it first — above the coverage numbers,
 # above the feed, above everything except the title. The numbers are the part a reader wants;
@@ -118,6 +150,11 @@ def render_site(
             '<meta name="description" content="Human-reviewed changes at official US state and '
             "federal pages governing name and gender-marker changes on identity documents. "
             'No account, no tracking.">',
+            # Feed autodiscovery: a reader who points any RSS client at this page gets the feed
+            # without hunting for the URL. Relative, like every other link here — see the module
+            # docstring on why a leading slash would break under a Pages subpath.
+            '<link rel="alternate" type="application/rss+xml" '
+            'title="ID Churn Sentinel — reviewed changes" href="feed.xml">',
             f"<style>{_CSS}</style>",
             "</head>",
             "<body>",
@@ -216,7 +253,7 @@ def _verification_notice(report: CoverageReport) -> str:
             "<code>verification_status</code> field for exactly this reason — so that an "
             "integrator cannot consume a source without being told what is behind it. The "
             "verification queue and how it is worked: "
-            '<a href="https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/VERIFYING.md">'
+            f'<a href="{_esc(REPO_URL)}/blob/main/docs/VERIFYING.md">'
             "docs/VERIFYING.md</a>.</p>",
             "</section>",
         ]
@@ -389,6 +426,21 @@ def _endpoints_section(registry: Registry) -> str:
             "Every jurisdiction has its own feed, and it exists whether or not it has items "
             "yet.</p>",
             f'<ul class="feeds">\n{per_jurisdiction}\n</ul>',
+            "<h3>Absolute URLs, for a cron job</h3>",
+            "<p>The links above are relative, so they work wherever this page is served from. "
+            "If you are wiring up a poller, these are the two absolute bases. "
+            "<strong>The published bytes are committed to the repository</strong>, so the "
+            "first one needs nothing switched on — no Pages, no CI, no build step, no "
+            "account:</p>",
+            "<ul>",
+            f"<li><code>{_esc(RAW_BASE_URL)}/changes.json</code> — served straight from the "
+            "branch. Works today.</li>",
+            f"<li><code>{_esc(PAGES_URL)}changes.json</code> — the same bytes over GitHub "
+            "Pages.</li>",
+            "</ul>",
+            f"<p>The full integrator guide, including what each field means and what this tool "
+            f'will never tell you: <a href="{_esc(REPO_URL)}/blob/main/docs/CONSUMERS.md">'
+            "docs/CONSUMERS.md</a>.</p>",
             "</section>",
         ]
     )
@@ -514,7 +566,7 @@ def _footer() -> str:
             "<footer>",
             "<p>ID Churn Sentinel is free software (MIT). It reports that an official source "
             "page changed; it does not assert what the law is, and it is not legal advice.</p>",
-            '<p><a href="https://github.com/ChelseaKR/id-churn-sentinel">Source code, the '
+            f'<p><a href="{_esc(REPO_URL)}">Source code, the '
             "registry, and the audit that explains every refusal above</a>.</p>",
             "</footer>",
         ]

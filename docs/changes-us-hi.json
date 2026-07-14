@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-14T02:22:24.655721+00:00",
+  "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
+  "jurisdiction": "HI",
+  "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
+  "registry_verification": {
+    "scope": "HI",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "hi-courts",
+      "jurisdiction": "HI",
+      "document_class": "court_order_name_change",
+      "url": "https://www.courts.state.hi.us/",
+      "authority": "Hawaii State Judiciary",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Judiciary'. A landing page whose h1 is 'Featured News' \u2014 a rotating news block, so this entry is a candidate for editorial drift. Kept and watched; if it proves noisy run-over-run it is a normalizer or registry problem, not a policy signal."
+    },
+    {
+      "source_id": "hi-doh-vital-records",
+      "jurisdiction": "HI",
+      "document_class": "birth_certificate",
+      "url": "https://health.hawaii.gov/vitalrecords/",
+      "authority": "Hawaii Department of Health, Office of Health Status Monitoring (Vital Records)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+    },
+    {
+      "source_id": "hi-hrs-286-102-licensing",
+      "jurisdiction": "HI",
+      "document_class": "drivers_license",
+      "url": "https://www.capitol.hawaii.gov/hrscurrent/Vol05_Ch0261-0319/HRS0286/HRS_0286-0102.htm",
+      "authority": "Hawaii State Legislature \u2014 HRS \u00a7286-102 (licensing is administered by the four COUNTIES; Hawaii has no state DMV)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, heading '\u00a7286-102 Licensing.' PARTIAL GAP FIX, and the partiality is the point: Hawaii has NO state DMV \u2014 driver licensing is administered by the four counties (Honolulu, Hawai'i, Maui, Kaua'i), so there is no statewide issuing authority whose page we could watch. What IS statewide is the statute the counties administer, HRS \u00a7286-102, and that is what this entry watches. It does NOT claim to watch a county licensing process. The county surfaces were tried: honolulu.gov/csd answers but titles its driver-licensing page with a rotating NEWS HEADLINE (false-drift on a slow cycle); hawaiicounty.gov 403s our UA; the Maui and Kaua'i pages 404. MACHINE FACT: capitol.hawaii.gov 403s under concurrent load and answers a single request fine \u2014 at a weekly cadence of one fetch this is not expected to bite, but if this source starts flapping, suspect rate-limiting before suspecting removal."
+    }
+  ]
+}

@@ -4,6 +4,12 @@
 
 **Status:** `In build` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** [MIT](./LICENSE) · **Runtime deps:** zero (stdlib only)
 
+## V1.0 delivery plan
+
+The repository now has an execution-ready V1.0 plan that treats source verification, community governance, reviewer operations, consumer adoption, reliability, accessibility, and release safety as product work—not post-launch cleanup. Start with [`docs/00-V1-PLAN.md`](./docs/00-V1-PLAN.md); the complete planning set is indexed there.
+
+**V1.0 means:** every active source is human-verified; high-impact publication has independent review; two design partners complete a six-week shadow pilot; the feed contract and correction path are stable; four weekly watch→review→publish cycles meet the service targets; and every must-pass gate in [`docs/15-V1-RELEASE-CHECKLIST.md`](./docs/15-V1-RELEASE-CHECKLIST.md) has an owner and dated receipt. It does **not** mean the service interprets law, gives advice, or guarantees it observed every policy change.
+
 ## Read this before you rely on anything here
 
 **The source registry is not human-verified. `0 of 152 sources are human-verified`, and the published site says so next to every single entry.**
@@ -96,7 +102,7 @@ Why this is worth building carefully: **a wrong "no change" is a safety failure.
 - **Keeps the bytes.** SQLite snapshot store retains the last N fetches per source — raw bytes, normalized text, sha256, timestamp, HTTP status — so any published diff is reproducible months later, after the state has quietly re-edited the page twice more. A diff you cannot reproduce is a claim, not evidence.
 - **Commits the baseline, so a clean clone has a memory.** The snapshot store is not committed (it is megabytes of government HTML and grows weekly), which used to mean a fresh checkout knew nothing: every source is a first sighting, a first sighting is a baseline rather than drift, and the tool could say nothing at all until it had watched for a week. `sources/baseline-hashes.json` — 125 hashes, mirroring `trans-docs-navigator/corpus/source-hashes.json` — closes that: `sentinel baseline check` answers *"which of these pages is not what it was?"* from a fresh clone, with no store. It is honest about its limit, too: it holds the hash, not the text, so it can tell you a page moved but not what moved. `sentinel watch` does that.
 - **Requires a human before it says anything.** Every detected change is born `unclassified` / `unreviewed`. A person classifies it (`editorial` | `substantive`) and confirms or dismisses it. Only confirmed, classified, human-signed records reach the feed.
-- **Publishes something an incumbent can actually consume, with no account.** A static site (`dist/index.html`), RSS (`feed.xml`), a versioned JSON feed against a [published schema](./docs/schema/changes-v1.schema.json) (`changes.json`), an inventory of every watched source *and every named gap* (`sources.json`), and **one feed per jurisdiction** (`feed-us-tx.xml`, `changes-us-tx.json`) so a clinic that serves one state is not made to consume all 52. No auth, no email capture, no tracking, no third-party request anywhere in the published bytes — asserted on the published output by a merge-blocking test. A subscriber list for a trans-ID-law feed is a list of trans people; the safest way to protect that list is to never create one.
+- **Publishes something an incumbent can actually consume, with no account.** A static site (`docs/index.html`), RSS (`feed.xml`), a versioned JSON feed against a [published schema](./docs/schema/changes-v1.schema.json) (`changes.json`), an inventory of every watched source *and every named gap* (`sources.json`), and **one feed per jurisdiction** (`feed-us-tx.xml`, `changes-us-tx.json`) so a clinic that serves one state is not made to consume all 52. It is **fetchable right now, with nothing switched on** — see [Consuming it](#consuming-it) — because the published bytes are committed rather than built by a CI job that this account's billing limit would never run. No auth, no email capture, no tracking, no third-party request anywhere in the published bytes — asserted on the published output by a merge-blocking test. A subscriber list for a trans-ID-law feed is a list of trans people; the safest way to protect that list is to never create one.
 - **Cannot lie about its own coverage.** Every number in this README — sources, jurisdictions, gaps, unreachable — is *derived from the registry* by `sentinel coverage`, and `sentinel coverage --check-docs` fails the build if any doc disagrees, or if a jurisdiction/document-class pair is neither watched nor a **named gap**. A project whose pitch is *"we tell you what went stale"* cannot have a stale front page. It found two silent holes on the day it was written (see below).
 
 ## Prior art this builds on
@@ -119,18 +125,30 @@ uv run sentinel baseline check     # what moved since the committed baseline (ne
 uv run sentinel watch              # fetch, normalize, hash, diff, record drift
 uv run sentinel diff <change-id>   # the changed passages
 uv run sentinel review <change-id> --reviewer "Your Name" --significance substantive --status confirmed
-uv run sentinel publish --out dist/    # site + RSS + JSON + per-jurisdiction feeds + inventory
+uv run sentinel publish --out docs/    # site + RSS + JSON + per-jurisdiction feeds + inventory
+make serve                            # serve the site the way Pages does — under a SUBPATH
 ```
 
 **Two different humans, two different commands, and they are not interchangeable.** `verify` is a judgment about a **source** (*"this URL is the official page for this document class in this jurisdiction"*). `review` is a judgment about a **change** (*"this diff matters"*). Both refuse to run without a name. Neither can be done by a machine, and nothing in this codebase tries.
 
-**Consuming it** (no account, no key, no email — see [`docs/CONSUMERS.md`](./docs/CONSUMERS.md)):
+## Consuming it
+
+**No account, no key, no email, nothing to switch on.** The published bytes are **committed**, so `raw.githubusercontent.com` serves every artifact straight off `main` — that is a legitimate consumption path, not a workaround, and it works today:
 
 ```sh
-curl -s https://<host>/changes.json      | jq '.changes[] | select(.significance=="substantive")'
-curl -s https://<host>/changes-us-tx.json | jq '.changes[]'   # just Texas
-curl -s https://<host>/sources.json       | jq '.gaps[]'      # what we do NOT watch, and why
+BASE=https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs
+
+curl -s "$BASE/changes.json"       | jq '.changes[] | select(.significance=="substantive")'
+curl -s "$BASE/changes-us-tx.json" | jq '.changes[]'   # just Texas — not all 52
+curl -s "$BASE/feed-us-tx.xml"                         # …or the same, as RSS, in Slack
+curl -s "$BASE/sources.json"       | jq '.gaps[]'      # what we do NOT watch, and why
 ```
+
+Once GitHub Pages is enabled (*Settings → Pages → Deploy from a branch → `main` / `/docs`*), the identical paths are served at **`https://chelseakr.github.io/id-churn-sentinel/`**. The base URL is the only thing that changes.
+
+**Why it is served from a branch and not from CI.** This account has an **account-wide GitHub Actions spending limit**, so an Actions-driven Pages deploy would never run — the workflow that used to do it has been deleted rather than left in the repo pretending. Branch-based Pages serves exactly two source paths, `/` or `/docs`, which is why the published site lives in **`docs/`** alongside the prose docs. A feed that only exists once somebody else's billing system agrees to run a job is a feed that does not exist.
+
+The full integrator guide — the field meanings, the review states, the versioning promise, and what this tool will never tell you — is [`docs/CONSUMERS.md`](./docs/CONSUMERS.md). The layout of the published directory is [`docs/README.md`](./docs/README.md).
 
 **The weekly run.** `make watch-weekly` is the operational job, and `.github/workflows/watch.yml` is the same thing on a cron. The workflow opens or updates a single human-review issue when a source moves and **cannot publish** — publication requires `sentinel review --reviewer`, a named human, and there is no path from CI to that command. Note that this repo's owner has an account-wide GitHub Actions spending limit, so **do not assume the hosted workflow ever runs**: the Makefile target is the primary path and the workflow is the convenience. A monitor whose only trigger is someone else's billing system is not a monitor.
 
@@ -147,7 +165,8 @@ curl -s https://<host>/sources.json       | jq '.gaps[]'      # what we do NOT w
   7. **Never add a source without running `sentinel sources check --twice` on it — and then reading its normalized text.** A page that re-rolls a widget on every request is a permanent false alarm, and one of those costs more trust than ten missing jurisdictions. Three were caught by `--twice`. Three *more* passed `--twice` cleanly and were caught only by reading the text (a live date, a session ticker, and a bot-wall served with HTTP 200). Both steps, every time.
   8. **Never hand-write a coverage number.** `sentinel coverage` derives them; `--check-docs` gates them. If a number in a doc is wrong, the fix is to run the command — never to edit the registry until the prose comes true.
   9. **Never flip `verified: true`. Not for any reason.** It is a named human's judgment that they opened a government page and confirmed it is the right one. An agent cannot have that judgment, and an entry marked verified by a machine is strictly worse than one marked unverified, because it will be believed. The registry enforces it (no `verified: true` loads without a named verifier and a date), and the honest way to help is to make the human's job cheaper — which is what `sentinel verify` and [`docs/VERIFYING.md`](./docs/VERIFYING.md) are.
-- **Commands:** `make verify` · `make coverage` · `make watch-weekly` · `make publish` · `make sources-check` · `make sources-stability` · `make baseline-check` · `make verify-sources` (the human queue).
+- **Commands:** `make verify` · `make coverage` · `make watch-weekly` · `make publish` · `make serve` · `make sources-check` · `make sources-stability` · `make baseline-check` · `make verify-sources` (the human queue).
+- **The published site is `docs/`, and it is served from the branch, not from CI.** `make publish` writes it; `make serve` renders it under the `/id-churn-sentinel/` subpath Pages actually uses. Never hand-edit a generated file in `docs/`, and never use a root-absolute link (`/feed.xml`) in the site — under a Pages subpath it silently points off-site. Both are gated.
 - **Definition of done (M1):** every registry entry human-verified; a real weekly watch pass running; at least one reviewed change published to a feed an incumbent has actually subscribed to; all 7 gates green.
 
 ## Gates
@@ -180,9 +199,9 @@ The whole suite runs **with no network** — the fetcher is injected, and the te
 - **6 of the 152 registered sources cannot currently be fetched** by our own crawler — `ssa.gov` (×2), `nycourts.gov`, `health.ny.gov`, `cdph.ca.gov`, `ilsos.gov` — and are therefore *watched in name only*, carrying **no baseline hash at all**, because a hash we did not observe is not a hash. They are not deleted: deleting them would erase the fact that we cannot watch them.
 - **This detects change, it does not detect *importance*.** A state can gut a policy by an internal directive that never touches a web page, and this tool will see nothing. It is one signal, not a guarantee.
 - **Coverage is uneven by document class**, and a landing page is often the deepest honest target: several states publish no statewide page for a document class at all (Texas's name-change process is county-level). Where the office page is all there is, the office page is what is watched, and the entry says so. The feed's silence about a jurisdiction means nothing at all.
-- **The feed is currently, legitimately, empty.** `dist/feed.xml` is valid RSS 2.0 with zero `<item>`s and an XML comment saying it is empty rather than broken; the site says the same thing in prose. Nothing has been reviewed and confirmed by a human yet, so nothing is published, **and no change was manufactured to make the feed look alive.** An empty feed is **not** a claim that nothing changed anywhere.
+- **The feed is currently, legitimately, empty.** `docs/feed.xml` is valid RSS 2.0 with zero `<item>`s and an XML comment saying it is empty rather than broken; the site says the same thing in prose. Nothing has been reviewed and confirmed by a human yet, so nothing is published, **and no change was manufactured to make the feed look alive.** An empty feed is **not** a claim that nothing changed anywhere.
 - **The site says when it was *generated*, which is not the same as when the watcher last ran.** A consumer could read a fresh `generated_at` as evidence that a watch pass ran and found nothing — a wrong "no change" with a friendly face on it. Publishing the last watch pass's own timestamp and outcome is the next thing that should ship (`docs/ROADMAP.md` §10).
-- **`dist/` is committed, deliberately.** It is not a build artifact; it is the product. Committing it means the site is servable from a clean clone with no build step and no CI run — which matters, because this account has an Actions spending limit and a feed that only exists once someone else's billing system agrees to run a workflow is a feed that does not exist.
+- **The published output is committed, deliberately, and it lives in `docs/`.** It is not a build artifact; it is the product. Committing it means the site is servable from a clean clone with no build step and no CI run — which matters, because this account has an Actions spending limit and a feed that only exists once someone else's billing system agrees to run a workflow is a feed that does not exist. It sits in `docs/` rather than `dist/` because that is the **only non-root path branch-based GitHub Pages will serve**, and the Actions-based deploy that could have served `dist/` is exactly the thing the billing limit stops. The prose docs live alongside it; [`docs/README.md`](./docs/README.md) says which files are generated and which are written by a human. **Do not hand-edit a published file** — `make publish` overwrites them, and a merge-blocking test asserts the *committed* `changes.json` contains only human-confirmed records, because with no CI in the loop the committed bytes are the served bytes.
 
 ## Responsible technology
 

@@ -131,7 +131,7 @@ def test_no_published_artifact_carries_a_tracker_including_the_per_jurisdiction_
     intentions. A tracking pixel in `feed-us-tx.xml` would tell a third party which state's
     trans-ID feed someone reads, which is *more* identifying than the unscoped one, not less.
 
-    So the sweep is over the whole `dist/` directory, and it is by construction: a future
+    So the sweep is over the whole published directory, and it is by construction: a future
     artifact nobody remembers to add to a list is covered the day it is written.
     """
     publish([confirmed_change], tmp_path, registry=load_registry())
@@ -174,6 +174,59 @@ def test_no_published_artifact_carries_a_tracker_including_the_per_jurisdiction_
             "analytics.",
         ):
             assert forbidden not in content, f"{path.name} must not carry {forbidden!r}"
+
+
+# ---- servable from a subpath (the deployment property) -----------------------------------
+
+
+def test_every_link_on_the_page_is_subpath_safe(
+    tmp_path: Path, site_registry: Registry, confirmed_change: ChangeRecord
+) -> None:
+    """The site is served from `docs/` on GitHub Pages, which means it lives under
+    `https://chelseakr.github.io/**id-churn-sentinel/**` — a SUBPATH, not the root of a domain.
+
+    A root-absolute link (`href="/feed.xml"`) resolves to `https://chelseakr.github.io/feed.xml`
+    — someone else's site — and 404s for every consumer. It is the classic way a static site
+    breaks on deploy day, and the reason it survives review is that it looks completely correct
+    when you serve the directory at a root with `python -m http.server` and click around.
+
+    So: every link is either **relative** (our own artifacts), a **fragment** (the skip link),
+    or an **absolute https** URL (an official source we cite, or our repo). Nothing else.
+    """
+    publish([confirmed_change], tmp_path, registry=site_registry)
+    page = (tmp_path / "index.html").read_text()
+
+    links = re.findall(r'href="([^"]+)"', page)
+    assert links
+    for link in links:
+        if link.startswith(("https://", "#")):
+            continue
+        assert not link.startswith("/"), (
+            f"{link!r} is root-absolute. Served from a Pages subpath it resolves off-site and "
+            f"404s — and it will look fine in every local test that serves docs/ at a root."
+        )
+        assert not link.startswith("docs/"), (
+            f"{link!r} repeats the publish directory. `docs/` IS the site root once Pages "
+            f"serves it; this would resolve to /id-churn-sentinel/docs/…"
+        )
+
+    # And nothing on the page is fetched from anywhere at all — a subresource with a broken
+    # relative path fails silently, which is the other half of the same deployment bug.
+    assert "src=" not in page
+
+
+def test_the_published_directory_turns_jekyll_off(tmp_path: Path, site_registry: Registry) -> None:
+    """`.nojekyll` or GitHub Pages runs the output through Jekyll, which **silently drops**
+    files and directories whose names begin with an underscore and tells nobody. The published
+    surface is data an organisation acts on; a deploy step that quietly removes files from it is
+    exactly the unwitnessed failure this project exists to refuse. The publisher writes the file
+    so that no human has to remember it once.
+    """
+    publish([], tmp_path, registry=site_registry)
+
+    nojekyll = tmp_path / ".nojekyll"
+    assert nojekyll.exists()
+    assert nojekyll.read_text() == ""
 
 
 @pytest.mark.feed_integrity

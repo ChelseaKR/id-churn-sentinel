@@ -75,7 +75,7 @@ def federal_change(confirmed_change: ChangeRecord) -> ChangeRecord:
 
 
 @pytest.fixture
-def dist(tmp_path: Path, real_registry: Registry, federal_change: ChangeRecord) -> Path:
+def published(tmp_path: Path, real_registry: Registry, federal_change: ChangeRecord) -> Path:
     publish([federal_change], tmp_path, registry=real_registry, now=NOW)
     return tmp_path
 
@@ -84,7 +84,7 @@ def dist(tmp_path: Path, real_registry: Registry, federal_change: ChangeRecord) 
 
 
 def test_no_source_id_appears_in_any_published_artifact_without_its_status(
-    dist: Path, real_registry: Registry
+    published: Path, real_registry: Registry
 ) -> None:
     """THE GATE, stated as literally as it can be: take every byte we publish, find every
     source we mention in it, and prove we said what is behind that source in the same
@@ -94,7 +94,7 @@ def test_no_source_id_appears_in_any_published_artifact_without_its_status(
     ids = {source.id for source in real_registry.sources}
     checked = 0
 
-    for path in sorted(dist.iterdir()):
+    for path in sorted(published.iterdir()):
         text = path.read_text(encoding="utf-8")
         mentioned = {source_id for source_id in ids if source_id in text}
         if not mentioned:
@@ -117,10 +117,10 @@ def test_no_source_id_appears_in_any_published_artifact_without_its_status(
     assert checked >= 3, "expected the site, the inventory and the change feeds to name sources"
 
 
-def test_every_source_in_sources_json_carries_a_machine_readable_status(dist: Path) -> None:
+def test_every_source_in_sources_json_carries_a_machine_readable_status(published: Path) -> None:
     """The inventory is the document an integrator maps their own pages against. Every entry
     in it says, in a field, whether a human has confirmed it."""
-    payload = json.loads((dist / "sources.json").read_text())
+    payload = json.loads((published / "sources.json").read_text())
 
     assert payload["coverage"]["human_verified"] == 0  # derived, not typed
     assert payload["coverage"]["unverified"] == payload["coverage"]["sources"]
@@ -137,7 +137,7 @@ def test_every_source_in_sources_json_carries_a_machine_readable_status(dist: Pa
 
 
 def test_every_per_jurisdiction_feed_carries_the_status_of_its_own_sources(
-    dist: Path, real_registry: Registry
+    published: Path, real_registry: Registry
 ) -> None:
     """The per-jurisdiction feeds are the artifact a legal-aid clinic actually subscribes to,
     and they are the artifact where this is easiest to get wrong: the change array is EMPTY,
@@ -146,7 +146,7 @@ def test_every_per_jurisdiction_feed_carries_the_status_of_its_own_sources(
     been confirmed by somebody."""
     for jurisdiction in sorted(real_registry.jurisdictions):
         slug = feed_slug(jurisdiction)
-        payload = json.loads((dist / f"changes-{slug}.json").read_text())
+        payload = json.loads((published / f"changes-{slug}.json").read_text())
         expected = real_registry.for_jurisdiction(jurisdiction)
 
         assert payload["jurisdiction"] == jurisdiction
@@ -157,18 +157,18 @@ def test_every_per_jurisdiction_feed_carries_the_status_of_its_own_sources(
         for source in payload["sources"]:
             assert source["verification_status"] == UNVERIFIED
 
-        channel = _channel(dist / f"feed-{slug}.xml")
+        channel = _channel(published / f"feed-{slug}.xml")
         description = channel.findtext("description") or ""
         assert f"0 of {len(expected)} sources in {jurisdiction} are human-verified" in description
         assert "UNVERIFIED" in description
 
 
 def test_every_published_change_carries_the_status_of_the_source_it_cites(
-    dist: Path, federal_change: ChangeRecord
+    published: Path, federal_change: ChangeRecord
 ) -> None:
     """A change item reading "[US] passport changed at <url>" is an implicit assertion that
     <url> IS the official US passport page. Nobody has confirmed that. The item says so."""
-    payload = json.loads((dist / "changes.json").read_text())
+    payload = json.loads((published / "changes.json").read_text())
     item = payload["changes"][0]
 
     assert item["id"] == federal_change.id
@@ -177,17 +177,17 @@ def test_every_published_change_carries_the_status_of_the_source_it_cites(
     assert "NO HUMAN has confirmed" in item["source_verification"]["statement"]
 
     # ...and in the RSS body, where an actual subscriber will read it.
-    rss_item = _channel(dist / "feed.xml").findall("item")[0]
+    rss_item = _channel(published / "feed.xml").findall("item")[0]
     description = rss_item.findtext("description") or ""
     assert "Source verification: UNVERIFIED — machine-checked, not human-confirmed" in description
     assert "source-verification:unverified" in {c.text for c in rss_item.findall("category")}
 
 
-def test_the_site_says_it_above_the_fold_and_before_the_numbers(dist: Path) -> None:
+def test_the_site_says_it_above_the_fold_and_before_the_numbers(published: Path) -> None:
     """A footnote under a long page is not a disclosure. The reader has to be told what this
     list is *before* they read the list — and before the coverage numbers, which are the part
     that makes it look authoritative."""
-    page = (dist / "index.html").read_text()
+    page = (published / "index.html").read_text()
 
     notice = page.index("Read this first")
     coverage = page.index('<h2 id="coverage">')
@@ -206,10 +206,10 @@ def test_the_site_says_it_above_the_fold_and_before_the_numbers(dist: Path) -> N
         assert sentence in page, f"the front door must say: {sentence!r}"
 
 
-def test_every_source_row_on_the_site_carries_a_status_word(dist: Path) -> None:
+def test_every_source_row_on_the_site_carries_a_status_word(published: Path) -> None:
     """WCAG 2.2 AA, 1.4.1: status is a WORD. Not a colour, not an icon, not a tick. Every row
     of every source table says what is behind that source."""
-    page = (dist / "index.html").read_text()
+    page = (published / "index.html").read_text()
     rows = re.findall(r"<tr><th scope=\"row\">.*?</tr>", page, re.DOTALL)
     source_rows = [row for row in rows if "<code>" in row]
 

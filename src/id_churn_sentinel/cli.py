@@ -11,7 +11,7 @@
     sentinel baseline check                        drift vs the COMMITTED baseline (no store)
     sentinel diff <change-id>                      the full diff for one change
     sentinel review <change-id> --reviewer ...     the human gate on a CHANGE
-    sentinel publish --out dist/                   the site, the feeds, the inventory
+    sentinel publish --out docs/                   the site, the feeds, the inventory
 
 Two different humans, two different commands, and they are not interchangeable. `review` is a
 judgment about a **change** ("this diff matters"). `verify` is a judgment about a **source**
@@ -60,6 +60,7 @@ from id_churn_sentinel.core.registry import (
     default_registry_path,
     load_registry,
 )
+from id_churn_sentinel.core.site import REPO_URL
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
 from id_churn_sentinel.errors import SentinelError
@@ -245,7 +246,15 @@ def build_parser() -> argparse.ArgumentParser:
     review_cmd.add_argument("--note", default="", help="why (shown in the published feed)")
 
     publish_cmd = sub.add_parser("publish", help="write feed.xml + changes.json (reviewed only)")
-    publish_cmd.add_argument("--out", type=Path, default=Path("dist"))
+    # `docs/`, not `dist/`, and the reason is a hosting constraint rather than a preference:
+    # branch-based GitHub Pages will serve exactly two source paths — the repo root or `/docs`
+    # — and the Actions-based deploy that could serve any directory will never run under this
+    # account's Actions spending limit. The published surface is committed, so `docs/` is
+    # servable from the branch with no build step and no CI. See docs/README.md.
+    publish_cmd.add_argument("--out", type=Path, default=Path("docs"))
+    # The canonical home written into every artifact's `feed_url`. It defaults to the
+    # repository, which resolves today; point it at the Pages URL once Pages is switched on.
+    publish_cmd.add_argument("--feed-url", default=REPO_URL)
 
     return parser
 
@@ -670,7 +679,7 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         # record anyway — see core/publish.py::_guard.
         records = store.changes(review_status=ReviewStatus.CONFIRMED)
         unreviewed = len(store.changes(review_status=ReviewStatus.UNREVIEWED))
-    result = publish(records, args.out, registry=registry)
+    result = publish(records, args.out, registry=registry, feed_url=args.feed_url)
     print(
         f"publish: {result.published} reviewed change(s) → {result.feed_path}, {result.changes_path}"
     )

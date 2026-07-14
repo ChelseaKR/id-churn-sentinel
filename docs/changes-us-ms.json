@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-14T02:22:24.655721+00:00",
+  "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
+  "jurisdiction": "MS",
+  "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
+  "registry_verification": {
+    "scope": "MS",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "ms-courts",
+      "jurisdiction": "MS",
+      "document_class": "court_order_name_change",
+      "url": "https://courts.ms.gov/",
+      "authority": "Mississippi Judiciary (Administrative Office of Courts)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'State of Mississippi Judiciary'. A landing page. Mississippi's DPS host ships a broken TLS chain \u2014 see KNOWN GAPS."
+    },
+    {
+      "source_id": "ms-dps-driver-service-bureau",
+      "jurisdiction": "MS",
+      "document_class": "drivers_license",
+      "url": "https://www.driverservicebureau.dps.ms.gov/",
+      "authority": "Mississippi Department of Public Safety, Driver Service Bureau",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, title 'Welcome to DPS Driver Service Bureau'. GAP FIX: dps.ms.gov (the department's main host) presents a chain our trust store cannot verify; the Driver Service Bureau's own host, which is the actual driver-licensing surface, presents a chain that DOES verify. Same authority, same document class, honest TLS. KNOWN EDITORIAL CHURN: the page carries a dated news/station-closure block, so it will drift when that block turns over. That is real, visible page text about the licensing offices themselves, and a reviewer dismissing it as `editorial` is the correct outcome \u2014 it is not a rotating widget re-rolled per request (it is stable across two fetches), and suppressing it in the normalizer would mean teaching the normalizer which visible text does not count. See RESPONSIBLE-TECH \u00a7A."
+    },
+    {
+      "source_id": "ms-msdh-vital-records",
+      "jurisdiction": "MS",
+      "document_class": "birth_certificate",
+      "url": "https://msdh.ms.gov/page/31,0,109.html",
+      "authority": "Mississippi State Department of Health, Vital Records",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+    }
+  ]
+}

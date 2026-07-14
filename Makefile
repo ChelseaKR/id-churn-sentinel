@@ -17,7 +17,7 @@
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
         sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
         no-auto-classification verify verify-sources watch \
-        watch-weekly baseline-write baseline-check publish clean
+        watch-weekly baseline-write baseline-check publish serve clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -149,15 +149,43 @@ watch-weekly: ## The weekly operational run: watch, then print what a human must
 	@echo "named human runs:  sentinel diff <id>  →  sentinel review <id> --reviewer '<name>' …"
 	@echo "Then, and only then:  make publish"
 
-publish: ## Write the published site, the feeds, and the inventory — REVIEWED records only
-	@# dist/index.html          the accessible front door: what is watched, what is NOT, why
-	@# dist/feed.xml            RSS 2.0, every jurisdiction
-	@# dist/changes.json        the versioned JSON feed (docs/schema/changes-v1.schema.json)
-	@# dist/feed-us-tx.xml      one feed per jurisdiction, so an org serving one state need
-	@# dist/changes-us-tx.json  not consume all 52
-	@# dist/sources.json        the inventory: every watched source AND every named gap
-	uv run sentinel publish --out dist/
+# The published surface lives in docs/, and that is a HOSTING CONSTRAINT, not a preference.
+# Branch-based GitHub Pages serves exactly two source paths: the repository root, or /docs.
+# Actions-based Pages could serve any directory — but this account has an account-wide Actions
+# spending limit, so an Actions-driven deploy would never run, and a site that exists only once
+# somebody else's billing system agrees to run a job is a site that does not exist. So: docs/,
+# committed, served straight from the branch with no build step and no CI. See docs/README.md.
+#
+# FEED_URL is the canonical home stamped into every artifact's `feed_url`. It defaults to the
+# repository because that URL resolves TODAY; point it at the Pages URL once Pages is switched on:
+#   make publish FEED_URL=https://chelseakr.github.io/id-churn-sentinel/
+FEED_URL ?= https://github.com/ChelseaKR/id-churn-sentinel
 
-clean: ## Remove build/test artifacts (never touches the snapshot store in var/)
-	rm -rf dist build .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov
+publish: ## Write the published site, the feeds, and the inventory — REVIEWED records only
+	@# docs/index.html          the accessible front door + the GitHub Pages entry point
+	@# docs/feed.xml            RSS 2.0, every jurisdiction
+	@# docs/changes.json        the versioned JSON feed (docs/schema/changes-v1.schema.json)
+	@# docs/feed-us-tx.xml      one feed per jurisdiction, so an org serving one state need
+	@# docs/changes-us-tx.json  not consume all 52
+	@# docs/sources.json        the inventory: every watched source AND every named gap
+	@# docs/.nojekyll           stops Pages running Jekyll, which SILENTLY drops files
+	@#
+	@# It writes only those filenames: the prose docs alongside them (README, CONSUMERS,
+	@# ROADMAP, RESPONSIBLE-TECH-AUDITS, VERIFYING, schema/) are never touched.
+	uv run sentinel publish --out docs/ --feed-url "$(FEED_URL)"
+
+serve: ## Serve the published site the way Pages does — under the /id-churn-sentinel/ SUBPATH
+	@# NOT `python -m http.server` inside docs/. That serves the site at the root of a domain,
+	@# which is the one configuration Pages will never use — and it is exactly the configuration
+	@# in which a root-absolute link ("/feed.xml") looks perfectly fine and then 404s for every
+	@# consumer on deploy day. Serve it where it will actually live, or you have tested nothing.
+	@tmp=$$(mktemp -d); ln -s "$$PWD/docs" "$$tmp/id-churn-sentinel"; \
+	echo "http://localhost:8000/id-churn-sentinel/"; \
+	cd "$$tmp" && uv run python -m http.server 8000
+
+clean: ## Remove build/test artifacts. NEVER touches docs/ (the product) or var/ (the store).
+	@# docs/ is deliberately absent from this list. It is not a build artifact — it is the
+	@# published feed, it is committed, and `rm -rf` on it would delete the product and the
+	@# prose docs with it.
+	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

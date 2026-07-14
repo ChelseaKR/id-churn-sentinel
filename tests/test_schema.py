@@ -37,10 +37,20 @@ import pytest
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
-from id_churn_sentinel.core.registry import DOCUMENT_CLASSES, JURISDICTIONS, Registry
+from id_churn_sentinel.core.registry import (
+    DOCUMENT_CLASSES,
+    JURISDICTIONS,
+    VERIFIED,
+    Registry,
+    Verification,
+)
 from id_churn_sentinel.core.site import feed_slug
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
+CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
+V1_VERIFICATION_SCHEMA_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
+)
 
 _KNOWN_KEYWORDS = {
     "$schema",
@@ -176,6 +186,23 @@ def test_the_validator_actually_rejects_something() -> None:
     assert _validate({"n": 3, "b": False}, typed, typed, "$") == []
 
 
+def test_every_consumer_json_example_is_complete_and_schema_valid(
+    schema: dict[str, Any],
+) -> None:
+    """Documentation examples are copied into integrations, so they are contract fixtures."""
+
+    blocks = re.findall(
+        r"```json\n(.*?)\n```",
+        CONSUMERS_PATH.read_text(encoding="utf-8"),
+        flags=re.DOTALL,
+    )
+
+    assert len(blocks) == 2
+    for index, block in enumerate(blocks):
+        payload = json.loads(block)
+        assert _validate(payload, schema, schema, f"consumer_example[{index}]") == []
+
+
 def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:
     """The vocabulary is closed in the code; the schema must close it the same way."""
     change = schema["$defs"]["change"]["properties"]
@@ -220,7 +247,25 @@ def test_the_schema_describes_every_field_the_code_emits(
     assert emitted - described == set(), "the code emits fields the schema does not describe"
     assert described - emitted == set(), "the schema describes fields the code never emits"
     assert set(schema["$defs"]["change"]["required"]) == emitted
-    assert set(schema["$defs"]["verification"]["properties"]) == set(item["source_verification"])
+    verification_schema = schema["$defs"]["verification"]
+    assert set(item["source_verification"]) == set(verification_schema["properties"])
+    assert set(verification_schema["required"]) == set(item["source_verification"])
+
+
+def test_internal_eligibility_metadata_preserves_the_closed_v1_feed_contract() -> None:
+    verification = Verification(
+        status=VERIFIED,
+        verifier="Source Reviewer",
+        at="2026-07-12",
+        note="reviewed",
+        evidence="evidence/verification/source.json",
+        expires_at="2027-07-12",
+    )
+    payload = verification.to_dict()
+    prior_schema = json.loads(V1_VERIFICATION_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    assert _validate(payload, prior_schema, prior_schema, "$") == []
+    assert set(payload) == {"status", "verifier", "verified_at", "note", "statement"}
 
 
 def test_the_schema_describes_every_field_of_a_published_source(

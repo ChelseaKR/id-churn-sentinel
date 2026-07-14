@@ -7,23 +7,23 @@
 
 ## 1. Snapshot
 
-A change-detection service over the *official* US sources that govern name and gender-marker changes on identity documents. It hashes normalized page text on a polite weekly cadence, diffs the changed passages when a hash moves, routes every detected change through a **named human** before publication, and emits an RSS + JSON feed that other organizations consume. It never asserts what the law is.
+A change-detection service over registry-claimed US government-source candidates relevant to name and gender-marker changes on identity documents. V1 requires in-date named human source verification and shared fetch/publication eligibility before a source can support new publication. It hashes normalized page text on a polite weekly cadence, diffs changed text passages when a hash moves, routes every detected change through a **named human** before publication, and emits an RSS + JSON feed that other organizations consume. It never asserts what the law is.
 
 The hard parts are not technical. They are: (a) resisting the enormous pull toward auto-classifying legal significance, (b) keeping the registry honest when the temptation is to claim 51-state coverage, and (c) getting an incumbent to actually subscribe.
 
 ## 2. Problem & users
 
-- **Problem.** Three organizations cover trans ID-document guidance across all US jurisdictions, and **all three self-report that they cannot keep it current**: A4TE's ID Documents Center asks users to email corrections; Trans Lifeline's ID Change Library is volunteer-maintained with no last-updated dates and entries flagged "Help Us Find It"; Namesake, the best-engineered of them, fully supports 2 of 51 jurisdictions. **Coverage is not the gap. Freshness is.** Nobody publishes structured, cited, machine-checkable change detection over the underlying official sources.
-- **Primary users — and this is the unusual part — are the incumbents, not end users.** A4TE, Trans Lifeline, Namesake, and legal-aid orgs. They have the writers, the legal review, the community trust, and the context. What they lack is a monitor. See `docs/CONSUMERS.md`.
+- **Problem.** Existing organizations cover trans ID-document guidance and already own writing, legal review, community trust, and context. Namesake also publicly documents a daily canonical-PDF extracted-text/line-diff monitor and issue workflow, so monitoring is not an untouched category. The remaining hypothesis is the combined multi-jurisdiction verification/eligibility, heterogeneous-source evidence, run-health/gap, independent-review/correction, and public no-tracking feed contract described in [`16-RESEARCH-SOURCES.md`](./16-RESEARCH-SOURCES.md).
+- **Primary users — and this is the unusual part — are institutions, not individual guidance-seekers.** A4TE, Trans Lifeline, Namesake, and legal-aid organizations may be consumers, partners, or better substitutes for parts of the system. Build/partner/buy evidence—not an assumption that they lack monitoring—decides the relationship. See [`CONSUMERS.md`](./CONSUMERS.md).
 - **Secondary users.** Journalists and researchers tracking policy churn; individuals who want a raw RSS feed with no intermediary.
-- **Jobs to be done.** *"Tell me which of my pages went stale this week, and why."* · *"Show me the passage that changed, not just that something did."* · *"Never make me trust a machine's opinion about what a legal change means."*
+- **Jobs to be done.** *“Tell me which mapped source pages had reviewed observed changes this week so my editors can investigate.”* · *“For text/HTML, show me the passage that changed, not just that something did.”* · *“Never make me trust a machine's opinion about what a legal change means.”*
 - **Non-goals (permanent).** Telling a person what the law is. Telling a person what to do. Auto-classifying legal significance. Replacing any incumbent. Collecting a single subscriber's identity.
 
 ## 3. Product definition
 
 - **Vision.** The freshness layer under everyone else's guidance. Boring, cited, and correct.
 - **Scope (MoSCoW).**
-  - *Must:* official-source registry with closed vocabularies; snapshot store with retained bytes; normalized-text hash detection; **unified diff of the changed passages**; human review gate; RSS + JSON feed of reviewed records only; CLI.
+  - *Must:* registry-claimed government-source candidates with explicit verification and closed vocabularies; snapshot store with retained bytes; normalized-text hash detection; **unified diff of changed text passages**; human review gate; RSS + JSON feed of reviewed records only; CLI.
   - *Should:* human verification of every seeded registry entry; per-host crawl spacing; a scheduled weekly run; a review queue that is pleasant enough that a human actually works it.
   - *Could:* PDF text extraction (so form changes are diffable, not just detectable); the Federal Register JSON API instead of its search page; a static review UI; per-jurisdiction feeds so a consumer can subscribe to one state.
   - *Won't (ever):* significance classification without a human; an LLM that "summarizes what changed legally"; a subscriber list; anything that requires an account.
@@ -31,7 +31,7 @@ The hard parts are not technical. They are: (a) resisting the enormous pull towa
 
 ## 4. Research & evidence
 
-- **The finding.** Three incumbents, three confessions of staleness, zero machine-checkable change detection. Quoted with citations in `README.md` § *Why it matters*. This was the whole reason to build rather than contribute: contributing content to A4TE would not fix a *monitoring* deficit.
+- **The corrected finding.** The initial “zero machine-checkable change detection” premise did not survive first-party competitor review: Namesake already operates a material daily canonical-PDF monitoring slice. Current work therefore tests the narrower combined-contract hypothesis and must reuse, partner, buy, or contribute upstream when that is safer and cheaper than parallel implementation. See [`11-GTM-BUSINESS-MODEL.md`](./11-GTM-BUSINESS-MODEL.md) and [`16-RESEARCH-SOURCES.md`](./16-RESEARCH-SOURCES.md).
 - **The prior art.** `trans-docs-navigator/scripts/source-watch.ts` and `policy-watch.ts` do content-hash drift detection over 5 jurisdictions, report only "something changed", and publish nothing. This repo takes their normalization approach and their **"a fetch failure is never drift"** discipline verbatim, and extends the idea to *what* changed and to a published artifact.
 - **Registry provenance.** State entries marked `corpus-vetted` were carried from trans-docs-navigator's hand-corrected corpus (CA, IL, NY, TX, WA + federal). Entries marked `seed-unchecked` are plausible official landing pages **that no one has opened yet**, and they say so.
 

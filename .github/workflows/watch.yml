@@ -49,7 +49,6 @@ on:
 # closed on purpose (docs/RESPONSIBLE-TECH-AUDITS.md §B).
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: watch
@@ -57,15 +56,23 @@ concurrency:
 
 jobs:
   watch:
+    name: watch
+    permissions:
+      contents: read
+      issues: write # Required only to create or update the human review-queue issue.
     runs-on: ubuntu-latest
     timeout-minutes: 40 # 152 sources against slow government CDNs; travel.state.gov alone
     # has been measured taking 44s to answer a single request.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
+          version: "0.11.28"
+          python-version: "3.12"
           enable-cache: true
 
       - name: Install
@@ -81,10 +88,15 @@ jobs:
       # that matters.
       - name: sentinel baseline check
         id: check
+        env:
+          JURISDICTION: ${{ inputs.jurisdiction }}
         run: |
           set -o pipefail
-          uv run sentinel baseline check ${{ inputs.jurisdiction && format('--jurisdiction {0}', inputs.jurisdiction) || '' }} \
-            | tee watch-report.txt
+          args=()
+          if [[ -n "$JURISDICTION" ]]; then
+            args+=(--jurisdiction "$JURISDICTION")
+          fi
+          uv run sentinel baseline check "${args[@]}" | tee watch-report.txt
           if grep -q "MOVED" watch-report.txt; then
             echo "moved=true" >> "$GITHUB_OUTPUT"
           else
@@ -92,7 +104,7 @@ jobs:
           fi
 
       - name: Upload the report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: watch-report
           path: watch-report.txt
@@ -103,7 +115,7 @@ jobs:
       # because it LOOKS like someone is watching.
       - name: Open or update the human-review queue
         if: steps.check.outputs.moved == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');

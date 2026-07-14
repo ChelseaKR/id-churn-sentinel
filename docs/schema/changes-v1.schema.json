@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/changes-v1.schema.json",
   "title": "ID Churn Sentinel — changes.json (schema_version 1.x)",
-  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a change at an OFFICIAL government URL that a NAMED HUMAN reviewed and confirmed. This feed reports that a source page changed and shows the passage that changed; it does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source. READ `registry_verification` BEFORE YOU BUILD: the source registry is machine-checked and NOT human-verified, every source carries a `verification_status`, and an `unverified` source is a candidate URL nobody has confirmed is the official page it claims to be.",
+  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a machine observation that a NAMED HUMAN reviewed and confirmed. Source authority is a separate claim: treat a URL as a registry-claimed candidate unless `source_verification.status` is `verified` and that verification is in date. For HTML/text, the feed shows a passage diff; for PDF/other binary content, the current alpha reports that raw bytes changed and has no extracted-text passage diff. It does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source. READ `registry_verification` BEFORE YOU BUILD. V1 publication policy will block unverified, stale-verification, rejected/withdrawn, and fetch-policy-ineligible sources; the alpha contract exposes status but does not yet enforce that source-eligibility publication block.",
   "type": "object",
   "required": [
     "schema_version",
@@ -43,9 +43,9 @@
       "properties": {
         "scope": { "type": "string", "description": "The jurisdiction this count covers, or 'all jurisdictions'." },
         "sources": { "type": "integer", "description": "Sources in scope." },
-        "human_verified": { "type": "integer", "description": "Confirmed by a named human as the official page for that document class in that jurisdiction." },
+        "human_verified": { "type": "integer", "description": "Confirmed by a named human as the relevant government page for that document class and jurisdiction, subject to the recorded verification date and recheck policy." },
         "unverified": { "type": "integer", "description": "Machine-checked only. NOBODY has confirmed these are the right pages. Do not present them as authoritative." },
-        "rejected": { "type": "integer", "description": "A named human opened it and found it is NOT the official page. Flagged for repair; do not use." },
+        "rejected": { "type": "integer", "description": "A named human opened it and rejected the registry's authority/scope claim. Flagged for repair; do not use." },
         "statement": { "type": "string", "description": "The same thing in a sentence, because an integrator will read exactly one of these fields and we do not get to choose which." }
       }
     },
@@ -63,18 +63,18 @@
   "$defs": {
     "verification": {
       "type": "object",
-      "description": "Whether a HUMAN has confirmed this source URL is the official page for its document class and jurisdiction. Distinct from any HTTP status we recorded: a socket cannot confirm a page is the right page.",
+      "description": "Whether a HUMAN has confirmed this registry-claimed source URL as the relevant government page for its document class and jurisdiction. Distinct from any HTTP status we recorded: a socket cannot confirm a page is the right page. A verified value is usable only while its dated verification remains in policy.",
       "required": ["status", "verifier", "verified_at", "note", "statement"],
       "additionalProperties": false,
       "properties": {
         "status": {
           "type": "string",
           "enum": ["unverified", "verified", "rejected", "withdrawn"],
-          "description": "`unverified`: machine-checked, NOT human-confirmed — treat the URL as a candidate, not a citation. `verified`: a named human opened it and confirmed it. `rejected`: a named human opened it and found it is NOT the official page — flagged for repair, do not use. `withdrawn`: the source this record cites has since left the registry, so its status cannot be stated here (we say so rather than omitting the field)."
+          "description": "`unverified`: machine-checked, NOT human-confirmed — treat the URL as a candidate, not a citation. `verified`: a named human opened it and confirmed the registry's authority/scope claim on the recorded date; a consumer must still apply the recheck policy. `rejected`: a named human rejected that claim — flagged for repair, do not use. `withdrawn`: the source this record cites has since left the registry, so its status cannot be stated here (we say so rather than omitting the field)."
         },
         "verifier": { "type": "string", "description": "The NAME of the human who ruled on this source. Empty when nobody has." },
         "verified_at": { "type": "string", "description": "ISO date (YYYY-MM-DD) the human ruled on it. Empty when nobody has. A verification with no date could never go stale, which means it could never be re-checked." },
-        "note": { "type": "string", "description": "For a rejection: why it is not the official page. May be empty." },
+        "note": { "type": "string", "description": "For a rejection: why the registry's authority or scope claim failed. May be empty. Eligibility evidence and expiry are registry-internal in this closed v1 feed contract." },
         "statement": { "type": "string", "description": "The status as a SENTENCE. Status is never signalled by a colour or an icon anywhere in this project — including here, where the field a lazy integrator renders is the one that has to carry the meaning." }
       }
     },
@@ -102,7 +102,7 @@
           "type": "string",
           "enum": ["birth_certificate", "drivers_license", "court_order_name_change", "passport", "social_security", "selective_service"]
         },
-        "url": { "type": "string", "pattern": "^https://", "description": "The CANDIDATE official page. Whether it IS the official page is what `verification_status` answers." },
+        "url": { "type": "string", "pattern": "^https://", "description": "A registry-claimed government-source candidate. Treat it as authoritative for this contract only when `verification_status` is `verified` and that dated verification remains in policy." },
         "authority": { "type": "string", "description": "The issuing authority the entry claims this page belongs to. Claimed by us; confirmed only if `verification_status` says so." },
         "verification_status": {
           "type": "string",
@@ -166,7 +166,7 @@
           "type": "string",
           "format": "uri",
           "pattern": "^https://",
-          "description": "The OFFICIAL government page that changed. Always https, never a mirror, never our summary of it. Go and read it."
+          "description": "The registry URL whose fetched content changed. Always https, never our summary. Treat it as a candidate unless this record's `source_verification.status` is `verified` and the dated verification remains in policy. Go and read it."
         },
         "observed_at": {
           "type": "string",
@@ -176,16 +176,16 @@
         "previous_hash": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
-          "description": "sha256 of the NORMALIZED text (markup stripped, whitespace collapsed, lowercased) before the change. Reproducible: we retain the bytes, so any published diff can be independently verified months later."
+          "description": "For HTML/text, sha256 of normalized text (markup stripped where applicable, whitespace collapsed, lowercased); for PDF/other binary content, sha256 of raw bytes. The current alpha retains only the newest five snapshots per source, so this is a bounded recent evidence window. Durable months-later reproduction is a V1 gate, not a current schema claim."
         },
         "new_hash": {
           "type": "string",
           "pattern": "^([0-9a-f]{64})?$",
-          "description": "sha256 of the normalized text after the change. EMPTY STRING when `kind` is `possibly_removed` — there is no new content, because we could not fetch the page at all, and inventing a hash for bytes we never received would be a lie."
+          "description": "For HTML/text, sha256 of normalized text after the change; for PDF/other binary content, sha256 of raw bytes. EMPTY STRING when `kind` is `possibly_removed` — there is no new content, because we could not fetch the page at all, and inventing a hash for bytes we never received would be a lie."
         },
         "diff_excerpt": {
           "type": "string",
-          "description": "A unified diff of the changed passages — the reason this feed exists. `\"+A court order is required to change the sex field\"` is reviewable in thirty seconds; `\"texas.gov changed\"` is not. Truncated at 4000 characters. For a PDF or other binary source it says plainly that the bytes changed and cannot be diffed, rather than faking one. For `possibly_removed` it carries the literal fetch error and the streak length."
+          "description": "For HTML/text, a unified diff of changed passages, truncated at 4000 characters. For a PDF or other binary source in the current alpha, an explicit statement that bytes changed and no extracted-text diff is available; extracted-text PDF diffs are a V1 gate. For `possibly_removed` it carries the literal fetch error and the streak length."
         },
         "kind": {
           "type": "string",

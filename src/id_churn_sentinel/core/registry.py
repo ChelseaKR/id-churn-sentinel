@@ -233,15 +233,21 @@ class Verification:
 
     def to_dict(self) -> dict[str, str]:
         """The machine-readable shape published alongside every source, everywhere."""
-        return {
+        payload = {
             "status": self.status,
             "verifier": self.verifier,
             "verified_at": self.at,
             "note": self.note,
-            "evidence": self.evidence,
-            "expires_at": self.expires_at,
             "statement": self.statement,
         }
+        # Additive and optional in the major-1 feed contract. Legacy/unverified records retain
+        # the original shape; an evidenced V1 verification carries both fields without turning
+        # an additive contract improvement into a breaking schema change.
+        if self.evidence:
+            payload["evidence"] = self.evidence
+        if self.expires_at:
+            payload["expires_at"] = self.expires_at
+        return payload
 
 
 WITHDRAWN_VERIFICATION = Verification(status=WITHDRAWN)

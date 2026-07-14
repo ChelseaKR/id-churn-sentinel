@@ -238,7 +238,9 @@ def test_the_schema_describes_every_field_the_code_emits(
     assert emitted - described == set(), "the code emits fields the schema does not describe"
     assert described - emitted == set(), "the schema describes fields the code never emits"
     assert set(schema["$defs"]["change"]["required"]) == emitted
-    assert set(schema["$defs"]["verification"]["properties"]) == set(item["source_verification"])
+    verification_schema = schema["$defs"]["verification"]
+    assert set(item["source_verification"]) <= set(verification_schema["properties"])
+    assert set(verification_schema["required"]) <= set(item["source_verification"])
 
 
 def test_the_schema_describes_every_field_of_a_published_source(

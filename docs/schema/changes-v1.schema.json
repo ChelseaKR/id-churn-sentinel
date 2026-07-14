@@ -64,7 +64,7 @@
     "verification": {
       "type": "object",
       "description": "Whether a HUMAN has confirmed this registry-claimed source URL as the relevant government page for its document class and jurisdiction. Distinct from any HTTP status we recorded: a socket cannot confirm a page is the right page. A verified value is usable only while its dated verification remains in policy.",
-      "required": ["status", "verifier", "verified_at", "note", "evidence", "expires_at", "statement"],
+      "required": ["status", "verifier", "verified_at", "note", "statement"],
       "additionalProperties": false,
       "properties": {
         "status": {

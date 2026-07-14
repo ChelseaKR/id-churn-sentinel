@@ -31,7 +31,9 @@ curl -s "$BASE/feed.xml"              # RSS 2.0, every jurisdiction
 curl -s "$BASE/changes-us-tx.json"    # just Texas
 curl -s "$BASE/feed-us-tx.xml"        # just Texas, as RSS
 curl -s "$BASE/sources.json"          # the inventory: what we watch, and every named gap
+curl -s "$BASE/status.json"           # persisted watch health; not the page-build time
 curl -s "$BASE/schema/changes-v1.schema.json"   # the normative shape of changes.json
+curl -s "$BASE/schema/status-v1.schema.json"    # the normative shape of status.json
 ```
 
 ## What the feed actually gives a consumer
@@ -45,7 +47,9 @@ Everything below is published to a static URL and consumable with **no account, 
 | **The RSS feed** | `feed.xml` | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
 | **One feed per jurisdiction** | `changes-us-tx.json` · `feed-us-tx.xml` | An org that serves one state is not made to consume all 52. `us-tx` for Texas, `us-dc` for DC, plain `us` for the federal bucket (passport, SSA, Selective Service). |
 | **The inventory** | `sources.json` | Every watched source **and every named gap**. This is what you map your own pages against. |
+| **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
 | **The schema** | `schema/changes-v1.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
+| **The health schema** | `schema/status-v1.schema.json` | Closed JSON Schema 2020-12 contract for `status.json`. |
 
 Every item is a machine-observed change **a named human reviewed and confirmed**. Source authority is earned only when its `source_verification.status` is `verified` and the verification is in date. HTML/text items carry the changed passage; PDF and other binary items in the current alpha carry an explicit byte-change notice because extracted-text passage diffs are not implemented. Nothing unreviewed is ever published.
 
@@ -144,7 +148,7 @@ curl -s $BASE/feed-us.xml
 | `significance` | *What a human judged.* `editorial` or `substantive`. **Never machine-set.** |
 | `review_status` | Always `confirmed`. Unreviewed drift and dismissed noise never reach you. |
 | `reviewer` | The **name of the human** who stands behind the item. Never null, never "automated". |
-| `source_verification` | **Whether anyone has confirmed the URL in this item is the page it claims to be.** `{status, verifier, verified_at, note, statement}`; `status` is `unverified` \| `verified` \| `rejected` \| `withdrawn`. A different human from `reviewer`, doing a different job: `reviewer` read the *diff*; `source_verification` is about the *source*. Today every value is `unverified`. V1 publication must block an item whose source is unverified, rejected/withdrawn, due for recheck, or ineligible under the shared fetch-policy decision; the current alpha labels source status but does not yet enforce that publication block. |
+| `source_verification` | **Whether anyone has confirmed the URL in this item is the page it claims to be.** `{status, verifier, verified_at, note, statement}`; `status` is `unverified` \| `verified` \| `rejected` \| `withdrawn`. A different human from `reviewer`, doing a different job: `reviewer` read the *diff*; `source_verification` is about the *source*. Today every registry value is `unverified`, so no newly reviewed observation can publish. The publisher enforces the same dated predicate as the watcher and rejects unverified, rejected/withdrawn, recheck-due, fetch-policy-ineligible, missing, or identity-mismatched sources. |
 
 Two further top-level fields ship in `changes.json` and in every per-jurisdiction `changes-us-xx.json`:
 
@@ -253,7 +257,8 @@ The following is a complete schema-valid illustrative record. Its source is deli
 - **`id` is permanently stable** for a given `(source_id, previous_hash, new_hash)` transition.
 - **`review_status` is always `confirmed`.** If you ever see another value, we broke a promise — open an issue.
 - **The feed will never require a credential.**
-- **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `schema/changes-v1.schema.json`, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
+- **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `status.json`, their version-1 schemas, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
+- **Run health is a separate fact.** Read `status.json` before interpreting feed silence. Its `generated_at` never means a watch succeeded; use `state`, `last_attempted_run`, and `last_successful_run`. The contract is `schema/status-v1.schema.json`.
 - **The two *base* URLs are both supported, and the raw one is not going away.** The raw base serves the committed bytes off the branch and needs nothing enabled; the Pages base serves the identical bytes. If a third host ever appears, the paths above will be identical there too — the base is the only thing you should ever have to change.
 - **A `feed_url` field appears in every document.** It is the project's canonical home, so an item that reaches someone out of context can be traced back. It is not a fetch endpoint — use the bases above.
 

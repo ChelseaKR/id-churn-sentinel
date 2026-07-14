@@ -4,28 +4,36 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
 
 from id_churn_sentinel.cli import main
+from id_churn_sentinel.core.changes import ChangeRecord
+from id_churn_sentinel.core.detect import watch
 from id_churn_sentinel.core.eligibility import (
     eligibility_report,
     evaluate_source,
     parse_as_of,
 )
+from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     FETCH_POLICY_ALLOW,
     FETCH_POLICY_DENY,
+    REJECTED,
     VERIFIED,
+    WITHDRAWN,
     FetchPolicyDecision,
     Registry,
     Source,
     Verification,
     load_registry,
 )
-from id_churn_sentinel.errors import RegistryError
+from id_churn_sentinel.core.store import RUN_QUIET, SnapshotStore
+from id_churn_sentinel.errors import PublishError, RegistryError
+
+from .conftest import StubFetcher
 
 AS_OF = date(2026, 7, 13)
 
@@ -265,7 +273,7 @@ def test_cli_reports_the_exact_fail_closed_denominator(
     assert "registry audit: 1/2 entries attempt-eligible" in output
     assert "unverified: 1" in output
     assert "fetch-policy-unreviewed: 1" in output
-    assert "report only" in output
+    assert "enforced by watcher and publisher" in output
 
     path.write_text(
         json.dumps({"registry_version": "1.0", "sources": [raw_source]}),
@@ -275,9 +283,96 @@ def test_cli_reports_the_exact_fail_closed_denominator(
     all_eligible_output = capsys.readouterr().out
     assert "attempt denominator 1 source(s)" in all_eligible_output
     assert "registry audit: 1/1 entries attempt-eligible" in all_eligible_output
-    assert "report only" in all_eligible_output
+    assert "enforced by watcher and publisher" in all_eligible_output
 
 
 def test_bad_policy_date_is_refused() -> None:
     with pytest.raises(RegistryError, match="YYYY-MM-DD"):
         parse_as_of("07/13/2026")
+    with pytest.raises(RegistryError, match="YYYY-MM-DD"):
+        parse_as_of("20260713")
+
+
+def test_rejected_unknown_and_unsigned_verified_statuses_fail_closed(source: Source) -> None:
+    rejected = replace(source, verification=Verification(status=REJECTED))
+    withdrawn = replace(source, verification=Verification(status=WITHDRAWN))
+    unsigned = replace(
+        source,
+        verified=True,
+        verification=Verification(
+            status=VERIFIED,
+            evidence="evidence/source.json",
+            expires_at="2027-07-13",
+        ),
+        fetch_policy=_policy(),
+    )
+
+    assert evaluate_source(rejected, as_of=AS_OF).reasons[0] == "rejected"
+    assert evaluate_source(withdrawn, as_of=AS_OF).reasons[0] == "verification-status-ineligible"
+    assert evaluate_source(unsigned, as_of=AS_OF).reasons[:2] == (
+        "verification-verifier-missing",
+        "verification-date-missing",
+    )
+
+
+def test_production_watcher_fetches_only_the_exact_shared_eligibility_set(
+    tmp_path: Path,
+    source: Source,
+    arizona_source: Source,
+    fixture_before: bytes,
+) -> None:
+    eligible = _eligible(source)
+    inactive = replace(_eligible(arizona_source), active=False)
+    registry = Registry(version="1.0", sources=(eligible, inactive))
+    fetcher = StubFetcher({eligible.url: (fixture_before, "text/html")})
+
+    with SnapshotStore(tmp_path / "watch.db") as store:
+        report = watch(
+            registry,
+            store,
+            fetcher,
+            as_of=AS_OF,
+        )
+        receipt = store.watch_run(report.run_id)
+
+    assert report.state == RUN_QUIET
+    assert fetcher.calls == [eligible.url]
+    assert report.eligible_source_ids == (eligible.id,)
+    assert receipt.eligible_source_ids == (eligible.id,)
+    assert receipt.attempted_source_ids == (eligible.id,)
+    assert receipt.successful_source_ids == (eligible.id,)
+    assert report.ineligible[0].source_id == inactive.id
+
+
+def test_publisher_uses_the_same_predicate_and_leaves_no_partial_artifact_on_refusal(
+    tmp_path: Path,
+    source: Source,
+    confirmed_change: ChangeRecord,
+) -> None:
+    expired = replace(_eligible(source), fetch_policy=_policy(expires_at="2026-07-12"))
+
+    with pytest.raises(PublishError, match="fetch-policy-recheck-due"):
+        publish(
+            [confirmed_change],
+            tmp_path / "published",
+            registry=Registry(version="1.0", sources=(expired,)),
+            now=datetime(2026, 7, 13, tzinfo=UTC),
+        )
+
+    assert not (tmp_path / "published").exists()
+
+
+def test_publisher_rejects_a_smuggled_identity_even_for_an_eligible_source(
+    tmp_path: Path,
+    source: Source,
+    confirmed_change: ChangeRecord,
+) -> None:
+    smuggled = replace(confirmed_change, url="https://attacker.example/not-the-source")
+
+    with pytest.raises(PublishError, match="identity does not match"):
+        publish(
+            [smuggled],
+            tmp_path,
+            registry=Registry(version="1.0", sources=(_eligible(source),)),
+            now=datetime(2026, 7, 13, tzinfo=UTC),
+        )

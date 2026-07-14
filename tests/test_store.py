@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
-from id_churn_sentinel.core.store import SnapshotStore
+from id_churn_sentinel.core.store import (
+    RUN_FAILED,
+    RUN_QUIET,
+    RunSourceInput,
+    SnapshotStore,
+)
 from id_churn_sentinel.errors import StoreError
 
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
@@ -248,3 +253,326 @@ def test_naive_timestamps_are_read_back_as_utc(store: SnapshotStore) -> None:
     latest = store.latest_snapshot("s1")
     assert latest is not None
     assert latest.fetched_at.tzinfo is not None
+
+
+# -- V1 migrations, runs, and exact attempt sets ---------------------------------
+
+
+def _run_sources() -> tuple[RunSourceInput, ...]:
+    return (
+        RunSourceInput(
+            source_id="eligible",
+            jurisdiction="TX",
+            document_class="drivers_license",
+            url="https://example.gov/eligible",
+            authority="Example authority",
+            eligible=True,
+            eligibility_reasons=(),
+        ),
+        RunSourceInput(
+            source_id="ineligible",
+            jurisdiction="TX",
+            document_class="birth_certificate",
+            url="https://example.gov/ineligible",
+            authority="Example authority",
+            eligible=False,
+            eligibility_reasons=("unverified", "fetch-policy-unreviewed"),
+        ),
+    )
+
+
+def _start_run(store: SnapshotStore, *, sources: tuple[RunSourceInput, ...] | None = None) -> str:
+    return store.start_watch_run(
+        as_of=date(2026, 7, 13),
+        registry_version="1.0",
+        registry_revision="a" * 64,
+        jurisdiction=None,
+        sources=sources if sources is not None else _run_sources(),
+        started_at=NOW,
+    )
+
+
+def _finish_eligible_attempt(store: SnapshotStore, run_id: str, *, ok: bool) -> None:
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        run_id,
+        source_id="eligible",
+        ok=ok,
+        http_status=200 if ok else 503,
+        content_type="text/html",
+        error="" if ok else "synthetic outage",
+        completed_at=NOW,
+    )
+
+
+def test_run_receipt_round_trips_exact_numerator_and_denominator(store: SnapshotStore) -> None:
+    run_id = store.start_watch_run(
+        as_of=date(2026, 7, 13),
+        registry_version="1.0",
+        registry_revision="a" * 64,
+        jurisdiction="TX",
+        sources=_run_sources(),
+        started_at=NOW,
+    )
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        run_id,
+        source_id="eligible",
+        ok=True,
+        http_status=200,
+        content_type="text/html",
+        error="",
+        completed_at=NOW,
+    )
+    store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+
+    receipt = store.watch_run(run_id)
+    assert receipt.eligible_source_ids == ("eligible",)
+    assert receipt.attempted_source_ids == ("eligible",)
+    assert receipt.successful_source_ids == ("eligible",)
+    assert receipt.attempt_completeness == 1.0
+    assert receipt.state == RUN_QUIET
+    assert receipt.registry_revision == "a" * 64
+
+
+def test_an_ineligible_source_cannot_be_inserted_into_the_attempt_numerator(
+    store: SnapshotStore,
+) -> None:
+    run_id = store.start_watch_run(
+        as_of=date(2026, 7, 13),
+        registry_version="1.0",
+        registry_revision="a" * 64,
+        jurisdiction=None,
+        sources=_run_sources(),
+        started_at=NOW,
+    )
+
+    with pytest.raises(StoreError, match="ineligible or unknown"):
+        store.begin_fetch_attempt(
+            run_id,
+            source_id="ineligible",
+            url="https://example.gov/ineligible",
+        )
+
+    receipt = store.watch_run(run_id)
+    assert receipt.attempted_source_ids == ()
+
+
+def test_latest_successful_run_does_not_treat_a_failure_as_success(store: SnapshotStore) -> None:
+    quiet_id = store.start_watch_run(
+        as_of=date(2026, 7, 13),
+        registry_version="1.0",
+        registry_revision="a" * 64,
+        jurisdiction=None,
+        sources=_run_sources(),
+        started_at=NOW,
+    )
+    store.begin_fetch_attempt(quiet_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        quiet_id,
+        source_id="eligible",
+        ok=True,
+        http_status=200,
+        content_type="text/html",
+        error="",
+        completed_at=NOW,
+    )
+    store.finish_watch_run(quiet_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+    failed_id = store.start_watch_run(
+        as_of=date(2026, 7, 14),
+        registry_version="1.0",
+        registry_revision="b" * 64,
+        jurisdiction=None,
+        sources=(),
+        started_at=datetime(2026, 7, 14, tzinfo=UTC),
+    )
+    store.finish_watch_run(
+        failed_id,
+        state=RUN_FAILED,
+        observation_count=0,
+        error="synthetic failure",
+        completed_at=datetime(2026, 7, 14, tzinfo=UTC),
+    )
+
+    latest = store.latest_watch_run()
+    assert latest is not None and latest.run_id == failed_id
+    successful = store.latest_watch_run(successful_only=True)
+    assert successful is not None and successful.run_id == quiet_id
+
+
+def test_migration_ledger_is_created_and_a_tampered_checksum_is_refused(tmp_path: Path) -> None:
+    db = tmp_path / "migrated.db"
+    with SnapshotStore(db):
+        pass
+    conn = sqlite3.connect(db)
+    try:
+        version, checksum = conn.execute(
+            "SELECT version, checksum FROM schema_migrations"
+        ).fetchone()
+        assert version == 1
+        assert len(checksum) == 64
+        conn.execute("UPDATE schema_migrations SET checksum = 'tampered' WHERE version = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+    with pytest.raises(StoreError, match="checksum/name mismatch"):
+        SnapshotStore(db)
+
+
+def test_unknown_future_migration_is_refused(tmp_path: Path) -> None:
+    db = tmp_path / "future.db"
+    with SnapshotStore(db):
+        pass
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (99, 'from-the-future', 'abc', ?)",
+            (NOW.isoformat(),),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    with pytest.raises(StoreError, match="does not know: 99"):
+        SnapshotStore(db)
+
+
+def test_applied_migration_with_missing_table_is_refused(tmp_path: Path) -> None:
+    db = tmp_path / "missing-migrated-table.db"
+    with SnapshotStore(db):
+        pass
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("DROP TABLE fetch_attempts")
+        conn.commit()
+    finally:
+        conn.close()
+
+    with pytest.raises(StoreError, match="table 'fetch_attempts' is missing required column"):
+        SnapshotStore(db)
+
+
+def test_run_source_ids_must_be_unique(store: SnapshotStore) -> None:
+    duplicate = _run_sources()[0]
+    with pytest.raises(StoreError, match="must be unique"):
+        _start_run(store, sources=(duplicate, duplicate))
+
+
+def test_attempt_and_run_state_transitions_fail_closed(store: SnapshotStore) -> None:
+    incomplete = _start_run(store)
+    with pytest.raises(StoreError, match="invalid terminal"):
+        store.finish_watch_run(incomplete, state="green", observation_count=0)
+    with pytest.raises(StoreError, match="cannot be negative"):
+        store.finish_watch_run(incomplete, state=RUN_FAILED, observation_count=-1)
+    with pytest.raises(StoreError, match="attempted 0 of 1"):
+        store.finish_watch_run(incomplete, state=RUN_QUIET, observation_count=0)
+
+    failed_retrieval = _start_run(store)
+    _finish_eligible_attempt(store, failed_retrieval, ok=False)
+    with pytest.raises(StoreError, match="quiet requires"):
+        store.finish_watch_run(failed_retrieval, state=RUN_QUIET, observation_count=0)
+    with pytest.raises(StoreError, match="complete requires"):
+        store.finish_watch_run(failed_retrieval, state="complete", observation_count=1)
+    store.finish_watch_run(failed_retrieval, state="partial", observation_count=0)
+
+    successful = _start_run(store)
+    _finish_eligible_attempt(store, successful, ok=True)
+    with pytest.raises(StoreError, match="partial requires"):
+        store.finish_watch_run(successful, state="partial", observation_count=0)
+    with pytest.raises(StoreError, match="complete requires"):
+        store.finish_watch_run(successful, state="complete", observation_count=0)
+    store.finish_watch_run(successful, state=RUN_QUIET, observation_count=0)
+    with pytest.raises(StoreError, match="already-terminal"):
+        store.finish_watch_run(successful, state=RUN_QUIET, observation_count=0)
+
+
+def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore) -> None:
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    with pytest.raises(StoreError, match="attempt refused"):
+        store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        run_id,
+        source_id="eligible",
+        ok=True,
+        http_status=200,
+        content_type="text/html",
+        error="",
+    )
+    with pytest.raises(StoreError, match="already-terminal fetch attempt"):
+        store.finish_fetch_attempt(
+            run_id,
+            source_id="eligible",
+            ok=False,
+            http_status=503,
+            content_type="text/html",
+            error="late overwrite",
+        )
+    with pytest.raises(StoreError, match="unknown or already-terminal fetch attempt"):
+        store.finish_fetch_attempt(
+            run_id,
+            source_id="missing",
+            ok=False,
+            http_status=None,
+            content_type="",
+            error="missing",
+        )
+    with pytest.raises(StoreError, match="unknown watch run"):
+        store.watch_run("missing")
+    with pytest.raises(StoreError, match="unknown or already-terminal"):
+        store.finish_watch_run("missing", state=RUN_FAILED, observation_count=0)
+
+
+def test_attempts_cannot_mutate_a_terminal_run_or_change_frozen_url(
+    store: SnapshotStore,
+) -> None:
+    identity_locked = _start_run(store)
+    with pytest.raises(StoreError, match="identity-mismatched"):
+        store.begin_fetch_attempt(
+            identity_locked,
+            source_id="eligible",
+            url="https://attacker.example/wrong",
+        )
+    store.finish_watch_run(identity_locked, state=RUN_FAILED, observation_count=0)
+    with pytest.raises(StoreError, match="terminal"):
+        store.begin_fetch_attempt(
+            identity_locked,
+            source_id="eligible",
+            url="https://example.gov/eligible",
+        )
+
+    incomplete = _start_run(store)
+    store.begin_fetch_attempt(
+        incomplete,
+        source_id="eligible",
+        url="https://example.gov/eligible",
+    )
+    store.finish_watch_run(incomplete, state=RUN_FAILED, observation_count=0)
+    with pytest.raises(StoreError, match="terminal-run"):
+        store.finish_fetch_attempt(
+            incomplete,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="text/html",
+            error="",
+        )
+
+
+def test_redundant_run_counts_detect_tampering(tmp_path: Path) -> None:
+    db = tmp_path / "tampered-run.db"
+    with SnapshotStore(db) as store:
+        run_id = _start_run(store)
+        _finish_eligible_attempt(store, run_id, ok=True)
+        store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0)
+
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("UPDATE watch_runs SET attempted_count = 0 WHERE run_id = ?", (run_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    with SnapshotStore(db) as store, pytest.raises(StoreError, match="count/set mismatch"):
+        store.watch_run(run_id)

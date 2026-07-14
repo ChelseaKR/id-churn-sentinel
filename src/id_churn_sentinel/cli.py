@@ -52,8 +52,8 @@ from id_churn_sentinel.core.coverage import (
     completeness_violations,
     coverage,
 )
-from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
-from id_churn_sentinel.core.eligibility import eligibility_report, parse_as_of
+from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch_registry
+from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
@@ -63,6 +63,7 @@ from id_churn_sentinel.core.registry import (
     load_registry,
 )
 from id_churn_sentinel.core.site import REPO_URL
+from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
 from id_churn_sentinel.errors import SentinelError
@@ -206,6 +207,11 @@ def build_parser() -> argparse.ArgumentParser:
     watch_cmd = sub.add_parser("watch", help="fetch sources and record any drift")
     watch_cmd.add_argument("--jurisdiction", help="limit to one jurisdiction, e.g. TX or US")
     watch_cmd.add_argument(
+        "--as-of",
+        default=datetime.now(UTC).date().isoformat(),
+        help="eligibility policy date in YYYY-MM-DD (default: today in UTC)",
+    )
+    watch_cmd.add_argument(
         "--removal-threshold",
         type=int,
         default=REMOVAL_THRESHOLD,
@@ -266,6 +272,11 @@ def build_parser() -> argparse.ArgumentParser:
     # The canonical home written into every artifact's `feed_url`. It defaults to the
     # repository, which resolves today; point it at the Pages URL once Pages is switched on.
     publish_cmd.add_argument("--feed-url", default=REPO_URL)
+    publish_cmd.add_argument(
+        "--as-of",
+        default=datetime.now(UTC).date().isoformat(),
+        help="publication-eligibility policy date in YYYY-MM-DD (default: today in UTC)",
+    )
 
     return parser
 
@@ -319,12 +330,7 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
 
 
 def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
-    """Show the attempt set and the wider registry-readiness audit separately.
-
-    This iteration is deliberately a report, not the production enforcement switch.  It makes
-    the migration work exact without pretending the alpha registry already contains human
-    verification evidence or reviewed fetch-policy decisions.
-    """
+    """Show the exact set enforced by both the watcher and publisher."""
 
     report = eligibility_report(registry, as_of=parse_as_of(raw_as_of))
     print(
@@ -336,10 +342,7 @@ def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
     )
     for reason, count in report.reason_counts:
         print(f"  {reason}: {count}")
-    print(
-        "  fail-closed report only: watcher/publisher wiring is the next iteration; "
-        "no policy decision was inferred"
-    )
+    print("  enforced by watcher and publisher; no policy decision is inferred")
     return 0
 
 
@@ -567,14 +570,29 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
 
 
 def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
-    sources = (
-        registry.for_jurisdiction(args.jurisdiction) if args.jurisdiction else registry.sources
-    )
     active = fetcher or HttpFetcher()
     with SnapshotStore(args.db) as store:
-        report = watch(sources, store, active, removal_threshold=args.removal_threshold)
+        report = watch_registry(
+            registry,
+            store,
+            active,
+            as_of=parse_as_of(args.as_of),
+            jurisdiction=args.jurisdiction,
+            removal_threshold=args.removal_threshold,
+        )
 
-    print(f"watch: {report.summary()}")
+    print(
+        f"watch: run {report.run_id} {report.state.upper()} — "
+        f"{len(report.eligible_source_ids)} attempt-eligible source(s); {report.summary()}"
+    )
+    _print_ineligible_sources(report.ineligible)
+    if report.state == "failed":
+        print(
+            "  FAILED: no eligible source was fetched. This run is not evidence that "
+            "nothing changed.",
+            file=sys.stderr,
+        )
+        return 1
     for source_id, old_url, new_url in report.rebaselined:
         # The registry's URL for this source changed, so the stored baseline belongs to a
         # different page. Diffing them would produce a change record that says "the source
@@ -611,6 +629,18 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             f"Nothing reaches the feed until a named human reviews it."
         )
     return 0
+
+
+def _print_ineligible_sources(decisions: tuple[SourceEligibility, ...]) -> None:
+    if not decisions:
+        return
+    counts: dict[str, int] = {}
+    for decision in decisions:
+        for reason in decision.reasons:
+            counts[reason] = counts.get(reason, 0) + 1
+    print(f"  {len(decisions)} registry source(s) excluded by dated eligibility:")
+    for reason, count in sorted(counts.items()):
+        print(f"    {reason}: {count}")
 
 
 def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
@@ -717,12 +747,21 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         # record anyway — see core/publish.py::_guard.
         records = store.changes(review_status=ReviewStatus.CONFIRMED)
         unreviewed = len(store.changes(review_status=ReviewStatus.UNREVIEWED))
-    result = publish(records, args.out, registry=registry, feed_url=args.feed_url)
+        run_status = build_public_status(store)
+    result = publish(
+        records,
+        args.out,
+        registry=registry,
+        feed_url=args.feed_url,
+        run_status=run_status,
+        eligibility_as_of=parse_as_of(args.as_of),
+    )
     print(
         f"publish: {result.published} reviewed change(s) → {result.feed_path}, {result.changes_path}"
     )
     print(f"  site:      {result.site_path}")
     print(f"  inventory: {result.sources_path}")
+    print(f"  run health: {result.status_path} ({run_status.state})")
     print(
         f"  per-jurisdiction feeds: {len(result.jurisdiction_feeds)} "
         f"(feed-us-tx.xml, changes-us-tx.json, … — one per jurisdiction, published whether "

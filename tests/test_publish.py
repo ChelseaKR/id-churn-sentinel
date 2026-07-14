@@ -43,13 +43,13 @@ def test_feed_xml_is_well_formed_rss(confirmed_change: ChangeRecord, registry: R
     assert guid is not None and guid.get("isPermaLink") == "false"
     # `kind` is a category too, so a consumer can filter "possibly_removed" escalations out
     # of (or into) their pipeline without parsing the description — and so is the verification
-    # status of the SOURCE the item cites, so a pipeline can act on "nobody has confirmed this
-    # URL is the right page" without reading prose.
+    # status of the SOURCE the item cites, so a pipeline can enforce that the URL was confirmed
+    # without reading prose.
     assert {c.text for c in item.findall("category")} == {
         "TX",
         "drivers_license",
         "content_drift",
-        "source-verification:unverified",
+        "source-verification:verified",
     }
 
     title = item.findtext("title") or ""
@@ -61,8 +61,8 @@ def test_feed_xml_is_well_formed_rss(confirmed_change: ChangeRecord, registry: R
     assert "Changed passages" in description
     assert confirmed_change.diff_excerpt in description
     # The two humans are not the same human, and the item says which is which. `Reviewed by`
-    # read the diff; nobody has verified the source URL itself.
-    assert "Source verification: UNVERIFIED — machine-checked, not human-confirmed" in description
+    # read the diff; the synthetic source reviewer verified the fixture URL itself.
+    assert "Source verification: VERIFIED — confirmed by Synthetic Source Reviewer" in description
 
 
 def test_feed_channel_metadata_names_the_disclaimer(
@@ -117,6 +117,8 @@ def test_publish_writes_both_artifacts(
     assert result.changes_path.exists()
     assert result.feed_path.name == "feed.xml"
     assert result.changes_path.name == "changes.json"
+    assert result.status_path is not None and result.status_path.name == "status.json"
+    assert result.status_path.exists()
     assert result.published == 1
 
 
@@ -278,6 +280,7 @@ def test_the_federal_bucket_gets_a_feed_that_is_not_called_us_us(
         id="us00000000000000",
         source_id="us-passport-sex-markers",
         jurisdiction="US",
+        document_class="passport",
         url="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
     )
 

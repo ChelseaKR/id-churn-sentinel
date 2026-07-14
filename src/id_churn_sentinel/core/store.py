@@ -26,18 +26,41 @@ enough. (The same doubling is why `self-osint-monitor`'s consent gate lives in b
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from hashlib import sha256
 from pathlib import Path
 from types import TracebackType
+from uuid import uuid4
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.errors import StoreError
 
-__all__ = ["DEFAULT_SNAPSHOT_RETENTION", "Snapshot", "SnapshotStore"]
+__all__ = [
+    "DEFAULT_SNAPSHOT_RETENTION",
+    "RUN_COMPLETE",
+    "RUN_FAILED",
+    "RUN_PARTIAL",
+    "RUN_QUIET",
+    "RUN_RUNNING",
+    "RunSourceInput",
+    "Snapshot",
+    "SnapshotStore",
+    "WatchRun",
+]
 
 DEFAULT_SNAPSHOT_RETENTION = 5
+
+RUN_RUNNING = "running"
+RUN_QUIET = "quiet"
+RUN_COMPLETE = "complete"
+RUN_PARTIAL = "partial"
+RUN_FAILED = "failed"
+_TERMINAL_RUN_STATES = frozenset({RUN_QUIET, RUN_COMPLETE, RUN_PARTIAL, RUN_FAILED})
+_SUCCESSFUL_RUN_STATES = frozenset({RUN_QUIET, RUN_COMPLETE})
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -106,6 +129,168 @@ CREATE TABLE IF NOT EXISTS source_health (
 );
 """
 
+# The alpha store pre-dated schema versioning.  Keep its tables in `_SCHEMA`, then apply
+# every V1 addition through this ledger.  A recorded checksum is verified on every open so
+# changing an already-applied migration is a loud integrity failure, not an accidental second
+# meaning for the same schema version.
+_MIGRATIONS = (
+    (
+        1,
+        "v1-watch-runs-and-attempts",
+        """
+CREATE TABLE IF NOT EXISTS watch_runs (
+    run_id              TEXT PRIMARY KEY,
+    started_at          TEXT NOT NULL,
+    completed_at        TEXT,
+    as_of               TEXT NOT NULL,
+    registry_version    TEXT NOT NULL,
+    registry_revision   TEXT NOT NULL,
+    jurisdiction        TEXT,
+    state               TEXT NOT NULL
+        CHECK (state IN ('running', 'quiet', 'complete', 'partial', 'failed')),
+    eligible_count      INTEGER NOT NULL CHECK (eligible_count >= 0),
+    attempted_count     INTEGER NOT NULL DEFAULT 0 CHECK (attempted_count >= 0),
+    successful_count    INTEGER NOT NULL DEFAULT 0 CHECK (successful_count >= 0),
+    observation_count   INTEGER NOT NULL DEFAULT 0 CHECK (observation_count >= 0),
+    error               TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_watch_runs_started ON watch_runs (started_at DESC, run_id);
+CREATE INDEX IF NOT EXISTS idx_watch_runs_state ON watch_runs (state, completed_at DESC);
+
+CREATE TABLE IF NOT EXISTS run_sources (
+    run_id               TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    source_id            TEXT NOT NULL,
+    jurisdiction         TEXT NOT NULL,
+    document_class       TEXT NOT NULL,
+    url                  TEXT NOT NULL,
+    authority            TEXT NOT NULL,
+    eligible             INTEGER NOT NULL CHECK (eligible IN (0, 1)),
+    eligibility_reasons  TEXT NOT NULL,
+    attempted            INTEGER NOT NULL DEFAULT 0 CHECK (attempted IN (0, 1)),
+    retrieval_success    INTEGER CHECK (retrieval_success IN (0, 1)),
+    outcome              TEXT NOT NULL DEFAULT '',
+    error                TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (run_id, source_id)
+);
+
+CREATE TABLE IF NOT EXISTS fetch_attempts (
+    run_id          TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    source_id       TEXT NOT NULL,
+    url             TEXT NOT NULL,
+    attempted_at    TEXT NOT NULL,
+    completed_at    TEXT,
+    ok              INTEGER CHECK (ok IN (0, 1)),
+    http_status     INTEGER,
+    content_type    TEXT NOT NULL DEFAULT '',
+    error           TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (run_id, source_id),
+    FOREIGN KEY (run_id, source_id) REFERENCES run_sources(run_id, source_id)
+        ON DELETE RESTRICT
+);
+""",
+    ),
+)
+
+_V1_REQUIRED_COLUMNS = {
+    "watch_runs": frozenset(
+        {
+            "run_id",
+            "started_at",
+            "completed_at",
+            "as_of",
+            "registry_version",
+            "registry_revision",
+            "jurisdiction",
+            "state",
+            "eligible_count",
+            "attempted_count",
+            "successful_count",
+            "observation_count",
+            "error",
+        }
+    ),
+    "run_sources": frozenset(
+        {
+            "run_id",
+            "source_id",
+            "jurisdiction",
+            "document_class",
+            "url",
+            "authority",
+            "eligible",
+            "eligibility_reasons",
+            "attempted",
+            "retrieval_success",
+            "outcome",
+            "error",
+        }
+    ),
+    "fetch_attempts": frozenset(
+        {
+            "run_id",
+            "source_id",
+            "url",
+            "attempted_at",
+            "completed_at",
+            "ok",
+            "http_status",
+            "content_type",
+            "error",
+        }
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class RunSourceInput:
+    """The immutable source identity and eligibility decision captured for one run."""
+
+    source_id: str
+    jurisdiction: str
+    document_class: str
+    url: str
+    authority: str
+    eligible: bool
+    eligibility_reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class WatchRun:
+    """A persisted watcher receipt with exact numerator and denominator source sets."""
+
+    run_id: str
+    started_at: datetime
+    completed_at: datetime | None
+    as_of: date
+    registry_version: str
+    registry_revision: str
+    jurisdiction: str | None
+    state: str
+    eligible_source_ids: tuple[str, ...]
+    attempted_source_ids: tuple[str, ...]
+    successful_source_ids: tuple[str, ...]
+    observation_count: int
+    error: str
+
+    @property
+    def eligible_count(self) -> int:
+        return len(self.eligible_source_ids)
+
+    @property
+    def attempted_count(self) -> int:
+        return len(self.attempted_source_ids)
+
+    @property
+    def successful_count(self) -> int:
+        return len(self.successful_source_ids)
+
+    @property
+    def attempt_completeness(self) -> float | None:
+        if not self.eligible_source_ids:
+            return None
+        return len(self.attempted_source_ids) / len(self.eligible_source_ids)
+
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Additive migrations for stores created by an earlier version.
@@ -120,6 +305,54 @@ def _migrate(conn: sqlite3.Connection) -> None:
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(changes)")}
     if columns and "kind" not in columns:
         conn.execute("ALTER TABLE changes ADD COLUMN kind TEXT NOT NULL DEFAULT 'content_drift'")
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS schema_migrations ("
+        " version INTEGER PRIMARY KEY,"
+        " name TEXT NOT NULL,"
+        " checksum TEXT NOT NULL,"
+        " applied_at TEXT NOT NULL)"
+    )
+    applied = {
+        int(row["version"]): (str(row["name"]), str(row["checksum"]))
+        for row in conn.execute("SELECT version, name, checksum FROM schema_migrations")
+    }
+    known_versions = {version for version, _, _ in _MIGRATIONS}
+    unknown = sorted(set(applied) - known_versions)
+    if unknown:
+        raise StoreError(
+            "store contains migration version(s) this build does not know: "
+            + ", ".join(str(version) for version in unknown)
+        )
+
+    for version, name, sql in _MIGRATIONS:
+        checksum = sha256(sql.encode("utf-8")).hexdigest()
+        recorded = applied.get(version)
+        if recorded is not None:
+            if recorded != (name, checksum):
+                raise StoreError(
+                    f"migration {version} checksum/name mismatch: store has {recorded[0]!r}; "
+                    f"this build expects {name!r}"
+                )
+            continue
+        try:
+            conn.executescript(sql)
+            conn.execute(
+                "INSERT INTO schema_migrations (version, name, checksum, applied_at) "
+                "VALUES (?, ?, ?, ?)",
+                (version, name, checksum, datetime.now(UTC).isoformat()),
+            )
+        except sqlite3.DatabaseError as exc:
+            raise StoreError(f"migration {version} ({name}) failed: {exc}") from exc
+
+    for table, required in _V1_REQUIRED_COLUMNS.items():
+        actual = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(required - actual)
+        if missing:
+            raise StoreError(
+                f"migrated store table {table!r} is missing required column(s): "
+                + ", ".join(missing)
+            )
 
 
 class Snapshot:
@@ -172,9 +405,14 @@ class SnapshotStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
-        self._conn.executescript(_SCHEMA)
-        _migrate(self._conn)
-        self._conn.commit()
+        try:
+            self._conn.execute("PRAGMA foreign_keys = ON")
+            self._conn.executescript(_SCHEMA)
+            _migrate(self._conn)
+            self._conn.commit()
+        except Exception:
+            self._conn.close()
+            raise
 
     def __enter__(self) -> SnapshotStore:
         return self
@@ -306,6 +544,281 @@ class SnapshotStore:
             (source_id,),
         ).fetchone()
         return int(row["consecutive_failures"]) if row else 0
+
+    # -- watch runs and attempts --------------------------------------------------
+
+    def start_watch_run(
+        self,
+        *,
+        as_of: date,
+        registry_version: str,
+        registry_revision: str,
+        jurisdiction: str | None,
+        sources: tuple[RunSourceInput, ...],
+        started_at: datetime | None = None,
+    ) -> str:
+        """Create the immutable run denominator before the first network attempt.
+
+        Every considered source is copied into ``run_sources`` with the exact eligibility
+        reasons used on this date.  That makes a later percentage auditable as a set of IDs,
+        not just two counters whose membership disappeared with a registry edit.
+        """
+
+        ids = [source.source_id for source in sources]
+        if len(ids) != len(set(ids)):
+            raise StoreError("run source ids must be unique")
+        run_id = uuid4().hex
+        stamp = _as_utc(started_at or datetime.now(UTC))
+        eligible_count = sum(source.eligible for source in sources)
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            self._conn.execute(
+                "INSERT INTO watch_runs "
+                "(run_id, started_at, as_of, registry_version, registry_revision, "
+                " jurisdiction, state, eligible_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    stamp.isoformat(),
+                    as_of.isoformat(),
+                    registry_version,
+                    registry_revision,
+                    jurisdiction,
+                    RUN_RUNNING,
+                    eligible_count,
+                ),
+            )
+            self._conn.executemany(
+                "INSERT INTO run_sources "
+                "(run_id, source_id, jurisdiction, document_class, url, authority, eligible, "
+                " eligibility_reasons) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    (
+                        run_id,
+                        source.source_id,
+                        source.jurisdiction,
+                        source.document_class,
+                        source.url,
+                        source.authority,
+                        int(source.eligible),
+                        json.dumps(source.eligibility_reasons, separators=(",", ":")),
+                    )
+                    for source in sources
+                ),
+            )
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not start watch run: {exc}") from exc
+        self._conn.commit()
+        return run_id
+
+    def begin_fetch_attempt(
+        self,
+        run_id: str,
+        *,
+        source_id: str,
+        url: str,
+        attempted_at: datetime | None = None,
+    ) -> None:
+        """Persist an attempt before calling the network boundary.
+
+        If the process dies inside the fetch, the attempt is still in the numerator with no
+        terminal outcome.  A restarted operator can see a running/failed receipt rather than
+        a flattering denominator that forgot the call ever began.
+        """
+
+        stamp = _as_utc(attempted_at or datetime.now(UTC)).isoformat()
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                "UPDATE run_sources SET attempted = 1, outcome = 'running' "
+                "WHERE run_id = ? AND source_id = ? AND url = ? AND eligible = 1 "
+                "AND EXISTS (SELECT 1 FROM watch_runs "
+                "            WHERE run_id = ? AND state = 'running')",
+                (run_id, source_id, url, run_id),
+            )
+            if cursor.rowcount != 1:
+                self._conn.rollback()
+                raise StoreError(
+                    "attempt refused for ineligible or unknown, identity-mismatched, or terminal "
+                    f"run source: {run_id}/{source_id}"
+                )
+            self._conn.execute(
+                "INSERT INTO fetch_attempts (run_id, source_id, url, attempted_at) "
+                "VALUES (?, ?, ?, ?)",
+                (run_id, source_id, url, stamp),
+            )
+        except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
+            raise StoreError(
+                f"attempt refused for run {run_id!r}, source {source_id!r}: {exc}"
+            ) from exc
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not begin fetch attempt: {exc}") from exc
+        self._conn.commit()
+
+    def finish_fetch_attempt(
+        self,
+        run_id: str,
+        *,
+        source_id: str,
+        ok: bool,
+        http_status: int | None,
+        content_type: str,
+        error: str,
+        completed_at: datetime | None = None,
+    ) -> None:
+        stamp = _as_utc(completed_at or datetime.now(UTC)).isoformat()
+        outcome = "success" if ok else "failure"
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                "UPDATE fetch_attempts SET completed_at = ?, ok = ?, http_status = ?, "
+                "content_type = ?, error = ? WHERE run_id = ? AND source_id = ? "
+                "AND completed_at IS NULL "
+                "AND EXISTS (SELECT 1 FROM watch_runs "
+                "            WHERE run_id = ? AND state = 'running')",
+                (stamp, int(ok), http_status, content_type, error, run_id, source_id, run_id),
+            )
+            if cursor.rowcount != 1:
+                self._conn.rollback()
+                raise StoreError(
+                    f"unknown or already-terminal fetch attempt, or terminal-run attempt: "
+                    f"{run_id}/{source_id}"
+                )
+            source_cursor = self._conn.execute(
+                "UPDATE run_sources SET retrieval_success = ?, outcome = ?, error = ? "
+                "WHERE run_id = ? AND source_id = ? AND attempted = 1",
+                (int(ok), outcome, error, run_id, source_id),
+            )
+            if source_cursor.rowcount != 1:
+                self._conn.rollback()
+                raise StoreError(f"fetch attempt lost its run source: {run_id}/{source_id}")
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not finish fetch attempt: {exc}") from exc
+        self._conn.commit()
+
+    def finish_watch_run(
+        self,
+        run_id: str,
+        *,
+        state: str,
+        observation_count: int,
+        error: str = "",
+        completed_at: datetime | None = None,
+    ) -> None:
+        if state not in _TERMINAL_RUN_STATES:
+            raise StoreError(f"invalid terminal watch-run state: {state!r}")
+        if observation_count < 0:
+            raise StoreError("watch-run observation_count cannot be negative")
+        counts = self._conn.execute(
+            "SELECT COUNT(*) AS attempted, "
+            "COALESCE(SUM(CASE WHEN retrieval_success = 1 THEN 1 ELSE 0 END), 0) AS successful "
+            "FROM run_sources WHERE run_id = ? AND attempted = 1",
+            (run_id,),
+        ).fetchone()
+        run = self._conn.execute(
+            "SELECT eligible_count, state FROM watch_runs WHERE run_id = ?", (run_id,)
+        ).fetchone()
+        if run is None or run["state"] != RUN_RUNNING:
+            raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
+        attempted_count = int(counts["attempted"])
+        successful_count = int(counts["successful"])
+        eligible_count = int(run["eligible_count"])
+        if state != RUN_FAILED and (eligible_count == 0 or attempted_count != eligible_count):
+            raise StoreError(
+                f"cannot mark run {state}: attempted {attempted_count} of "
+                f"{eligible_count} eligible sources"
+            )
+        if state == RUN_QUIET and (observation_count != 0 or successful_count != eligible_count):
+            raise StoreError(
+                "quiet requires zero observations and successful retrieval of every eligible source"
+            )
+        if state == RUN_COMPLETE and (observation_count == 0 or successful_count != eligible_count):
+            raise StoreError(
+                "complete requires at least one observation and successful retrieval of "
+                "every eligible source"
+            )
+        if state == RUN_PARTIAL and successful_count >= eligible_count:
+            raise StoreError("partial requires at least one failed eligible-source retrieval")
+        cursor = self._conn.execute(
+            "UPDATE watch_runs SET completed_at = ?, state = ?, attempted_count = ?, "
+            "successful_count = ?, observation_count = ?, error = ? "
+            "WHERE run_id = ? AND state = 'running'",
+            (
+                _as_utc(completed_at or datetime.now(UTC)).isoformat(),
+                state,
+                attempted_count,
+                successful_count,
+                observation_count,
+                error,
+                run_id,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
+        self._conn.commit()
+
+    def watch_run(self, run_id: str) -> WatchRun:
+        row = self._conn.execute("SELECT * FROM watch_runs WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"unknown watch run: {run_id!r}")
+        return self._row_to_watch_run(row)
+
+    def latest_watch_run(self, *, successful_only: bool = False) -> WatchRun | None:
+        if successful_only:
+            placeholders = ",".join("?" for _ in _SUCCESSFUL_RUN_STATES)
+            row = self._conn.execute(
+                f"SELECT * FROM watch_runs WHERE state IN ({placeholders}) "  # noqa: S608 -- placeholders only
+                "ORDER BY started_at DESC, run_id DESC LIMIT 1",
+                tuple(sorted(_SUCCESSFUL_RUN_STATES)),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT * FROM watch_runs ORDER BY started_at DESC, run_id DESC LIMIT 1"
+            ).fetchone()
+        return self._row_to_watch_run(row) if row is not None else None
+
+    def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
+        source_rows = self._conn.execute(
+            "SELECT source_id, eligible, attempted, retrieval_success FROM run_sources "
+            "WHERE run_id = ? ORDER BY source_id",
+            (row["run_id"],),
+        ).fetchall()
+        eligible = tuple(str(source["source_id"]) for source in source_rows if source["eligible"])
+        attempted = tuple(str(source["source_id"]) for source in source_rows if source["attempted"])
+        successful = tuple(
+            str(source["source_id"]) for source in source_rows if source["retrieval_success"] == 1
+        )
+        # The redundant counts are an integrity tripwire.  Public percentages are derived
+        # from the exact ID sets, but a mismatch says the store was tampered with or a
+        # migration lost information and must fail before publication.
+        expected = (
+            int(row["eligible_count"]),
+            int(row["attempted_count"]),
+            int(row["successful_count"]),
+        )
+        actual = (len(eligible), len(attempted), len(successful))
+        if row["state"] != RUN_RUNNING and expected != actual:
+            raise StoreError(
+                f"watch run {row['run_id']} count/set mismatch: stored={expected}, exact={actual}"
+            )
+        return WatchRun(
+            run_id=str(row["run_id"]),
+            started_at=_parse_dt(str(row["started_at"])),
+            completed_at=_parse_dt(str(row["completed_at"])) if row["completed_at"] else None,
+            as_of=date.fromisoformat(str(row["as_of"])),
+            registry_version=str(row["registry_version"]),
+            registry_revision=str(row["registry_revision"]),
+            jurisdiction=str(row["jurisdiction"]) if row["jurisdiction"] else None,
+            state=str(row["state"]),
+            eligible_source_ids=eligible,
+            attempted_source_ids=attempted,
+            successful_source_ids=successful,
+            observation_count=int(row["observation_count"]),
+            error=str(row["error"]),
+        )
 
     # -- changes -----------------------------------------------------------------
 
@@ -450,5 +963,10 @@ def _row_to_change(row: sqlite3.Row) -> ChangeRecord:
 
 
 def _parse_dt(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    return _as_utc(datetime.fromisoformat(value))
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)

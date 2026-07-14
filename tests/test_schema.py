@@ -47,6 +47,9 @@ from id_churn_sentinel.core.registry import (
 from id_churn_sentinel.core.site import feed_slug
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
+STATUS_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "docs" / "schema" / "status-v1.schema.json"
+)
 CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
 V1_VERIFICATION_SCHEMA_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
@@ -69,6 +72,10 @@ _KNOWN_KEYWORDS = {
     "pattern",
     "minLength",
     "format",
+    "maximum",
+    "minimum",
+    "oneOf",
+    "uniqueItems",
 }
 
 
@@ -112,6 +119,41 @@ def _validate_scalar(instance: object, schema: dict[str, Any], path: str) -> lis
         minimum = schema.get("minLength")
         if minimum is not None and len(instance) < minimum:
             errors.append(f"{path}: {instance!r} is shorter than minLength")
+    if isinstance(instance, int | float) and not isinstance(instance, bool):
+        minimum_number = schema.get("minimum")
+        if minimum_number is not None and instance < minimum_number:
+            errors.append(f"{path}: {instance!r} is below minimum {minimum_number!r}")
+        maximum_number = schema.get("maximum")
+        if maximum_number is not None and instance > maximum_number:
+            errors.append(f"{path}: {instance!r} is above maximum {maximum_number!r}")
+    return errors
+
+
+def _validate_one_of(
+    instance: object, schema: dict[str, Any], root: dict[str, Any], path: str
+) -> list[str]:
+    outcomes = [_validate(instance, option, root, path) for option in schema["oneOf"]]
+    matches = sum(not errors for errors in outcomes)
+    if matches == 1:
+        return []
+    return [f"{path}: expected exactly one oneOf branch to match; got {matches}"]
+
+
+def _validate_array(
+    instance: object, schema: dict[str, Any], root: dict[str, Any], path: str
+) -> list[str]:
+    if not isinstance(instance, list):
+        return [f"{path}: expected array, got {type(instance).__name__}"]
+    if schema.get("uniqueItems") is True:
+        canonical = [json.dumps(item, sort_keys=True) for item in instance]
+        if len(canonical) != len(set(canonical)):
+            return [f"{path}: array items are not unique"]
+    item_schema = schema.get("items")
+    if item_schema is None:
+        return []
+    errors: list[str] = []
+    for index, item in enumerate(instance):
+        errors.extend(_validate(item, item_schema, root, f"{path}[{index}]"))
     return errors
 
 
@@ -125,6 +167,9 @@ def _validate(
         # ignores what it does not understand reports success it did not earn.
         return [f"{path}: schema uses keyword(s) this validator does not implement: {unknown}"]
 
+    if "oneOf" in schema:
+        return _validate_one_of(instance, schema, root, path)
+
     if "$ref" in schema:
         key = str(schema["$ref"]).removeprefix("#/$defs/")
         return _validate(instance, root["$defs"][key], root, path)
@@ -136,15 +181,7 @@ def _validate(
         return _validate_object(instance, schema, root, path)
 
     if expected == "array":
-        if not isinstance(instance, list):
-            return [f"{path}: expected array, got {type(instance).__name__}"]
-        item_schema = schema.get("items")
-        if item_schema is None:
-            return []
-        errors: list[str] = []
-        for index, item in enumerate(instance):
-            errors.extend(_validate(item, item_schema, root, f"{path}[{index}]"))
-        return errors
+        return _validate_array(instance, schema, root, path)
 
     mistyped = _wrong_primitive_type(instance, expected)
     if mistyped:
@@ -167,6 +204,12 @@ def _wrong_primitive_type(instance: object, expected: object) -> str:
         return f"expected boolean, got {got}"
     if expected == "integer" and (isinstance(instance, bool) or not isinstance(instance, int)):
         return f"expected integer, got {got}"
+    if expected == "number" and (
+        isinstance(instance, bool) or not isinstance(instance, int | float)
+    ):
+        return f"expected number, got {got}"
+    if expected == "null" and instance is not None:
+        return f"expected null, got {got}"
     return ""
 
 
@@ -281,7 +324,7 @@ def test_the_schema_describes_every_field_of_a_published_source(
 
     assert set(source) == described
     assert set(schema["$defs"]["source"]["required"]) == set(source)
-    assert source["verification_status"] == "unverified"
+    assert source["verification_status"] == "verified"
 
 
 def test_the_schema_version_matches_the_publisher(schema: dict[str, Any]) -> None:
@@ -310,6 +353,18 @@ def test_an_empty_feed_validates_too(tmp_path: Path, registry: Registry) -> None
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     assert _validate(document, schema, schema, "$") == []
     assert document["changes"] == []
+
+
+def test_real_public_status_validates_against_its_closed_schema(
+    tmp_path: Path, registry: Registry
+) -> None:
+    publish([], tmp_path, registry=registry, now=datetime(2026, 7, 13, tzinfo=UTC))
+    document = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    status_schema = json.loads(STATUS_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    assert _validate(document, status_schema, status_schema, "$") == []
+    assert document["state"] == "stale"
+    assert document["last_attempted_run"] is None
 
 
 def test_a_per_jurisdiction_document_validates_and_says_what_it_is_scoped_to(

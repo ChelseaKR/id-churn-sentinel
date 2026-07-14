@@ -18,35 +18,28 @@ from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source, default_registry_path
 from id_churn_sentinel.core.store import SnapshotStore
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source_entry
 
 
 @pytest.fixture
 def cli_registry(tmp_path: Path, source: Source) -> Path:
+    california = Source(
+        id="ca-dmv",
+        jurisdiction="CA",
+        document_class="drivers_license",
+        url="https://www.dmv.ca.gov/portal/x",
+        authority="California DMV",
+        verified=False,
+        notes="synthetic test fixture",
+    )
     path = tmp_path / "registry.json"
     path.write_text(
         json.dumps(
             {
                 "registry_version": "1.0",
                 "sources": [
-                    {
-                        "id": source.id,
-                        "jurisdiction": source.jurisdiction,
-                        "document_class": source.document_class,
-                        "url": source.url,
-                        "authority": source.authority,
-                        "verified": False,
-                        "notes": "",
-                    },
-                    {
-                        "id": "ca-dmv",
-                        "jurisdiction": "CA",
-                        "document_class": "drivers_license",
-                        "url": "https://www.dmv.ca.gov/portal/x",
-                        "authority": "California DMV",
-                        "verified": False,
-                        "notes": "",
-                    },
+                    eligible_source_entry(source),
+                    eligible_source_entry(california),
                 ],
             }
         ),

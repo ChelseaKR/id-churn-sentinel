@@ -20,7 +20,9 @@ from id_churn_sentinel.core.detect import (
     MAX_DIFF_EXCERPT_CHARS,
     check_stability,
     diff_excerpt,
-    watch,
+)
+from id_churn_sentinel.core.detect import (
+    _watch_authorized_sources as watch,
 )
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source

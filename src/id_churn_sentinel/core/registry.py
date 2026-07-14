@@ -255,8 +255,8 @@ class FetchPolicyDecision:
 
     Absence is represented as ``unreviewed`` rather than an implicit allow.  This makes the
     migration from the alpha registry fail closed without fabricating 152 legal or policy
-    decisions.  A later iteration will wire the shared eligibility predicate into the watcher
-    and publisher after the registry has been reviewed and migrated.
+    decisions.  The watcher and publisher now enforce the shared predicate, so an absent
+    decision excludes the source rather than preserving the alpha behavior.
     """
 
     outcome: str = FETCH_POLICY_UNREVIEWED

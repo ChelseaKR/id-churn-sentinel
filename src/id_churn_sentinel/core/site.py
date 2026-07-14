@@ -59,6 +59,7 @@ from datetime import datetime
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import CoverageReport
 from id_churn_sentinel.core.registry import REJECTED, Registry, Source
+from id_churn_sentinel.core.status import PublicRunStatus, no_run_status
 
 __all__ = [
     "PAGES_URL",
@@ -137,8 +138,10 @@ def render_site(
     records: Sequence[ChangeRecord],
     *,
     generated_at: datetime,
+    run_status: PublicRunStatus | None = None,
 ) -> str:
     """The whole page. One string, no template engine, no runtime dependency."""
+    status = run_status or no_run_status()
     return "\n".join(
         [
             "<!doctype html>",
@@ -162,6 +165,7 @@ def render_site(
             _header(generated_at),
             '<main id="main">',
             _verification_notice(report),
+            _run_status_section(status),
             _what_this_is(),
             _coverage_section(report),
             _changes_section(records, registry),
@@ -188,8 +192,50 @@ def _header(generated_at: datetime) -> str:
             "that a source page changed, and shows the passage that changed. "
             "<strong>It never asserts what the law is.</strong></p>",
             f'<p class="meta">Generated {_esc(stamp)} · No account · No tracking · '
-            "Every published item reviewed by a named human</p>",
+            "Every published item reviewed by a named human · "
+            "Page generation is not watch success; see run health below</p>",
             "</header>",
+        ]
+    )
+
+
+def _run_status_section(status: PublicRunStatus) -> str:
+    attempted = status.last_attempted
+    successful = status.last_successful
+    if attempted is None:
+        attempted_text = "No watch run receipt exists."
+    else:
+        completed = (
+            attempted.completed_at.isoformat() if attempted.completed_at else "not completed"
+        )
+        attempted_text = (
+            f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
+            f"<strong>{_esc(attempted.state.upper())}</strong>; started "
+            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
+            f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
+            f"{attempted.successful_count} successful retrievals."
+        )
+    if successful is None or successful.completed_at is None:
+        successful_text = "No successful watch run receipt exists."
+    else:
+        successful_text = (
+            f"Last successful run: <code>{_esc(successful.run_id)}</code>, "
+            f"{_esc(successful.state.upper())}, completed "
+            f"{_esc(successful.completed_at.isoformat())}."
+        )
+    stale_word = "STALE" if status.stale else "CURRENT"
+    return "\n".join(
+        [
+            '<section class="notice" aria-labelledby="run-health">',
+            f'<h2 id="run-health">Run health: {_esc(status.state.upper())} · {stale_word}</h2>',
+            "<p><strong>The feed's generated time is not evidence that the watcher ran.</strong> "
+            "Health below comes only from persisted run and source-attempt receipts. A failed, "
+            "partial, running, or stale state means feed silence must not be read as no change.</p>",
+            f"<p>{attempted_text}</p>",
+            f"<p>{successful_text}</p>",
+            '<p><a href="status.json">status.json</a> carries the exact eligible, attempted, '
+            "and successful source ID sets.</p>",
+            "</section>",
         ]
     )
 
@@ -420,6 +466,9 @@ def _endpoints_section(registry: Registry) -> str:
             '<li><a href="sources.json">sources.json</a> — the full inventory of what is '
             "watched and what is not, so you can map your own pages to our "
             "<code>source_id</code>s.</li>",
+            '<li><a href="status.json">status.json</a> — persisted watcher health, exact '
+            "attempt denominator, and last successful run. Its time is independent of page "
+            "generation.</li>",
             "</ul>",
             "<h3>One jurisdiction at a time</h3>",
             "<p>An organisation that serves one state should not have to consume all 52. "

@@ -3,7 +3,7 @@
 This directory is two things at once, and the mix is deliberate rather than untidy.
 
 1. **The prose docs** — the roadmap, the consumer guide, the responsible-tech audit, the verification runbook, and the JSON Schema.
-2. **The published site and feed** — `index.html`, `feed.xml`, `changes.json`, `sources.json`, and one feed per jurisdiction. These are **generated** by `make publish` (`sentinel publish --out docs/`) and **committed**.
+2. **The published site and feed** — `index.html`, `feed.xml`, `changes.json`, `sources.json`, `status.json`, and one feed per jurisdiction. These are **generated** by `make publish` (`sentinel publish --out docs/`) and **committed**.
 
 ## Why the published output lives here and not in `dist/`
 
@@ -25,6 +25,7 @@ Do not hand-edit the generated files. `make publish` overwrites them, and a hand
 | `feed.xml` — RSS 2.0, all jurisdictions | `CONSUMERS.md` — **the integrator guide. Start here.** |
 | `changes.json` — the versioned JSON feed | `ROADMAP.md` — the build plan, M0–M5 |
 | `sources.json` — the inventory: every watched source *and every named gap* | `RESPONSIBLE-TECH-AUDITS.md` — the risks, named and addressed |
+| `status.json` — persisted watch health; generation time is not success | `schema/status-v1.schema.json` — the normative status contract |
 | `feed-us-xx.xml` / `changes-us-xx.json` — one pair per jurisdiction | `VERIFYING.md` — the human verification runbook |
 | `.nojekyll` — see below | `schema/changes-v1.schema.json` — the normative shape of `changes.json` |
 

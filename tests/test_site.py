@@ -36,6 +36,8 @@ from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import Gap, Registry, Source, load_registry
 from id_churn_sentinel.core.site import feed_slug, render_site
 
+from .conftest import eligible_source
+
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
 
@@ -59,7 +61,7 @@ def site_registry(source: Source) -> Registry:
         checked="2026-07-13",
         detail="403s our descriptive User-Agent. We do not spoof a browser UA.",
     )
-    return Registry(version="1.0", sources=(source, unreachable), gaps=(gap,))
+    return Registry(version="1.0", sources=(eligible_source(source), unreachable), gaps=(gap,))
 
 
 def render(registry: Registry, records: tuple[ChangeRecord, ...] = ()) -> str:
@@ -120,7 +122,7 @@ def test_the_published_site_makes_no_third_party_requests(
 
 @pytest.mark.feed_integrity
 def test_no_published_artifact_carries_a_tracker_including_the_per_jurisdiction_ones(
-    tmp_path: Path, confirmed_change: ChangeRecord
+    tmp_path: Path,
 ) -> None:
     """THE GATE, on **every byte we publish** — not just `index.html` and `changes.json`.
 
@@ -134,7 +136,7 @@ def test_no_published_artifact_carries_a_tracker_including_the_per_jurisdiction_
     So the sweep is over the whole published directory, and it is by construction: a future
     artifact nobody remembers to add to a list is covered the day it is written.
     """
-    publish([confirmed_change], tmp_path, registry=load_registry())
+    publish([], tmp_path, registry=load_registry())
 
     artifacts = sorted(tmp_path.iterdir())
     assert len(artifacts) > 100, "expected the full published surface, per-jurisdiction included"

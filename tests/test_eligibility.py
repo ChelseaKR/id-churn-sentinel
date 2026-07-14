@@ -33,7 +33,7 @@ from id_churn_sentinel.core.registry import (
 from id_churn_sentinel.core.store import RUN_QUIET, SnapshotStore
 from id_churn_sentinel.errors import PublishError, RegistryError
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source
 
 AS_OF = date(2026, 7, 13)
 
@@ -321,8 +321,8 @@ def test_production_watcher_fetches_only_the_exact_shared_eligibility_set(
     arizona_source: Source,
     fixture_before: bytes,
 ) -> None:
-    eligible = _eligible(source)
-    inactive = replace(_eligible(arizona_source), active=False)
+    eligible = eligible_source(source)
+    inactive = replace(eligible_source(arizona_source), active=False)
     registry = Registry(version="1.0", sources=(eligible, inactive))
     fetcher = StubFetcher({eligible.url: (fixture_before, "text/html")})
 
@@ -331,7 +331,6 @@ def test_production_watcher_fetches_only_the_exact_shared_eligibility_set(
             registry,
             store,
             fetcher,
-            as_of=AS_OF,
         )
         receipt = store.watch_run(report.run_id)
 

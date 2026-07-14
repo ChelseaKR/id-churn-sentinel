@@ -190,6 +190,21 @@ CREATE TABLE IF NOT EXISTS fetch_attempts (
 );
 """,
     ),
+    (
+        2,
+        "v1-bind-observations-to-watch-runs",
+        """
+CREATE TABLE IF NOT EXISTS run_observations (
+    run_id       TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    change_id    TEXT NOT NULL REFERENCES changes(change_id) ON DELETE RESTRICT,
+    observed_at  TEXT NOT NULL,
+    PRIMARY KEY (run_id, change_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_observations_change
+    ON run_observations (change_id, run_id);
+""",
+    ),
 )
 
 _V1_REQUIRED_COLUMNS = {
@@ -239,6 +254,7 @@ _V1_REQUIRED_COLUMNS = {
             "error",
         }
     ),
+    "run_observations": frozenset({"run_id", "change_id", "observed_at"}),
 }
 
 
@@ -292,6 +308,37 @@ class WatchRun:
         return len(self.attempted_source_ids) / len(self.eligible_source_ids)
 
 
+def _execute_sql_script(conn: sqlite3.Connection, sql: str) -> None:
+    """Execute complete SQL statements without ``executescript``'s implicit commit.
+
+    Python's ``sqlite3.executescript`` commits before running its input, which makes it
+    impossible to atomically bind a multi-statement migration to its ledger row.  Accumulating
+    with SQLite's own completeness parser preserves trigger bodies and lets the caller own the
+    surrounding transaction.
+    """
+
+    pending = ""
+    for line in sql.splitlines(keepends=True):
+        pending += line
+        if sqlite3.complete_statement(pending):
+            statement = pending.strip()
+            if statement:
+                conn.execute(statement)
+            pending = ""
+    if pending.strip():
+        raise sqlite3.OperationalError("migration contains an incomplete SQL statement")
+
+
+def _initialize_base_schema(conn: sqlite3.Connection) -> None:
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        _execute_sql_script(conn, _SCHEMA)
+        conn.commit()
+    except sqlite3.DatabaseError as exc:
+        conn.rollback()
+        raise StoreError(f"base schema initialization failed: {exc}") from exc
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Additive migrations for stores created by an earlier version.
 
@@ -302,17 +349,26 @@ def _migrate(conn: sqlite3.Connection) -> None:
     pre-existing row as `content_drift`: correct, because every record written before this
     column existed was, by construction, a content-drift record.
     """
-    columns = {row["name"] for row in conn.execute("PRAGMA table_info(changes)")}
-    if columns and "kind" not in columns:
-        conn.execute("ALTER TABLE changes ADD COLUMN kind TEXT NOT NULL DEFAULT 'content_drift'")
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(changes)")}
+        if columns and "kind" not in columns:
+            conn.execute(
+                "ALTER TABLE changes ADD COLUMN kind TEXT NOT NULL DEFAULT 'content_drift'"
+            )
 
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS schema_migrations ("
-        " version INTEGER PRIMARY KEY,"
-        " name TEXT NOT NULL,"
-        " checksum TEXT NOT NULL,"
-        " applied_at TEXT NOT NULL)"
-    )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_migrations ("
+            " version INTEGER PRIMARY KEY,"
+            " name TEXT NOT NULL,"
+            " checksum TEXT NOT NULL,"
+            " applied_at TEXT NOT NULL)"
+        )
+        conn.commit()
+    except sqlite3.DatabaseError as exc:
+        conn.rollback()
+        raise StoreError(f"migration ledger initialization failed: {exc}") from exc
+
     applied = {
         int(row["version"]): (str(row["name"]), str(row["checksum"]))
         for row in conn.execute("SELECT version, name, checksum FROM schema_migrations")
@@ -336,13 +392,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 )
             continue
         try:
-            conn.executescript(sql)
+            conn.execute("BEGIN IMMEDIATE")
+            _execute_sql_script(conn, sql)
             conn.execute(
                 "INSERT INTO schema_migrations (version, name, checksum, applied_at) "
                 "VALUES (?, ?, ?, ?)",
                 (version, name, checksum, datetime.now(UTC).isoformat()),
             )
+            conn.commit()
         except sqlite3.DatabaseError as exc:
+            conn.rollback()
             raise StoreError(f"migration {version} ({name}) failed: {exc}") from exc
 
     for table, required in _V1_REQUIRED_COLUMNS.items():
@@ -407,9 +466,8 @@ class SnapshotStore:
         self._conn.row_factory = sqlite3.Row
         try:
             self._conn.execute("PRAGMA foreign_keys = ON")
-            self._conn.executescript(_SCHEMA)
+            _initialize_base_schema(self._conn)
             _migrate(self._conn)
-            self._conn.commit()
         except Exception:
             self._conn.close()
             raise
@@ -704,61 +762,67 @@ class SnapshotStore:
         run_id: str,
         *,
         state: str,
-        observation_count: int,
+        observation_count: int | None = None,
         error: str = "",
         completed_at: datetime | None = None,
     ) -> None:
-        if state not in _TERMINAL_RUN_STATES:
-            raise StoreError(f"invalid terminal watch-run state: {state!r}")
-        if observation_count < 0:
-            raise StoreError("watch-run observation_count cannot be negative")
-        counts = self._conn.execute(
-            "SELECT COUNT(*) AS attempted, "
-            "COALESCE(SUM(CASE WHEN retrieval_success = 1 THEN 1 ELSE 0 END), 0) AS successful "
-            "FROM run_sources WHERE run_id = ? AND attempted = 1",
-            (run_id,),
-        ).fetchone()
-        run = self._conn.execute(
-            "SELECT eligible_count, state FROM watch_runs WHERE run_id = ?", (run_id,)
-        ).fetchone()
-        if run is None or run["state"] != RUN_RUNNING:
-            raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
-        attempted_count = int(counts["attempted"])
-        successful_count = int(counts["successful"])
-        eligible_count = int(run["eligible_count"])
-        if state != RUN_FAILED and (eligible_count == 0 or attempted_count != eligible_count):
-            raise StoreError(
-                f"cannot mark run {state}: attempted {attempted_count} of "
-                f"{eligible_count} eligible sources"
+        _validate_requested_terminal_state(state, observation_count)
+        try:
+            # Freeze attempts, observations, validation, and the terminal update behind one
+            # writer lock.  Otherwise a second connection can complete a fetch after counts
+            # are read but before state is persisted, creating a contradictory receipt.
+            self._conn.execute("BEGIN IMMEDIATE")
+            counts = self._conn.execute(
+                "SELECT COUNT(*) AS attempted, "
+                "COALESCE(SUM(CASE WHEN retrieval_success = 1 THEN 1 ELSE 0 END), 0) "
+                "AS successful FROM run_sources WHERE run_id = ? AND attempted = 1",
+                (run_id,),
+            ).fetchone()
+            run = self._conn.execute(
+                "SELECT eligible_count, state FROM watch_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            if run is None or run["state"] != RUN_RUNNING:
+                raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
+            persisted_observations = int(
+                self._conn.execute(
+                    "SELECT COUNT(*) AS count FROM run_observations WHERE run_id = ?",
+                    (run_id,),
+                ).fetchone()["count"]
             )
-        if state == RUN_QUIET and (observation_count != 0 or successful_count != eligible_count):
-            raise StoreError(
-                "quiet requires zero observations and successful retrieval of every eligible source"
+            attempted_count = int(counts["attempted"])
+            successful_count = int(counts["successful"])
+            eligible_count = int(run["eligible_count"])
+            _validate_terminal_evidence(
+                state=state,
+                eligible_count=eligible_count,
+                attempted_count=attempted_count,
+                successful_count=successful_count,
+                persisted_observations=persisted_observations,
+                claimed_observations=observation_count,
             )
-        if state == RUN_COMPLETE and (observation_count == 0 or successful_count != eligible_count):
-            raise StoreError(
-                "complete requires at least one observation and successful retrieval of "
-                "every eligible source"
+            cursor = self._conn.execute(
+                "UPDATE watch_runs SET completed_at = ?, state = ?, attempted_count = ?, "
+                "successful_count = ?, observation_count = ?, error = ? "
+                "WHERE run_id = ? AND state = 'running'",
+                (
+                    _as_utc(completed_at or datetime.now(UTC)).isoformat(),
+                    state,
+                    attempted_count,
+                    successful_count,
+                    persisted_observations,
+                    error,
+                    run_id,
+                ),
             )
-        if state == RUN_PARTIAL and successful_count >= eligible_count:
-            raise StoreError("partial requires at least one failed eligible-source retrieval")
-        cursor = self._conn.execute(
-            "UPDATE watch_runs SET completed_at = ?, state = ?, attempted_count = ?, "
-            "successful_count = ?, observation_count = ?, error = ? "
-            "WHERE run_id = ? AND state = 'running'",
-            (
-                _as_utc(completed_at or datetime.now(UTC)).isoformat(),
-                state,
-                attempted_count,
-                successful_count,
-                observation_count,
-                error,
-                run_id,
-            ),
-        )
-        if cursor.rowcount != 1:
-            raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
-        self._conn.commit()
+            if cursor.rowcount != 1:
+                raise StoreError(f"unknown or already-terminal watch run: {run_id!r}")
+            self._conn.commit()
+        except StoreError:
+            self._conn.rollback()
+            raise
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not finish watch run: {exc}") from exc
 
     def watch_run(self, run_id: str) -> WatchRun:
         row = self._conn.execute("SELECT * FROM watch_runs WHERE run_id = ?", (run_id,)).fetchone()
@@ -766,18 +830,33 @@ class SnapshotStore:
             raise StoreError(f"unknown watch run: {run_id!r}")
         return self._row_to_watch_run(row)
 
-    def latest_watch_run(self, *, successful_only: bool = False) -> WatchRun | None:
+    def latest_watch_run(
+        self,
+        *,
+        successful_only: bool = False,
+        aggregate_only: bool = False,
+    ) -> WatchRun | None:
+        """Return the newest receipt, optionally restricted to whole-registry runs.
+
+        A jurisdiction-scoped run is useful operational evidence for that jurisdiction, but
+        it cannot make the aggregate public feed green.  ``aggregate_only`` makes that safety
+        boundary explicit at the query rather than asking a caller to inspect scope later.
+        """
+
+        clauses: list[str] = []
+        params: list[str] = []
         if successful_only:
             placeholders = ",".join("?" for _ in _SUCCESSFUL_RUN_STATES)
-            row = self._conn.execute(
-                f"SELECT * FROM watch_runs WHERE state IN ({placeholders}) "  # noqa: S608 -- placeholders only
-                "ORDER BY started_at DESC, run_id DESC LIMIT 1",
-                tuple(sorted(_SUCCESSFUL_RUN_STATES)),
-            ).fetchone()
-        else:
-            row = self._conn.execute(
-                "SELECT * FROM watch_runs ORDER BY started_at DESC, run_id DESC LIMIT 1"
-            ).fetchone()
+            clauses.append(f"state IN ({placeholders})")
+            params.extend(sorted(_SUCCESSFUL_RUN_STATES))
+        if aggregate_only:
+            clauses.append("jurisdiction IS NULL")
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        row = self._conn.execute(
+            f"SELECT * FROM watch_runs{where} "  # noqa: S608 -- clauses are module literals
+            "ORDER BY started_at DESC, run_id DESC LIMIT 1",
+            params,
+        ).fetchone()
         return self._row_to_watch_run(row) if row is not None else None
 
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
@@ -791,6 +870,12 @@ class SnapshotStore:
         successful = tuple(
             str(source["source_id"]) for source in source_rows if source["retrieval_success"] == 1
         )
+        persisted_observation_count = int(
+            self._conn.execute(
+                "SELECT COUNT(*) AS count FROM run_observations WHERE run_id = ?",
+                (row["run_id"],),
+            ).fetchone()["count"]
+        )
         # The redundant counts are an integrity tripwire.  Public percentages are derived
         # from the exact ID sets, but a mismatch says the store was tampered with or a
         # migration lost information and must fail before publication.
@@ -798,8 +883,9 @@ class SnapshotStore:
             int(row["eligible_count"]),
             int(row["attempted_count"]),
             int(row["successful_count"]),
+            int(row["observation_count"]),
         )
-        actual = (len(eligible), len(attempted), len(successful))
+        actual = (len(eligible), len(attempted), len(successful), persisted_observation_count)
         if row["state"] != RUN_RUNNING and expected != actual:
             raise StoreError(
                 f"watch run {row['run_id']} count/set mismatch: stored={expected}, exact={actual}"
@@ -822,8 +908,8 @@ class SnapshotStore:
 
     # -- changes -----------------------------------------------------------------
 
-    def record_change(self, change: ChangeRecord) -> None:
-        """Insert a change, idempotently.
+    def record_change(self, change: ChangeRecord, *, run_id: str | None = None) -> None:
+        """Insert a change idempotently and optionally bind it to its watcher run.
 
         The id is deterministic in (source, previous_hash, new_hash), so re-running `watch`
         over unchanged drift is a no-op rather than a duplicate — and, critically, a re-run
@@ -840,6 +926,7 @@ class SnapshotStore:
         the CHECK constraints loud.
         """
         try:
+            self._conn.execute("BEGIN IMMEDIATE")
             self._conn.execute(
                 "INSERT INTO changes "
                 "(change_id, source_id, jurisdiction, document_class, url, observed_at,"
@@ -865,10 +952,51 @@ class SnapshotStore:
                     change.review_note,
                 ),
             )
+            if run_id is not None:
+                association = self._conn.execute(
+                    "INSERT INTO run_observations (run_id, change_id, observed_at) "
+                    "SELECT ?, ?, ? WHERE EXISTS "
+                    "(SELECT 1 FROM watch_runs AS run "
+                    " JOIN run_sources AS source ON source.run_id = run.run_id "
+                    " WHERE run.run_id = ? AND run.state = 'running' "
+                    " AND source.source_id = ? AND source.jurisdiction = ? "
+                    " AND source.document_class = ? AND source.url = ? "
+                    " AND source.eligible = 1 AND source.attempted = 1) "
+                    "ON CONFLICT (run_id, change_id) DO NOTHING",
+                    (
+                        run_id,
+                        change.id,
+                        _as_utc(change.observed_at).isoformat(),
+                        run_id,
+                        change.source_id,
+                        change.jurisdiction,
+                        change.document_class,
+                        change.url,
+                    ),
+                )
+                if association.rowcount != 1:
+                    existing = self._conn.execute(
+                        "SELECT 1 FROM run_observations AS observation "
+                        "JOIN watch_runs AS run ON run.run_id = observation.run_id "
+                        "WHERE observation.run_id = ? AND observation.change_id = ? "
+                        "AND run.state = 'running'",
+                        (run_id, change.id),
+                    ).fetchone()
+                    if existing is None:
+                        raise StoreError(
+                            f"change observation refused for unknown or terminal run: {run_id!r}"
+                        )
         except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
             # This is the schema-level human-in-the-loop CHECK firing. If it ever fires,
             # something tried to store a classification with no human behind it.
             raise StoreError(f"change rejected by the store's integrity rules: {exc}") from exc
+        except StoreError:
+            self._conn.rollback()
+            raise
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not record change: {exc}") from exc
         self._conn.commit()
 
     def update_change(self, change: ChangeRecord) -> None:
@@ -970,3 +1098,44 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _validate_requested_terminal_state(state: str, observation_count: int | None) -> None:
+    if state not in _TERMINAL_RUN_STATES:
+        raise StoreError(f"invalid terminal watch-run state: {state!r}")
+    if observation_count is not None and observation_count < 0:
+        raise StoreError("watch-run observation_count cannot be negative")
+
+
+def _validate_terminal_evidence(
+    *,
+    state: str,
+    eligible_count: int,
+    attempted_count: int,
+    successful_count: int,
+    persisted_observations: int,
+    claimed_observations: int | None,
+) -> None:
+    if state != RUN_FAILED and (eligible_count == 0 or attempted_count != eligible_count):
+        raise StoreError(
+            f"cannot mark run {state}: attempted {attempted_count} of "
+            f"{eligible_count} eligible sources"
+        )
+    if state == RUN_QUIET and (persisted_observations != 0 or successful_count != eligible_count):
+        raise StoreError(
+            "quiet requires zero observations and successful retrieval of every eligible source"
+        )
+    if state == RUN_COMPLETE and (
+        persisted_observations == 0 or successful_count != eligible_count
+    ):
+        raise StoreError(
+            "complete requires at least one observation and successful retrieval of every "
+            "eligible source"
+        )
+    if state == RUN_PARTIAL and successful_count >= eligible_count:
+        raise StoreError("partial requires at least one failed eligible-source retrieval")
+    if claimed_observations is not None and claimed_observations != persisted_observations:
+        raise StoreError(
+            "watch-run observation count does not match persisted run observations: "
+            f"claimed {claimed_observations}, exact {persisted_observations}"
+        )

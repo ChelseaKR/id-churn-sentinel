@@ -10,6 +10,7 @@ import pytest
 
 from id_churn_sentinel.core.detect import watch_registry
 from id_churn_sentinel.core.eligibility import registry_revision
+from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.status import build_public_status, no_run_status, status_json
@@ -97,6 +98,86 @@ def test_partial_run_is_latest_but_does_not_replace_last_successful_run(
     assert status.last_attempted.run_id == partial.run_id
     assert status.last_successful is not None
     assert status.last_successful.run_id == quiet.run_id
+
+
+def test_scoped_run_cannot_make_aggregate_public_health_current(
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+) -> None:
+    registry = _registry(source)
+    with SnapshotStore(tmp_path / "status.db") as store:
+        scoped = watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_before, "text/html")}),
+            as_of=AS_OF,
+            jurisdiction="TX",
+            started_at=NOW,
+            completed_at=NOW,
+        )
+        status = build_public_status(store, now=NOW)
+        latest_any_scope = store.latest_watch_run()
+
+    assert scoped.state == RUN_QUIET
+    assert latest_any_scope is not None and latest_any_scope.jurisdiction == "TX"
+    assert status.state == "stale"
+    assert status.last_attempted is None
+
+
+def test_failed_run_retains_observations_created_before_a_later_fetch_exception(
+    tmp_path: Path,
+    source: Source,
+    arizona_source: Source,
+    fixture_before: bytes,
+    fixture_after: bytes,
+) -> None:
+    first = eligible_source(source)
+    second = eligible_source(arizona_source)
+    registry = Registry(version="1.0", sources=(first, second))
+
+    class ChangeThenException:
+        def fetch(self, url: str) -> FetchResult:
+            if url == first.url:
+                return FetchResult(
+                    url=url,
+                    ok=True,
+                    status=200,
+                    content_type="text/html",
+                    body=fixture_after,
+                    fetched_at=NOW + timedelta(days=1),
+                )
+            raise RuntimeError("synthetic later-source failure")
+
+    with SnapshotStore(tmp_path / "status.db") as store:
+        watch_registry(
+            registry,
+            store,
+            StubFetcher(
+                {
+                    first.url: (fixture_before, "text/html"),
+                    second.url: (fixture_before, "text/html"),
+                }
+            ),
+            as_of=AS_OF,
+            started_at=NOW,
+            completed_at=NOW,
+        )
+        with pytest.raises(RuntimeError, match="later-source"):
+            watch_registry(
+                registry,
+                store,
+                ChangeThenException(),
+                as_of=AS_OF,
+                started_at=NOW + timedelta(days=1),
+                completed_at=NOW + timedelta(days=1),
+            )
+        failed = store.latest_watch_run()
+        observations = store.changes()
+
+    assert failed is not None and failed.state == "failed"
+    assert failed.observation_count == 1
+    assert len(observations) == 1
 
 
 def test_changed_run_is_complete_and_becomes_the_last_successful_run(
@@ -230,6 +311,7 @@ def test_publish_always_writes_status_and_the_site_does_not_conflate_generation_
     page = (out / "index.html").read_text(encoding="utf-8")
     assert "Page generation is not watch success" in page
     assert "Run health: QUIET · CURRENT" in page
+    assert "scope <strong>all jurisdictions</strong>" in page
     assert 'href="status.json"' in page
 
 

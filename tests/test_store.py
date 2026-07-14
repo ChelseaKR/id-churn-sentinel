@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
 
+import id_churn_sentinel.core.store as store_module
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.store import (
     RUN_FAILED,
@@ -438,6 +441,40 @@ def test_unknown_future_migration_is_refused(tmp_path: Path) -> None:
         SnapshotStore(db)
 
 
+def test_failed_migration_rolls_back_its_sql_and_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "atomic-migration.db"
+    failing = (
+        *store_module._MIGRATIONS,
+        (
+            99,
+            "synthetic-failing-migration",
+            "CREATE TABLE must_rollback (value TEXT); THIS IS NOT SQL;",
+        ),
+    )
+    monkeypatch.setattr(store_module, "_MIGRATIONS", failing)
+
+    with pytest.raises(StoreError, match=r"migration 99 .* failed"):
+        SnapshotStore(db)
+
+    conn = sqlite3.connect(db)
+    try:
+        assert (
+            conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'must_rollback'"
+            ).fetchone()
+            is None
+        )
+        assert (
+            conn.execute("SELECT version FROM schema_migrations WHERE version = 99").fetchone()
+            is None
+        )
+    finally:
+        conn.close()
+
+
 def test_applied_migration_with_missing_table_is_refused(tmp_path: Path) -> None:
     db = tmp_path / "missing-migrated-table.db"
     with SnapshotStore(db):
@@ -457,6 +494,40 @@ def test_run_source_ids_must_be_unique(store: SnapshotStore) -> None:
     duplicate = _run_sources()[0]
     with pytest.raises(StoreError, match="must be unique"):
         _start_run(store, sources=(duplicate, duplicate))
+
+
+def test_run_observation_count_is_derived_from_atomic_associations(
+    store: SnapshotStore,
+) -> None:
+    run_id = _start_run(store)
+    _finish_eligible_attempt(store, run_id, ok=True)
+    observation = ChangeRecord.observed(
+        source_id="eligible",
+        jurisdiction="TX",
+        document_class="drivers_license",
+        url="https://example.gov/eligible",
+        observed_at=NOW,
+        previous_hash="before",
+        new_hash="after",
+        diff_excerpt="synthetic drift",
+    )
+    store.record_change(observation, run_id=run_id)
+    store.finish_watch_run(run_id, state=RUN_FAILED)
+
+    receipt = store.watch_run(run_id)
+    assert receipt.observation_count == 1
+    with pytest.raises(StoreError, match="unknown or terminal run"):
+        store.record_change(observation, run_id=run_id)
+
+
+def test_unknown_run_observation_rolls_back_the_change(
+    store: SnapshotStore,
+    observed_change: ChangeRecord,
+) -> None:
+    with pytest.raises(StoreError, match="unknown or terminal run"):
+        store.record_change(observed_change, run_id="missing")
+    with pytest.raises(StoreError, match="unknown change id"):
+        store.get_change(observed_change.id)
 
 
 def test_attempt_and_run_state_transitions_fail_closed(store: SnapshotStore) -> None:
@@ -558,6 +629,80 @@ def test_attempts_cannot_mutate_a_terminal_run_or_change_frozen_url(
             content_type="text/html",
             error="",
         )
+
+
+def test_terminalization_holds_writer_lock_across_count_and_state_update(tmp_path: Path) -> None:
+    db = tmp_path / "terminal-race.db"
+    with SnapshotStore(db) as seed:
+        run_id = _start_run(seed)
+        seed.begin_fetch_attempt(
+            run_id,
+            source_id="eligible",
+            url="https://example.gov/eligible",
+        )
+
+    before_terminal_update = threading.Event()
+    release_terminal_update = threading.Event()
+    terminal_errors: list[BaseException] = []
+    finisher_errors: list[BaseException] = []
+
+    class PausingConnection:
+        def __init__(self, connection: sqlite3.Connection) -> None:
+            self._connection = connection
+
+        def execute(self, sql: str, parameters: object = ()) -> sqlite3.Cursor:
+            if sql.startswith("UPDATE watch_runs SET completed_at"):
+                before_terminal_update.set()
+                release_terminal_update.wait(timeout=2)
+            return self._connection.execute(sql, parameters)  # type: ignore[arg-type]
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self._connection, name)
+
+    def terminalize() -> None:
+        try:
+            with SnapshotStore(db) as terminator:
+                terminator._conn = PausingConnection(terminator._conn)  # type: ignore[assignment]
+                terminator.finish_watch_run(run_id, state="partial")
+        except BaseException as exc:  # pragma: no cover - asserted below across a thread
+            terminal_errors.append(exc)
+
+    def finish_fetch() -> None:
+        try:
+            with SnapshotStore(db) as finisher:
+                finisher.finish_fetch_attempt(
+                    run_id,
+                    source_id="eligible",
+                    ok=True,
+                    http_status=200,
+                    content_type="text/html",
+                    error="",
+                    completed_at=NOW,
+                )
+        except BaseException as exc:  # expected terminal-run rejection
+            finisher_errors.append(exc)
+
+    terminal_thread = threading.Thread(target=terminalize)
+    terminal_thread.start()
+    assert before_terminal_update.wait(timeout=2)
+    finisher_thread = threading.Thread(target=finish_fetch)
+    finisher_thread.start()
+    time.sleep(0.05)  # give the competing writer time to contend for BEGIN IMMEDIATE
+    release_terminal_update.set()
+    terminal_thread.join(timeout=2)
+    finisher_thread.join(timeout=2)
+
+    assert not terminal_thread.is_alive()
+    assert not finisher_thread.is_alive()
+    assert terminal_errors == []
+    assert len(finisher_errors) == 1
+    assert isinstance(finisher_errors[0], StoreError)
+    assert "terminal-run" in str(finisher_errors[0])
+    with SnapshotStore(db) as store:
+        receipt = store.watch_run(run_id)
+    assert receipt.state == "partial"
+    assert receipt.attempted_source_ids == ("eligible",)
+    assert receipt.successful_source_ids == ()
 
 
 def test_redundant_run_counts_detect_tampering(tmp_path: Path) -> None:

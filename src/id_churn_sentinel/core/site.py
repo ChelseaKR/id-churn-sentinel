@@ -210,7 +210,8 @@ def _run_status_section(status: PublicRunStatus) -> str:
         )
         attempted_text = (
             f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
-            f"<strong>{_esc(attempted.state.upper())}</strong>; started "
+            f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
+            f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
             f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
             f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
             f"{attempted.successful_count} successful retrievals."
@@ -220,7 +221,8 @@ def _run_status_section(status: PublicRunStatus) -> str:
     else:
         successful_text = (
             f"Last successful run: <code>{_esc(successful.run_id)}</code>, "
-            f"{_esc(successful.state.upper())}, completed "
+            f"{_esc(successful.state.upper())}, scope "
+            f"{_esc(successful.jurisdiction or 'all jurisdictions')}, completed "
             f"{_esc(successful.completed_at.isoformat())}."
         )
     stale_word = "STALE" if status.stale else "CURRENT"

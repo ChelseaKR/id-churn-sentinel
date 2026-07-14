@@ -61,8 +61,10 @@ def build_public_status(
     if stale_after <= timedelta(0):
         raise ValueError("stale_after must be positive")
     current = _as_utc(now or datetime.now(UTC))
-    attempted = store.latest_watch_run()
-    successful = store.latest_watch_run(successful_only=True)
+    # Aggregate health may only be derived from an aggregate run.  A successful state-only
+    # diagnostic remains available in the run ledger but cannot turn the national feed green.
+    attempted = store.latest_watch_run(aggregate_only=True)
+    successful = store.latest_watch_run(successful_only=True, aggregate_only=True)
 
     if attempted is None:
         return no_run_status(stale_after=stale_after)

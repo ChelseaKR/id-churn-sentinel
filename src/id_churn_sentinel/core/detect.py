@@ -50,7 +50,7 @@ from __future__ import annotations
 import difflib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.eligibility import (
@@ -309,7 +309,15 @@ def _watch_authorized_sources(
             )
 
         if not result.ok:
-            _handle_failure(source, store, report, result.error, result.status, removal_threshold)
+            _handle_failure(
+                source,
+                store,
+                report,
+                result.error,
+                result.status,
+                removal_threshold,
+                run_id=run_id,
+            )
             continue
 
         new_hash, normalized = content_hash(result.body, result.content_type)
@@ -362,7 +370,7 @@ def _watch_authorized_sources(
             diff_excerpt=diff_excerpt(previous.normalized_text, normalized, source_url=source.url),
             observed_at=result.fetched_at,
         )
-        store.record_change(change)
+        store.record_change(change, run_id=run_id)
         report.changed.append(change)
 
     return report
@@ -448,7 +456,6 @@ def watch_registry(
         store.finish_watch_run(
             run_id,
             state=RUN_FAILED,
-            observation_count=0,
             error=f"{type(exc).__name__}: {exc}",
             completed_at=completed_at,
         )
@@ -474,22 +481,22 @@ def watch(
     store: SnapshotStore,
     fetcher: Fetcher,
     *,
-    as_of: date,
     jurisdiction: str | None = None,
     removal_threshold: int = REMOVAL_THRESHOLD,
 ) -> WatchReport:
-    """Public watcher API; all source selection is eligibility-enforced.
+    """Production watcher API; eligibility is always evaluated on today's UTC date.
 
-    ``watch_registry`` carries clock injection used by deterministic tests and operational
-    receipts.  This narrower entry point is the supported library surface and deliberately
-    accepts no arbitrary iterable of sources.
+    ``watch_registry`` carries explicit clock injection for deterministic tests and historical
+    audit tooling.  This production entry point deliberately accepts neither an arbitrary
+    iterable of sources nor an operator-selected policy date: backdating must never revive an
+    expired verification or fetch-policy approval.
     """
 
     return watch_registry(
         registry,
         store,
         fetcher,
-        as_of=as_of,
+        as_of=datetime.now(UTC).date(),
         jurisdiction=jurisdiction,
         removal_threshold=removal_threshold,
     )
@@ -502,6 +509,8 @@ def _handle_failure(
     error: str | None,
     status: int | None,
     removal_threshold: int,
+    *,
+    run_id: str | None = None,
 ) -> None:
     """One failed fetch: hold the baseline, count the streak, escalate if it is long enough.
 
@@ -545,5 +554,5 @@ def _handle_failure(
         consecutive_failures=streak,
         last_error=reason,
     )
-    store.record_change(escalation)
+    store.record_change(escalation, run_id=run_id)
     report.possibly_removed.append(escalation)

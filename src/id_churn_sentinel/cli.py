@@ -52,7 +52,7 @@ from id_churn_sentinel.core.coverage import (
     completeness_violations,
     coverage,
 )
-from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch_registry
+from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
 from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.publish import publish
@@ -207,11 +207,6 @@ def build_parser() -> argparse.ArgumentParser:
     watch_cmd = sub.add_parser("watch", help="fetch sources and record any drift")
     watch_cmd.add_argument("--jurisdiction", help="limit to one jurisdiction, e.g. TX or US")
     watch_cmd.add_argument(
-        "--as-of",
-        default=datetime.now(UTC).date().isoformat(),
-        help="eligibility policy date in YYYY-MM-DD (default: today in UTC)",
-    )
-    watch_cmd.add_argument(
         "--removal-threshold",
         type=int,
         default=REMOVAL_THRESHOLD,
@@ -272,11 +267,6 @@ def build_parser() -> argparse.ArgumentParser:
     # The canonical home written into every artifact's `feed_url`. It defaults to the
     # repository, which resolves today; point it at the Pages URL once Pages is switched on.
     publish_cmd.add_argument("--feed-url", default=REPO_URL)
-    publish_cmd.add_argument(
-        "--as-of",
-        default=datetime.now(UTC).date().isoformat(),
-        help="publication-eligibility policy date in YYYY-MM-DD (default: today in UTC)",
-    )
 
     return parser
 
@@ -572,11 +562,10 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
 def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
     active = fetcher or HttpFetcher()
     with SnapshotStore(args.db) as store:
-        report = watch_registry(
+        report = watch(
             registry,
             store,
             active,
-            as_of=parse_as_of(args.as_of),
             jurisdiction=args.jurisdiction,
             removal_threshold=args.removal_threshold,
         )
@@ -754,7 +743,6 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         registry=registry,
         feed_url=args.feed_url,
         run_status=run_status,
-        eligibility_as_of=parse_as_of(args.as_of),
     )
     print(
         f"publish: {result.published} reviewed change(s) → {result.feed_path}, {result.changes_path}"

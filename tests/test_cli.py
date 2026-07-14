@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from id_churn_sentinel.cli import main
+from id_churn_sentinel.cli import build_parser, main
 from id_churn_sentinel.core.changes import ChangeKind, ReviewStatus
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source, default_registry_path
@@ -50,6 +50,16 @@ def cli_registry(tmp_path: Path, source: Source) -> Path:
 
 def base_args(registry: Path, db: Path) -> list[str]:
     return ["--registry", str(registry), "--db", str(db)]
+
+
+@pytest.mark.parametrize(
+    "command", [("watch", "--as-of", "2026-01-01"), ("publish", "--as-of", "2026-01-01")]
+)
+def test_operational_commands_reject_an_operator_selected_policy_date(
+    command: tuple[str, ...],
+) -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(command)
 
 
 # -- sources ---------------------------------------------------------------------

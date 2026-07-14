@@ -22,9 +22,11 @@ whose timestamps cannot be confused with site-build timestamps.
 - `core.eligibility.evaluate_source` is the sole dated predicate for both watcher selection and
   publication eligibility. Reachability is deliberately not part of the predicate; a prior
   failed retrieval remains in the next eligible run's denominator.
-- The production watcher accepts a registry and date, freezes the full registry revision and
-  every scoped source's eligibility decision before fetching, and persists an attempt before
-  crossing the network boundary. Ineligible sources cannot be inserted into the numerator.
+- The production watcher derives today's UTC policy date internally; operators cannot backdate
+  an expired approval or future-date one that is not yet effective. Deterministic tests and
+  non-publishing historical audits may inject a date. The watcher freezes the full registry
+  revision and every scoped source's eligibility decision before fetching, then persists an
+  attempt before crossing the network boundary. Ineligible sources cannot enter the numerator.
 - Terminal run states are constrained: `quiet` means every eligible source was retrieved and no
   observation was created; `complete` means every source was retrieved and at least one
   observation was created; `partial` means all eligible sources were attempted and at least one
@@ -32,11 +34,15 @@ whose timestamps cannot be confused with site-build timestamps.
 - The publisher rejects a newly reviewed observation if its source is missing, withdrawn,
   unverified, expired, rejected, fetch-policy-ineligible, or inconsistent with the canonical
   jurisdiction/document-class/URL tuple.
+- Every created observation is atomically associated with its still-running watcher receipt.
+  Terminalization derives the observation count from those associations and holds one SQLite
+  writer transaction from exact-set reads through the state update.
 - `status.json` has a closed version-1 schema and publishes controlled aggregate health only.
   It separates `generated_at`, last attempted run, and last successful run, including the exact
-  eligible/attempted/successful source ID sets. Raw operational errors remain private.
-- SQLite migrations have ordered versions and immutable checksums. An unknown or changed
-  applied migration prevents the store from opening.
+  eligible/attempted/successful source ID sets. A jurisdiction-scoped run cannot make aggregate
+  health current, and scope is explicit in every run payload. Raw operational errors stay private.
+- SQLite migrations have ordered versions and immutable checksums. Each migration's complete SQL
+  and ledger row commit atomically; an unknown or changed applied migration prevents opening.
 
 ## Consequences
 

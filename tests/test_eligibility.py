@@ -95,6 +95,15 @@ def test_verification_evidence_expiry_and_policy_fields_are_required(source: Sou
     assert "fetch-policy-expiry-missing" in reasons
 
 
+def test_whitespace_verification_evidence_fails_closed(source: Source) -> None:
+    incomplete = replace(
+        _eligible(source),
+        verification=replace(_eligible(source).verification, evidence="   "),
+    )
+
+    assert evaluate_source(incomplete, as_of=AS_OF).reasons == ("verification-evidence-missing",)
+
+
 def test_expired_verification_or_policy_is_recheck_due(source: Source) -> None:
     verification_due = _eligible(source, expires_at="2026-07-12")
     policy_due = replace(_eligible(source), fetch_policy=_policy(expires_at="2026-07-12"))

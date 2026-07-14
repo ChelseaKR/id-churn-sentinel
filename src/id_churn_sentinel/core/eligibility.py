@@ -115,7 +115,7 @@ def _verification_reasons(source: Source, as_of: date) -> tuple[str, ...]:
         verified_at = parse_as_of(verification.at)
         if verified_at > as_of:
             reasons.append("verification-not-yet-effective")
-    if not verification.evidence:
+    if not verification.evidence.strip():
         reasons.append("verification-evidence-missing")
     if not verification.expires_at:
         reasons.append("verification-expiry-missing")
@@ -147,7 +147,7 @@ def _policy_reasons(source: Source, as_of: date) -> tuple[str, ...]:
 
 
 def eligibility_report(registry: Registry, *, as_of: date) -> EligibilityReport:
-    """Evaluate every active registry entry without hiding failures from the denominator."""
+    """Evaluate every registry entry without hiding failures from the denominator."""
 
     return EligibilityReport(
         as_of=as_of,

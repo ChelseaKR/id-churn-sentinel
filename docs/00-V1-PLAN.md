@@ -1,9 +1,9 @@
 # ID Churn Sentinel — V1.0 master plan
 
-**Plan date:** 2026-07-13  
-**Target release:** 2027-01-29  
-**Decision owner:** product lead  
-**Release authority:** product lead plus community-governance reviewer  
+**Plan date:** 2026-07-13
+**Target release:** 2027-01-29
+**Decision owner:** product lead
+**Release authority:** product lead plus community-governance reviewer
 **Status:** implementation exists; V1.0 readiness is not yet proven
 
 ## Outcome

@@ -57,4 +57,3 @@ Public documentation and a security/correction address are always available. Pil
 ## Manual work and automation boundary
 
 Fetch, hash, diff, validation, release generation, and health alerting may be automated. Source authority, change significance, high-impact approval, correction language, and legal implications remain human decisions. Automation can order a queue by age or jurisdiction but may not infer legal severity.
-

@@ -50,4 +50,3 @@ Use inclusive terms chosen with paid community reviewers. Do not infer language 
 Automated HTML validity/accessibility scanning runs in CI, but V1 also requires manual keyboard-only review, 200%/400% zoom and reflow, high-contrast/forced-colors mode, VoiceOver/Safari, NVDA/Firefox or Chrome, and a low-bandwidth/no-CSS check. A disabled trans community reviewer completes the core tasks. All critical/serious defects and any blocker in source status, evidence, correction, or feed access must close before release.
 
 Publish an accessibility statement naming tested scope, known limitations, contact method, response target, and last audit date. Retest quarterly and after template, navigation, diff, or translation changes.
-

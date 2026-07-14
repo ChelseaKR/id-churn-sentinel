@@ -1,5 +1,9 @@
 # User research and design-partner pilot
 
+> **Commercial activity hold — July 14, 2026.** The activities below are an
+> unexecuted research design, not an active recruitment, outreach, interview, or
+> pilot program. See [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Research decisions to make
 
 Research is designed to answer five launch decisions: whether alerts enter a real editorial workflow; which evidence a reviewer needs; whether the significance vocabulary creates false legal authority; what response time is valuable; and who will pay to sustain a public, privacy-preserving feed.

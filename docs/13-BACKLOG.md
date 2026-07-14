@@ -1,5 +1,12 @@
 # V1.0 prioritized backlog
 
+> **Commercial activity hold — July 14, 2026.** This backlog mixes technical
+> work with historical recruiting, interview, pilot, paid-review, partner,
+> funding, support, and go-to-market tasks. None of those external or commercial
+> tasks is active or authorized. Only noncommercial public-interest research,
+> documentation, safety analysis, and open-source technical work may continue
+> under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 Estimates are ideal engineering/operations days and exclude elapsed specialist or partner review. `P0` blocks V1.0; `P1` is cut before a P0 slips. Owners are roles from the master plan.
 
 ## Implementation ledger (2026-07-14)
@@ -110,7 +117,7 @@ Any new operational P0 adds named capacity or moves the date.
 | OPS-04 complete eight consecutive weekly bootstrap cycles | P0 | 8 | Operations | OPS-01/02/05 | per-run gates pass; rolling objectives report available sample without premature quarter claim (`OPS-01`) |
 | OPS-05 provision persistent runner and deployment path | P0 | 5 | Operations + engineering | architecture, SEC-02 | named host/volume/scheduler/static host/off-host backup; staging promotion, rollback and recovery receipts (`OPS-01`) |
 
-## Launch and commercial validation
+## Historical launch and commercial validation — paused
 
 | Item | Pri | Est. | Owner | Depends on | Acceptance / linked requirement |
 |---|---:|---:|---|---|---|
@@ -121,6 +128,6 @@ Any new operational P0 adds named capacity or moves the date.
 | REL-01 assemble traceability and release receipts | P0 | 3 | Product | all P0 | every checklist item dated, owned, linked |
 | REL-02 multidisciplinary go/hold decision | P0 | 1 | Release authority | REL-01 | signed decision; hold if any must-pass fails |
 
-## Execution order
+## Historical execution order
 
-Critical path: `PM-01 → PM-02 → PIL-01 → GTM-03`, `GOV-01 → GOV-02 → ENG-04/10 → OPS-04`, `SRC-04 → SRC-01/02 → PDF-01`, and `ENG-01 → DATA-03/04 → ENG-02/05 → SEC-03/ENG-06 → OPS-05 → QA-01 → RC evidence`. Source verification runs in parallel but must finish before pilot alerts are treated as production-like. PIL-01 uses only its exact entry bundle above and never waits on OPS-04. Limit engineering work in progress to two items and research/operations work in progress to two items.
+The paused plan's critical path was: `PM-01 → PM-02 → PIL-01 → GTM-03`, `GOV-01 → GOV-02 → ENG-04/10 → OPS-04`, `SRC-04 → SRC-01/02 → PDF-01`, and `ENG-01 → DATA-03/04 → ENG-02/05 → SEC-03/ENG-06 → OPS-05 → QA-01 → RC evidence`. It assumed source verification would run in parallel and finish before pilot alerts were treated as production-like. PIL-01 used only its exact entry bundle above and never waited on OPS-04. These sequencing notes do not reactivate paused external or commercial tasks.

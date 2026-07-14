@@ -2,13 +2,26 @@
 
 **Cited, machine-checkable change detection for US transgender identity-document law and process.** It watches registry-claimed government-source candidates — state vital records, DMVs, courts, State Department, SSA, the Federal Register — on a polite weekly cadence. For HTML and plain text, it hashes normalized text and produces the **passage that changed**; for PDFs and other binary sources, the current alpha reports only that the bytes changed. A named human reviews every detected change before it is published. The tool reports an observation about a URL; it never asserts what the law is or that an unverified URL is authoritative.
 
-**Status:** `In build` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** [MIT](./LICENSE) · **Runtime deps:** zero (stdlib only)
+**Status:** `Technical alpha; commercial/pilot activity paused` (M0 shipped; first real baseline 2026-07-13: **152 sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** [MIT](./LICENSE) · **Runtime deps:** zero (stdlib only)
 
-## V1.0 delivery plan
+> **Commercial activity hold — July 14, 2026.** This repository may continue as
+> public-interest research and open-source technical work. It is not currently
+> offering paid services, soliciting organizations, recruiting design partners,
+> enrolling pilots, seeking sponsorship, or generating revenue. Business-model,
+> pricing, outreach, and conversion material is retained only as historical
+> planning hypotheses; see [`docs/COMMERCIAL-STATUS.md`](./docs/COMMERCIAL-STATUS.md).
 
-The repository now has an execution-ready V1.0 plan that treats source verification, community governance, reviewer operations, consumer adoption, reliability, accessibility, and release safety as product work—not post-launch cleanup. Start with [`docs/00-V1-PLAN.md`](./docs/00-V1-PLAN.md); the complete planning set is indexed there.
+## Historical V1.0 delivery plan — paused
 
-**V1.0 means:** every active source is human-verified; high-impact publication has independent review; two design partners complete a six-week shadow pilot; the feed contract and correction path are stable; eight weekly watch→review→publish cycles satisfy the pre-release evidence rule; and every must-pass gate in [`docs/15-V1-RELEASE-CHECKLIST.md`](./docs/15-V1-RELEASE-CHECKLIST.md) has an owner and dated receipt. It does **not** mean the service interprets law, gives advice, or guarantees it observed every policy change.
+The repository preserves a V1.0 plan written on July 13, 2026. Its external
+validation, recruiting, interview, pilot, sponsorship, pricing, support, and
+commercial work is paused and is not underway. Only noncommercial
+public-interest research, documentation, safety analysis, and open-source
+technical work may continue while the hold is active. Start with
+[`docs/COMMERCIAL-STATUS.md`](./docs/COMMERCIAL-STATUS.md) for the controlling
+status; [`docs/00-V1-PLAN.md`](./docs/00-V1-PLAN.md) indexes the historical plan.
+
+**Under that historical plan, V1.0 would have meant:** every active source is human-verified; high-impact publication has independent review; two design partners complete a six-week shadow pilot; the feed contract and correction path are stable; eight weekly watch→review→publish cycles satisfy the pre-release evidence rule; and every must-pass gate in [`docs/15-V1-RELEASE-CHECKLIST.md`](./docs/15-V1-RELEASE-CHECKLIST.md) has an owner and dated receipt. No design-partner recruitment or pilot is active. V1.0 would not mean the service interprets law, gives advice, or guarantees it observed every policy change.
 
 ## Read this before you rely on anything here
 
@@ -87,9 +100,9 @@ Three organizations already document how to change your name and gender marker o
 - **Trans Lifeline** — the [ID Change Library](https://translifeline.org/resources/id-change-library/) has been maintained by volunteers since 2016. It is self-acknowledged incomplete (entries are literally flagged *"Help Us Find It"*), publishes no API or export, and carries **no last-updated dates at all**.
 - **Namesake** ([namesake.fyi](https://namesake.fyi/)) — genuinely well-engineered and open-source. Its repository already documents a **daily upstream-PDF monitor**: PDFs with a `canonicalUrl` are fetched, their extracted text is compared with the local copy, changed lines are diffed, and a scheduled workflow opens or updates an issue. That is a material substitute for the PDF-monitoring slice of this product, not an organization waiting for someone else to invent monitoring.
 
-**Coverage is not the gap. Freshness is.** Namesake proves that upstream PDF freshness monitoring already exists in this space. The narrower whitespace hypothesis is the **combined contract**: a multi-jurisdiction registry with dated human source verification, shared fetch/publication eligibility, text evidence across heterogeneous government surfaces, named gaps and run health, independent review/correction, and a public no-reader-tracking feed. The dated scan found no purpose-built offering publicly combining all of those elements; that is a hypothesis to keep testing, not proof that no private or emerging competitor exists. Incumbent guides and tools already have the writers, legal review, community trust, context, and sometimes their own monitors; this product should integrate with or extend those workflows where its combined contract adds value.
+**Coverage is not the gap. Freshness is.** Namesake proves that upstream PDF freshness monitoring already exists in this space. The narrower historical research hypothesis was the **combined contract**: a multi-jurisdiction registry with dated human source verification, shared fetch/publication eligibility, text evidence across heterogeneous government surfaces, named gaps and run health, independent review/correction, and a public no-reader-tracking feed. The dated scan found no purpose-built offering publicly combining all of those elements; that remains an unvalidated research hypothesis, not proof that no private or emerging competitor exists. Any future integration or upstream-contribution activity would require separate authorization after the commercial hold ends.
 
-This repo is an attempt to supply the remaining combined layer. **Its intended consumers are institutions—not individual guidance-seekers.** A4TE, Trans Lifeline, Namesake, and legal-aid orgs may consume, partner on, or provide the better substitute for parts of the feed. The correct outcome may be integration or upstream contribution rather than a parallel monitor. See [`docs/CONSUMERS.md`](./docs/CONSUMERS.md).
+This repository remains a noncommercial technical exploration of that combined layer. Its public artifacts are designed for possible institutional downstream use rather than individual guidance. A4TE, Trans Lifeline, Namesake, and legal-aid organizations illustrate the domain and possible technical use cases; none is represented as a consumer, partner, prospect, pilot participant, or user. See [`docs/CONSUMERS.md`](./docs/CONSUMERS.md).
 
 Why this is worth building carefully: **a wrong "no change" is a safety failure.** Someone reads guidance that a monitor silently failed to flag as stale, drives to a DMV with the wrong documents, and loses a day of work, a filing fee, or — in the wrong state on the wrong day — considerably more. That asymmetry drives every design decision below.
 

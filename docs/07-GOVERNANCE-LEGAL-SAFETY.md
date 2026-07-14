@@ -1,5 +1,11 @@
 # Governance, legal boundaries, and safety
 
+> **Commercial activity hold — July 14, 2026.** This document preserves a
+> proposed governance model. No paid panel, external reviewer engagement,
+> partner/funder relationship, support function, or contract described here is
+> active. Internal safety analysis and noncommercial open-source governance work
+> may continue under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Governing principle
 
 People affected by transgender identity-document policy must have real authority over product boundaries, not merely provide feedback. Legal and technical expertise support that authority; they do not replace it.

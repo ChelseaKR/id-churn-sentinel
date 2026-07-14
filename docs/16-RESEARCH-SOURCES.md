@@ -1,5 +1,11 @@
 # Research sources and market evidence
 
+> **Commercial activity hold — July 14, 2026.** Public-source, noncommercial
+> research may continue. Consumer interviews, prospect or partner outreach,
+> pricing validation, sponsorship requests, and other external/commercial
+> research activity are paused under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 **Research date:** 2026-07-13. Recheck product/market and policy sources before the V1 release decision. Public web research can show no dedicated product was found; it cannot prove that no competitor exists.
 
 ## Need and incumbent workflows

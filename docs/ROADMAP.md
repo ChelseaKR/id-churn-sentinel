@@ -1,5 +1,12 @@
 # ID Churn Sentinel — Implementation Roadmap
 
+> **Commercial activity hold — July 14, 2026.** This roadmap preserves technical
+> history and former external-validation milestones. Recruiting, interviews,
+> pilots, consumer adoption, partnerships, paid support, funding, contracts, and
+> commercial work are paused. Only noncommercial public-interest research,
+> documentation, safety analysis, and open-source technical work may continue
+> under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 > **V1.0 execution note:** this file preserves the implementation history and prior milestone logic. The dated, cross-domain V1.0 delivery roadmap is [`12-ROADMAP.md`](./12-ROADMAP.md), and the release definition is [`00-V1-PLAN.md`](./00-V1-PLAN.md). Where schedule or V1 release scope differs, those two documents govern; the safety commitments in this history remain in force.
 
 > Generic enforcement lives in `/STANDARDS`. This document carries the decisions and the project-specific values.

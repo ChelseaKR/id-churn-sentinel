@@ -1,5 +1,11 @@
 # Operations and SRE plan
 
+> **Commercial activity hold — July 14, 2026.** This is a proposed operational
+> model, not a live service-level or partner-support commitment. Noncommercial
+> technical reliability work may continue; external operations, support,
+> contracts, pilots, and service commitments are paused under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Service model
 
 The system is a weekly batch service plus static public artifacts. Operations must make three states unambiguous: the watch succeeded and produced no observations; it produced observations awaiting review; or it did not complete. The public feed’s silence is never used as an availability metric.

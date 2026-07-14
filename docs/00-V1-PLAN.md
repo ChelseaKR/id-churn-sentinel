@@ -1,14 +1,22 @@
 # ID Churn Sentinel — V1.0 master plan
 
 **Plan date:** 2026-07-13
-**Target release:** 2027-01-29
+**Historical target release:** 2027-01-29
 **Decision owner:** product lead
 **Release authority:** product lead plus community-governance reviewer
-**Status:** implementation exists; V1.0 readiness is not yet proven
+**Status:** paused; implementation exists, but V1.0 readiness is not proven
+
+> **Commercial activity hold — July 14, 2026.** This is a historical planning
+> artifact, not an active delivery program. It does not authorize or represent
+> recruiting, interviews, pilots, partner/customer relationships, external
+> support, pricing, sponsorship, sales, contracts, or revenue. While the hold is
+> active, only noncommercial public-interest research, documentation, safety
+> analysis, and open-source technical work may continue. See
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
 
 ## Outcome
 
-V1.0 is a dependable freshness layer for organizations that maintain transgender identity-document guidance. It monitors official public sources, preserves reproducible evidence, and publishes only human-reviewed observations about source changes. It must reduce partner research effort without becoming legal advice, an authoritative directory, or a surveillance surface.
+The July 13 plan defined V1.0 as a dependable freshness layer for organizations that maintain transgender identity-document guidance. It would monitor official public sources, preserve reproducible evidence, and publish only human-reviewed observations about source changes. The proposed outcome was to reduce partner research effort without becoming legal advice, an authoritative directory, or a surveillance surface.
 
 The V1.0 outcome is achieved only when two design partners can incorporate the feed into a real editorial workflow and the team can operate the service safely for eight consecutive weekly cycles. Shipping code alone does not satisfy the outcome.
 

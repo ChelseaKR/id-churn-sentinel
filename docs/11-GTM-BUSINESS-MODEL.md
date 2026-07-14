@@ -1,4 +1,10 @@
-# Go-to-market and business model
+# Go-to-market and business model — historical hypotheses
+
+> **Commercial activity hold — July 14, 2026.** This file is preserved as a
+> planning artifact. It is not a current offer, rate card, solicitation plan, or
+> representation of active outreach, pilots, customers, integrations,
+> sponsorship, sales, or revenue. Do not execute any activity described here
+> while [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md) remains in effect.
 
 ## Positioning
 

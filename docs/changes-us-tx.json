@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "TX",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "tx-dshs-vital-statistics",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "High-priority watch target: Texas policy on gender-marker amendment has moved by internal directive rather than by statute, which is precisely the kind of change that never makes it into a legislative tracker and only shows up as an edited web page."
+      "notes": ""
     },
     {
       "source_id": "tx-family-code-45-change-of-name",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Texas Constitution and Statutes'. GAP FIX, with the limit stated: Texas publishes NO statewide name-change instructions \u2014 the process is county-level, which is why this jurisdiction/document-class pair was previously a gap 'in the world rather than in the crawler'. What IS statewide is Family Code Chapter 45 ('Change of Name'), the statute every Texas county court applies, and that is what this entry watches. It does not claim to watch a county's filing process, and it is not a substitute for one. 83 passages, ZERO volatile lines; stable."
+      "notes": ""
     }
   ]
 }

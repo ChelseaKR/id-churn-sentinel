@@ -20,10 +20,21 @@ This ledger records landed software scope without marking external evidence comp
   last-attempted/last-successful aggregate runs, explicit scope, and site health that ignores
   scoped-only success and does not reuse generation time are implemented. Staging/production
   evidence remains open.
+- `ENG-04`: substantive observations now require a distinct append-only independent decision;
+  same-actor, missing qualification/conflict evidence, returned, and insufficient review states
+  are structurally unpublishable. Real reviewer policy, calibration, authentication, and the
+  high-impact tabletop remain governance/operations gates.
+- `ENG-05`: append-only correction and withdrawal events, controlled reason codes, visible
+  schema-v2 lifecycle state, replacement integrity, and cycle-safe supersession are implemented.
+  Incident exercises, publication receipts, retention pins, and signed atomic releases remain.
 - `ENG-06`: the publisher now enforces the shared source predicate and canonical source identity.
   Atomic promotion, signed manifests, and the clean verifier remain open.
 - `ENG-07`: the status schema and real-output compatibility test are implemented; correction and
   release contracts and the complete migration guide remain open.
+- `ENG-10`: free-form first/second-review rationale and registry notes remain private; only
+  bounded observation copy and controlled lifecycle reasons serialize, prohibited legal-claim
+  terms fail closed, and legacy mutable notes are quarantined pending explicit audit. Counsel
+  approval of the templates and the real legacy-store audit remain open.
 
 No line above substitutes for the acceptance receipt in the backlog table or the release
 checklist.

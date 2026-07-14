@@ -1,6 +1,6 @@
 """The published JSON schema is a promise to an integrator — so it is tested, not asserted.
 
-`docs/schema/changes-v1.schema.json` exists so that A4TE, Trans Lifeline, Namesake or a
+`docs/schema/changes-v2.schema.json` exists so that A4TE, Trans Lifeline, Namesake or a
 legal-aid clinic can build against `changes.json` **without reading our source code**. That
 is the entire point of publishing a schema, and it creates a failure mode that a
 hand-maintained schema document always eventually has: the code moves, the schema does not,
@@ -27,11 +27,13 @@ is how a schema test goes green while enforcing nothing.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -46,7 +48,7 @@ from id_churn_sentinel.core.registry import (
 )
 from id_churn_sentinel.core.site import feed_slug
 
-SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v2.schema.json"
 STATUS_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "docs" / "schema" / "status-v1.schema.json"
 )
@@ -71,12 +73,23 @@ _KNOWN_KEYWORDS = {
     "const",
     "pattern",
     "minLength",
+    "maxLength",
     "format",
     "maximum",
     "minimum",
     "oneOf",
+    "allOf",
+    "if",
+    "then",
+    "else",
     "uniqueItems",
 }
+
+_RFC3339_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_RFC3339_DATE_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+)
+_URI_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*$")
 
 
 @pytest.fixture
@@ -113,20 +126,86 @@ def _validate_scalar(instance: object, schema: dict[str, Any], path: str) -> lis
     if "enum" in schema and instance not in schema["enum"]:
         errors.append(f"{path}: {instance!r} is not one of the permitted values")
     if isinstance(instance, str):
-        pattern = schema.get("pattern")
-        if pattern is not None and not re.search(pattern, instance):
-            errors.append(f"{path}: {instance!r} does not match {pattern!r}")
-        minimum = schema.get("minLength")
-        if minimum is not None and len(instance) < minimum:
-            errors.append(f"{path}: {instance!r} is shorter than minLength")
+        errors.extend(_validate_string(instance, schema, path))
     if isinstance(instance, int | float) and not isinstance(instance, bool):
-        minimum_number = schema.get("minimum")
-        if minimum_number is not None and instance < minimum_number:
-            errors.append(f"{path}: {instance!r} is below minimum {minimum_number!r}")
-        maximum_number = schema.get("maximum")
-        if maximum_number is not None and instance > maximum_number:
-            errors.append(f"{path}: {instance!r} is above maximum {maximum_number!r}")
+        errors.extend(_validate_number(instance, schema, path))
     return errors
+
+
+def _validate_string(instance: str, schema: dict[str, Any], path: str) -> list[str]:
+    errors: list[str] = []
+    pattern = schema.get("pattern")
+    if pattern is not None and not re.search(pattern, instance):
+        errors.append(f"{path}: {instance!r} does not match {pattern!r}")
+    minimum = schema.get("minLength")
+    if minimum is not None and len(instance) < minimum:
+        errors.append(f"{path}: {instance!r} is shorter than minLength")
+    maximum = schema.get("maxLength")
+    if maximum is not None and len(instance) > maximum:
+        errors.append(f"{path}: {instance!r} is longer than maxLength")
+    format_name = schema.get("format")
+    if format_name is not None:
+        format_error = _format_error(instance, str(format_name))
+        if format_error:
+            errors.append(f"{path}: {instance!r} {format_error}")
+    return errors
+
+
+def _validate_number(instance: int | float, schema: dict[str, Any], path: str) -> list[str]:
+    errors: list[str] = []
+    minimum = schema.get("minimum")
+    if minimum is not None and instance < minimum:
+        errors.append(f"{path}: {instance!r} is below minimum {minimum!r}")
+    maximum = schema.get("maximum")
+    if maximum is not None and instance > maximum:
+        errors.append(f"{path}: {instance!r} is above maximum {maximum!r}")
+    return errors
+
+
+def _date_format_error(instance: str) -> str:
+    if not _RFC3339_DATE.fullmatch(instance):
+        return "is not an RFC 3339 full-date"
+    date.fromisoformat(instance)
+    return ""
+
+
+def _date_time_format_error(instance: str) -> str:
+    if not _RFC3339_DATE_TIME.fullmatch(instance):
+        return "is not an RFC 3339 date-time with an explicit offset"
+    normalized = f"{instance[:-1]}+00:00" if instance[-1].lower() == "z" else instance
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return "is not an RFC 3339 date-time with an explicit offset"
+    return ""
+
+
+def _uri_format_error(instance: str) -> str:
+    if any(character.isspace() or ord(character) < 0x20 for character in instance):
+        return "is not an absolute URI"
+    parsed_uri = urlsplit(instance)
+    if not _URI_SCHEME.fullmatch(parsed_uri.scheme):
+        return "is not an absolute URI"
+    if parsed_uri.scheme.lower() in {"http", "https"} and not parsed_uri.hostname:
+        return "is not an absolute HTTP(S) URI"
+    _ = parsed_uri.port  # force validation of a malformed explicit port
+    return ""
+
+
+def _format_error(instance: str, format_name: str) -> str:
+    """Return an honest validation error for every format used by the public schemas."""
+
+    validators = {
+        "date": _date_format_error,
+        "date-time": _date_time_format_error,
+        "uri": _uri_format_error,
+    }
+    validator = validators.get(format_name)
+    if validator is None:
+        return f"uses unsupported schema format {format_name!r}"
+    try:
+        return validator(instance)
+    except ValueError:
+        return f"is not a valid {format_name}"
 
 
 def _validate_one_of(
@@ -157,6 +236,23 @@ def _validate_array(
     return errors
 
 
+def _validate_conditionals(
+    instance: object,
+    schema: dict[str, Any],
+    root: dict[str, Any],
+    path: str,
+) -> list[str]:
+    errors: list[str] = []
+    for branch in schema.get("allOf", []):
+        errors.extend(_validate(instance, branch, root, path))
+    if "if" in schema:
+        condition_matches = not _validate(instance, schema["if"], root, path)
+        selected = schema.get("then") if condition_matches else schema.get("else")
+        if selected is not None:
+            errors.extend(_validate(instance, selected, root, path))
+    return errors
+
+
 def _validate(
     instance: object, schema: dict[str, Any], root: dict[str, Any], path: str
 ) -> list[str]:
@@ -167,27 +263,29 @@ def _validate(
         # ignores what it does not understand reports success it did not earn.
         return [f"{path}: schema uses keyword(s) this validator does not implement: {unknown}"]
 
+    conditional_errors = _validate_conditionals(instance, schema, root, path)
+
     if "oneOf" in schema:
-        return _validate_one_of(instance, schema, root, path)
+        return conditional_errors + _validate_one_of(instance, schema, root, path)
 
     if "$ref" in schema:
         key = str(schema["$ref"]).removeprefix("#/$defs/")
-        return _validate(instance, root["$defs"][key], root, path)
+        return conditional_errors + _validate(instance, root["$defs"][key], root, path)
 
     expected = schema.get("type")
     if expected == "object":
         if not isinstance(instance, dict):
             return [f"{path}: expected object, got {type(instance).__name__}"]
-        return _validate_object(instance, schema, root, path)
+        return conditional_errors + _validate_object(instance, schema, root, path)
 
     if expected == "array":
-        return _validate_array(instance, schema, root, path)
+        return conditional_errors + _validate_array(instance, schema, root, path)
 
     mistyped = _wrong_primitive_type(instance, expected)
     if mistyped:
-        return [f"{path}: {mistyped}"]
+        return [*conditional_errors, f"{path}: {mistyped}"]
 
-    return _validate_scalar(instance, schema, path)
+    return conditional_errors + _validate_scalar(instance, schema, path)
 
 
 def _wrong_primitive_type(instance: object, expected: object) -> str:
@@ -227,6 +325,13 @@ def test_the_validator_actually_rejects_something() -> None:
     assert _validate({"n": True}, typed, typed, "$") != []  # a bool is not an integer here
     assert _validate({"b": 1}, typed, typed, "$") != []
     assert _validate({"n": 3, "b": False}, typed, typed, "$") == []
+
+    date_time = {"type": "string", "format": "date-time"}
+    uri = {"type": "string", "format": "uri"}
+    assert _validate("2026-07-14T12:00:00Z", date_time, date_time, "$") == []
+    assert _validate("definitely-not-a-date", date_time, date_time, "$") != []
+    assert _validate("https://example.gov/path", uri, uri, "$") == []
+    assert _validate("not a uri", uri, uri, "$") != []
 
 
 def test_every_consumer_json_example_is_complete_and_schema_valid(
@@ -401,3 +506,61 @@ def test_an_unreviewed_record_would_not_validate(
     assert errors, "the schema must refuse an unreviewed record"
     assert any("review_status" in error for error in errors)
     assert any("significance" in error for error in errors)
+
+
+def test_v2_schema_rejects_incoherent_review_lifecycle_and_private_notes(
+    tmp_path: Path,
+    confirmed_change: ChangeRecord,
+    registry: Registry,
+    schema: dict[str, Any],
+) -> None:
+    publish([confirmed_change], tmp_path, registry=registry)
+    item = json.loads((tmp_path / "changes.json").read_text())["changes"][0]
+    change_schema = schema["$defs"]["change"]
+
+    missing_second = copy.deepcopy(item)
+    missing_second["independent_review_status"] = None
+    missing_second["independent_reviewer"] = None
+    missing_second["independent_reviewed_at"] = None
+
+    corrected_without_successor = copy.deepcopy(item)
+    corrected_without_successor.update(
+        publication_status="corrected",
+        superseded_by=None,
+        lifecycle_reason="review_error",
+        lifecycle_actor="Correction Reviewer",
+        lifecycle_at=datetime.now(UTC).isoformat(),
+    )
+
+    active_with_lifecycle = copy.deepcopy(item)
+    active_with_lifecycle.update(
+        publication_status="active",
+        superseded_by="c" * 16,
+        lifecycle_reason="review_error",
+        lifecycle_actor="Correction Reviewer",
+        lifecycle_at=datetime.now(UTC).isoformat(),
+    )
+
+    editorial_with_second = copy.deepcopy(item)
+    editorial_with_second["significance"] = "editorial"
+
+    removal_with_invented_content = copy.deepcopy(item)
+    removal_with_invented_content["kind"] = "possibly_removed"
+
+    content_drift_without_content = copy.deepcopy(item)
+    content_drift_without_content["new_hash"] = ""
+
+    for malformed in (
+        missing_second,
+        corrected_without_successor,
+        active_with_lifecycle,
+        editorial_with_second,
+        removal_with_invented_content,
+        content_drift_without_content,
+    ):
+        assert _validate(malformed, change_schema, schema, "$.change")
+
+    note_leak = copy.deepcopy(item)
+    note_leak["source_verification"]["note"] = "private registry rationale"
+    errors = _validate(note_leak, change_schema, schema, "$.change")
+    assert any("source_verification.note" in error for error in errors)

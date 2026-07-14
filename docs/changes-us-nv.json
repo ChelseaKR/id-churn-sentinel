@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "NV",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Nevada Judiciary'. A landing page; the /self-help deep link 404s."
+      "notes": ""
     },
     {
       "source_id": "nv-nac-483-drivers-licenses",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'NAC: CHAPTER 483 - DRIVERS' LICENSES; DRIVING SCHOOLS AND DRIVING INSTRUCTORS'. GAP FIX: dmv.nv.gov serves a 624-byte JavaScript shell that normalizes to one passage \u2014 hashing it would watch a loading spinner. NAC 483 is the DMV's own regulation chapter, served as static HTML by the Legislature's site. 8,203 passages; stable across two fetches. Same build-stamp note as nv-nrs-440."
+      "notes": ""
     },
     {
       "source_id": "nv-nrs-440-vital-statistics",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'NRS: CHAPTER 440 - VITAL STATISTICS'. GAP FIX, and this one is the repeat of a lesson: dpbh.nv.gov had to be REMOVED from this registry because the nv.gov CMS renders a rotating 'Nevada state symbol' trivia block (state fish \u2192 state reptile) that re-rolls on EVERY request \u2014 so Nevada had no birth-certificate source at all. leg.state.nv.us is a different system entirely, carries no such widget, and hashed identically across two back-to-back fetches. NRS 440 is the vital-statistics chapter. MACHINE FACT: the page carries a build stamp ('[Rev. 4/15/2026 \u2026]') that moves when the chapter is rebuilt; that correlates with real edits rather than with the clock, but if this source produces a diff whose only change is the stamp, dismiss it as editorial."
+      "notes": ""
     }
   ]
 }

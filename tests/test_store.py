@@ -96,6 +96,7 @@ def test_reviewed_change_round_trips(
 ) -> None:
     store.record_change(observed_change)
     store.update_change(confirmed_change)
+    store.record_independent_review(confirmed_change)
     loaded = store.get_change(confirmed_change.id)
 
     assert loaded.significance is Significance.SUBSTANTIVE
@@ -423,6 +424,33 @@ def test_migration_ledger_is_created_and_a_tampered_checksum_is_refused(tmp_path
         SnapshotStore(db)
 
 
+def test_simultaneous_first_opens_serialize_migration_initialization(tmp_path: Path) -> None:
+    db = tmp_path / "concurrent-migration.db"
+    worker_count = 8
+    barrier = threading.Barrier(worker_count)
+    errors: list[BaseException] = []
+
+    def open_store() -> None:
+        try:
+            barrier.wait(timeout=5)
+            with SnapshotStore(db):
+                pass
+        except BaseException as exc:  # pragma: no cover - asserted after all workers join
+            errors.append(exc)
+
+    workers = [threading.Thread(target=open_store) for _ in range(worker_count)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=10)
+
+    assert all(not worker.is_alive() for worker in workers)
+    assert errors == []
+    with SnapshotStore(db) as opened:
+        applied = opened._conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
+    assert applied == len(store_module._MIGRATIONS)
+
+
 def test_unknown_future_migration_is_refused(tmp_path: Path) -> None:
     db = tmp_path / "future.db"
     with SnapshotStore(db):
@@ -507,8 +535,8 @@ def test_run_observation_count_is_derived_from_atomic_associations(
         document_class="drivers_license",
         url="https://example.gov/eligible",
         observed_at=NOW,
-        previous_hash="before",
-        new_hash="after",
+        previous_hash="a" * 64,
+        new_hash="b" * 64,
         diff_excerpt="synthetic drift",
     )
     store.record_change(observation, run_id=run_id)

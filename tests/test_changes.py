@@ -6,7 +6,7 @@ This file covers the rest of the type's behaviour.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timedelta
 
 from id_churn_sentinel.core.changes import (
     ChangeRecord,
@@ -85,7 +85,7 @@ def test_only_a_confirmed_and_classified_record_is_publishable(
 
 
 def test_explicit_reviewed_at_is_honoured(observed_change: ChangeRecord) -> None:
-    when = datetime(2026, 7, 13, 9, 0, tzinfo=UTC)
+    when = observed_change.observed_at + timedelta(seconds=1)
     reviewed = observed_change.reviewed_by(
         reviewer="A Human",
         significance=Significance.SUBSTANTIVE,
@@ -122,7 +122,16 @@ def test_to_dict_is_the_published_shape(observed_change: ChangeRecord) -> None:
         "reviewer",
         "reviewed_at",
         "review_note",
+        "independent_review_status",
+        "independent_reviewer",
+        "independent_reviewed_at",
+        "publication_status",
+        "superseded_by",
+        "lifecycle_reason",
+        "lifecycle_actor",
+        "lifecycle_at",
     }
+    assert "internal_rationale" not in payload
 
 
 def test_to_dict_serializes_review_timestamps(confirmed_change: ChangeRecord) -> None:

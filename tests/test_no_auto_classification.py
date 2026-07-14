@@ -146,7 +146,10 @@ def test_the_database_rejects_a_classification_with_no_reviewer(tmp_path: Path) 
 
     conn = sqlite3.connect(db)
     try:
-        with pytest.raises(sqlite3.IntegrityError):
+        # Connections outside SnapshotStore do not register the deterministic integrity
+        # functions, so they fail closed with OperationalError before SQLite can reach the
+        # legacy classification CHECK. Either error refuses the write.
+        with pytest.raises(sqlite3.DatabaseError):
             conn.execute(
                 "INSERT INTO changes (change_id, source_id, jurisdiction, document_class,"
                 " url, observed_at, previous_hash, new_hash, diff_excerpt, significance,"
@@ -154,7 +157,7 @@ def test_the_database_rejects_a_classification_with_no_reviewer(tmp_path: Path) 
                 " VALUES ('x', 's', 'TX', 'drivers_license', 'https://e.gov', '2026-07-13',"
                 " 'a', 'b', 'd', 'substantive', 'confirmed', NULL, NULL, '')"
             )
-        with pytest.raises(sqlite3.IntegrityError):
+        with pytest.raises(sqlite3.DatabaseError):
             conn.execute(
                 "INSERT INTO changes (change_id, source_id, jurisdiction, document_class,"
                 " url, observed_at, previous_hash, new_hash, diff_excerpt, significance,"

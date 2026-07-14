@@ -9,14 +9,44 @@ from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
-from id_churn_sentinel.core.changes import ChangeRecord
-from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, feed_xml, publish
+from id_churn_sentinel.core.changes import ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, changes_json, feed_xml, publish
 from id_churn_sentinel.core.registry import Registry
 
 GENERATED = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+
+
+def _reviewed_variant(
+    base: ChangeRecord,
+    *,
+    source_id: str | None = None,
+    jurisdiction: str | None = None,
+    document_class: str | None = None,
+    url: str | None = None,
+    observed_at: datetime,
+    previous_hash: str,
+    new_hash: str,
+) -> ChangeRecord:
+    observed = ChangeRecord.observed(
+        source_id=source_id or base.source_id,
+        jurisdiction=jurisdiction or base.jurisdiction,
+        document_class=document_class or base.document_class,
+        url=url or base.url,
+        observed_at=observed_at,
+        previous_hash=previous_hash,
+        new_hash=new_hash,
+        diff_excerpt=base.diff_excerpt,
+    )
+    return observed.reviewed_by(
+        reviewer="Synthetic Editorial Reviewer",
+        significance=Significance.EDITORIAL,
+        status=ReviewStatus.CONFIRMED,
+        reviewed_at=GENERATED,
+    )
 
 
 def test_feed_xml_is_well_formed_rss(confirmed_change: ChangeRecord, registry: Registry) -> None:
@@ -49,6 +79,7 @@ def test_feed_xml_is_well_formed_rss(confirmed_change: ChangeRecord, registry: R
         "TX",
         "drivers_license",
         "content_drift",
+        "publication-status:active",
         "source-verification:verified",
     }
 
@@ -81,6 +112,56 @@ def test_feed_channel_metadata_names_the_disclaimer(
     description = channel.findtext("description") or ""
     assert "does not assert what the law is" in description
     assert FEED_SCHEMA_VERSION in (channel.findtext("generator") or "")
+
+
+def test_lifecycle_rss_event_has_distinct_guid_time_and_review_receipt(
+    confirmed_change: ChangeRecord, registry: Registry
+) -> None:
+    review_completed = confirmed_change.independent_reviewed_at or confirmed_change.reviewed_at
+    assert review_completed is not None
+    assert confirmed_change.reviewed_at is not None
+    lifecycle_at = review_completed + timedelta(seconds=1)
+    withdrawn = confirmed_change.withdrawn_by(
+        actor="Lifecycle Decision Maker",
+        reason="other_governed_reason",
+        decided_at=lifecycle_at,
+    )
+    generated_at = lifecycle_at + timedelta(seconds=1)
+
+    xml = feed_xml(
+        [withdrawn],
+        feed_url="https://example.org",
+        generated_at=generated_at,
+        registry=registry,
+    )
+    root = ET.fromstring(xml)  # noqa: S314 — our own output
+    channel = root.find("channel")
+    assert channel is not None
+    item = channel.find("item")
+    assert item is not None
+    guid = item.findtext("guid") or ""
+    assert guid.startswith(f"{withdrawn.id}-lifecycle-")
+    assert guid != withdrawn.id
+    assert parsedate_to_datetime(item.findtext("pubDate") or "") == lifecycle_at.replace(
+        microsecond=0
+    )
+    description = item.findtext("description") or ""
+    assert f"Reviewed at: {confirmed_change.reviewed_at.isoformat()}" in description
+    assert "Independent review: confirmed by Synthetic Independent Reviewer" in description
+    assert "Lifecycle actor: Lifecycle Decision Maker" in description
+    assert f"Lifecycle at: {lifecycle_at.isoformat()}" in description
+
+    payload = json.loads(
+        changes_json(
+            [withdrawn],
+            feed_url="https://example.org",
+            generated_at=generated_at,
+            registry=registry,
+        )
+    )["changes"][0]
+    assert payload["lifecycle_actor"] == "Lifecycle Decision Maker"
+    assert payload["lifecycle_at"] == lifecycle_at.isoformat()
+    assert payload["independent_reviewer"] == "Synthetic Independent Reviewer"
 
 
 def test_xml_special_characters_are_escaped(
@@ -153,21 +234,23 @@ def test_items_are_newest_first_and_stable(
     tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
     """Stable ordering means a consumer diffing two fetches sees only real movement."""
-    older = replace(
+    older = _reviewed_variant(
         confirmed_change,
-        id="older0000000000",
         observed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        previous_hash="1" * 64,
+        new_hash="2" * 64,
     )
-    newer = replace(
+    newer = _reviewed_variant(
         confirmed_change,
-        id="newer0000000000",
         observed_at=datetime(2026, 6, 1, tzinfo=UTC),
+        previous_hash="3" * 64,
+        new_hash="4" * 64,
     )
 
     publish([older, newer], tmp_path, registry=registry, now=GENERATED)
     payload = json.loads((tmp_path / "changes.json").read_text())
 
-    assert [c["id"] for c in payload["changes"]] == ["newer0000000000", "older0000000000"]
+    assert [c["id"] for c in payload["changes"]] == [newer.id, older.id]
 
 
 def test_an_empty_feed_is_still_valid(tmp_path: Path, registry: Registry) -> None:
@@ -230,12 +313,14 @@ def test_publishing_nothing_writes_both_artifacts(tmp_path: Path, registry: Regi
 def test_each_jurisdiction_feed_carries_only_its_own_items(
     tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
-    arizona = replace(
+    arizona = _reviewed_variant(
         confirmed_change,
-        id="az00000000000000",
         source_id="az-mvd-driver-services",
         jurisdiction="AZ",
         url="https://azdot.gov/mvd/services/driver-services",
+        observed_at=datetime(2026, 6, 1, tzinfo=UTC),
+        previous_hash="5" * 64,
+        new_hash="6" * 64,
     )
 
     publish([confirmed_change, arizona], tmp_path, registry=registry)
@@ -275,13 +360,15 @@ def test_a_scoped_feed_says_it_is_scoped(
 def test_the_federal_bucket_gets_a_feed_that_is_not_called_us_us(
     tmp_path: Path, confirmed_change: ChangeRecord, registry: Registry
 ) -> None:
-    federal = replace(
+    federal = _reviewed_variant(
         confirmed_change,
-        id="us00000000000000",
         source_id="us-passport-sex-markers",
         jurisdiction="US",
         document_class="passport",
         url="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+        observed_at=datetime(2026, 6, 1, tzinfo=UTC),
+        previous_hash="7" * 64,
+        new_hash="8" * 64,
     )
 
     publish([federal], tmp_path, registry=registry)
@@ -297,3 +384,28 @@ def test_an_unreviewed_record_reaches_no_jurisdiction_feed(
     """The safety gate holds per-jurisdiction too. Fifty-two new files are fifty-two new
     chances to leak an unreviewed record, and the guard runs once, before any of them."""
     publish([observed_change], tmp_path, registry=registry)
+
+
+def test_exported_serializers_cannot_bypass_the_review_gate(
+    observed_change: ChangeRecord, registry: Registry
+) -> None:
+    json_payload = json.loads(
+        changes_json(
+            [observed_change],
+            feed_url="https://example.org",
+            generated_at=GENERATED,
+            registry=registry,
+        )
+    )
+    xml = feed_xml(
+        [observed_change],
+        feed_url="https://example.org",
+        generated_at=GENERATED,
+        registry=registry,
+    )
+    root = ET.fromstring(xml)  # noqa: S314 — our own output
+    channel = root.find("channel")
+
+    assert json_payload["changes"] == []
+    assert channel is not None and channel.findall("item") == []
+    assert observed_change.id not in xml

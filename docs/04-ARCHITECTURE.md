@@ -75,7 +75,8 @@ Commands remain the privileged write surface: registry validation, source verifi
 
 ### Public read contract
 
-- `changes.json` and `changes-us-<jurisdiction>.json` — schema-major `1`;
+- `changes.json` and `changes-us-<jurisdiction>.json` — schema-major `2`; the major-1 schema
+  remains published as the pre-independent-review/correction compatibility contract;
 - `feed.xml` and per-jurisdiction RSS;
 - `sources.json` — sources, gaps, verification and health;
 - `status.json` — last attempted/successful run, completeness, stale threshold;

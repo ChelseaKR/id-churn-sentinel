@@ -22,7 +22,13 @@ from pathlib import Path
 import pytest
 
 from id_churn_sentinel.cli import main
-from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.changes import (
+    ChangeKind,
+    ChangeRecord,
+    IndependentReviewStatus,
+    ReviewStatus,
+    Significance,
+)
 from id_churn_sentinel.core.coverage import repo_root
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
 from id_churn_sentinel.core.registry import Registry, Source
@@ -88,7 +94,7 @@ def test_a_published_escalation_does_not_read_as_a_content_change(
     stopped answering: a consumer would reasonably reword it as "Texas changed its page",
     when what the human confirmed is that Texas's page can no longer be reached. Different
     observation, different sentence."""
-    confirmed = ChangeRecord.possibly_removed(
+    first = ChangeRecord.possibly_removed(
         source_id=source.id,
         jurisdiction=source.jurisdiction,
         document_class=source.document_class,
@@ -101,6 +107,12 @@ def test_a_published_escalation_does_not_read_as_a_content_change(
         significance=Significance.SUBSTANTIVE,
         status=ReviewStatus.CONFIRMED,
         note="Confirmed by hand: the page 404s in a browser. TX removed it.",
+    )
+    confirmed = first.independently_reviewed_by(
+        reviewer="Independent Reviewer",
+        status=IndependentReviewStatus.CONFIRMED,
+        qualification_ref="tests/qualification.json",
+        conflict_attestation_ref="tests/conflict.json",
     )
 
     assert publish([confirmed], tmp_path, registry=registry).published == 1
@@ -170,14 +182,28 @@ def test_only_the_reviewed_record_survives_a_mixed_batch(
     confirmed_change: ChangeRecord,
     registry: Registry,
 ) -> None:
-    dismissed = replace(
-        observed_change,
-        id="dismissed01",
-        review_status=ReviewStatus.DISMISSED,
-        significance=Significance.EDITORIAL,
+    dismissed = ChangeRecord.observed(
+        source_id=observed_change.source_id,
+        jurisdiction=observed_change.jurisdiction,
+        document_class=observed_change.document_class,
+        url=observed_change.url,
+        previous_hash="c" * 64,
+        new_hash="d" * 64,
+        diff_excerpt="-dismissed old passage\n+dismissed new passage",
+    ).reviewed_by(
         reviewer="A Human",
+        significance=Significance.EDITORIAL,
+        status=ReviewStatus.DISMISSED,
     )
-    unreviewed = replace(observed_change, id="unreviewed1")
+    unreviewed = ChangeRecord.observed(
+        source_id=observed_change.source_id,
+        jurisdiction=observed_change.jurisdiction,
+        document_class=observed_change.document_class,
+        url=observed_change.url,
+        previous_hash="e" * 64,
+        new_hash="f" * 64,
+        diff_excerpt="-unreviewed old passage\n+unreviewed new passage",
+    )
 
     result = publish([unreviewed, dismissed, confirmed_change], tmp_path, registry=registry)
 
@@ -186,8 +212,8 @@ def test_only_the_reviewed_record_survives_a_mixed_batch(
     assert [c["id"] for c in payload["changes"]] == [confirmed_change.id]
     feed = (tmp_path / "feed.xml").read_text()
     assert confirmed_change.id in feed
-    assert "unreviewed1" not in feed
-    assert "dismissed01" not in feed
+    assert unreviewed.id not in feed
+    assert dismissed.id not in feed
 
 
 def test_the_end_to_end_cli_flow_withholds_until_a_human_reviews(
@@ -239,6 +265,26 @@ def test_the_end_to_end_cli_flow_withholds_until_a_human_reviews(
                 "confirmed",
                 "--note",
                 "TX now requires a court order for the sex field.",
+            ]
+        )
+        == 0
+    )
+
+    # A distinct qualified reviewer independently approves the high-impact item.
+    assert (
+        main(
+            [
+                *base,
+                "approve",
+                change_id,
+                "--reviewer",
+                "Independent Reviewer",
+                "--status",
+                "confirmed",
+                "--qualification-ref",
+                "tests/qualification.json",
+                "--conflict-attestation-ref",
+                "tests/conflict.json",
             ]
         )
         == 0

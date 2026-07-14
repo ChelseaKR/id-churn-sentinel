@@ -326,7 +326,25 @@ def test_review_confirms_a_change(
     assert exit_code == 0
     assert "substantive/confirmed" in out
     assert "Chelsea Kelly-Reif" in out
-    assert "(publishable)" in out
+    assert "recorded, not published" in out
+
+    exit_code = main(
+        [
+            *args,
+            "approve",
+            change_id,
+            "--reviewer",
+            "Independent Reviewer",
+            "--status",
+            "confirmed",
+            "--qualification-ref",
+            "tests/qualification.json",
+            "--conflict-attestation-ref",
+            "tests/conflict.json",
+        ]
+    )
+    assert exit_code == 0
+    assert "(publishable)" in capsys.readouterr().out
 
 
 def test_review_can_dismiss_a_change_as_editorial(
@@ -406,6 +424,21 @@ def test_publish_emits_a_reviewed_change(
             "substantive",
             "--status",
             "confirmed",
+        ]
+    )
+    main(
+        [
+            *args,
+            "approve",
+            change_id,
+            "--reviewer",
+            "Independent Reviewer",
+            "--status",
+            "confirmed",
+            "--qualification-ref",
+            "tests/qualification.json",
+            "--conflict-attestation-ref",
+            "tests/conflict.json",
         ]
     )
     capsys.readouterr()

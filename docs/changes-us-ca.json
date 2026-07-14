@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "CA",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "The issuing office for the amended certificate the court order produces. THE URL IS CORRECT AND THE PAGE IS LIVE, but www.cdph.ca.gov SERVES A BROKEN CERTIFICATE CHAIN: its leaf is issued by 'Sectigo Public Server Authentication CA OV R36' while the chain it presents contains a different, stale intermediate ('Sectigo RSA Organization Validation Secure Server CA'). Browsers and curl paper over this by chasing the AIA extension to fetch the missing intermediate; Python/OpenSSL does not, so our fetcher gets CERTIFICATE_VERIFY_FAILED. Proven on 2026-07-13: supplying the AIA intermediate by hand makes the same request return 200. WE DO NOT DISABLE TLS VERIFICATION TO WORK AROUND THIS \u2014 a watcher serving people in hostile jurisdictions does not accept unverifiable TLS, and a source we cannot fetch safely is one we report as unreachable. The fix belongs to CDPH's server operators."
+      "notes": ""
     },
     {
       "source_id": "ca-court-gender-recognition",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted. In California the gender-recognition petition is the route to an amended birth certificate, so the operative page is a court page, not a vital-records one. This is exactly the kind of jurisdiction-specific routing that makes a generic 'state vital records' registry wrong."
+      "notes": ""
     },
     {
       "source_id": "ca-court-name-change",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "ca-dmv-update-dl-id",
@@ -68,7 +68,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     }
   ]
 }

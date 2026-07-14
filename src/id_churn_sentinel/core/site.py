@@ -54,12 +54,13 @@ from __future__ import annotations
 
 import html
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 from id_churn_sentinel.core.changes import ChangeRecord
-from id_churn_sentinel.core.coverage import CoverageReport
+from id_churn_sentinel.core.coverage import CoverageReport, coverage
 from id_churn_sentinel.core.registry import REJECTED, Registry, Source
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status
+from id_churn_sentinel.errors import PublishError
 
 __all__ = [
     "PAGES_URL",
@@ -139,8 +140,21 @@ def render_site(
     *,
     generated_at: datetime,
     run_status: PublicRunStatus | None = None,
+    eligibility_as_of: date | None = None,
 ) -> str:
     """The whole page. One string, no template engine, no runtime dependency."""
+    # Local import avoids the module-import cycle while keeping this exported serializer
+    # behind the exact same publication gate as JSON and RSS.
+    from id_churn_sentinel.core.publish import _guard
+
+    records = _guard(
+        records,
+        registry=registry,
+        as_of=eligibility_as_of or generated_at.date(),
+    )
+    expected_report = coverage(registry)
+    if report != expected_report:
+        raise PublishError("site coverage report does not match the supplied registry")
     status = run_status or no_run_status()
     return "\n".join(
         [
@@ -431,15 +445,34 @@ def _change_article(record: ChangeRecord, registry: Registry) -> str:
             f"<div><dt>What the machine saw</dt><dd>{_esc(kind)}</dd></div>",
             f"<div><dt>What the human judged</dt><dd>{_esc(str(record.significance))}</dd></div>",
             f"<div><dt>Reviewed by</dt><dd>{_esc(record.reviewer or '')}</dd></div>",
+            f"<div><dt>Reviewed at</dt><dd>"
+            f"{_esc(record.reviewed_at.isoformat() if record.reviewed_at else 'missing')}</dd></div>",
+            f"<div><dt>Independent review</dt><dd>"
+            f"{_esc(str(record.independent_review_status or 'not required'))}"
+            f"{_esc(f' by {record.independent_reviewer}' if record.independent_reviewer else '')}"
+            "</dd></div>",
+            f"<div><dt>Independent review at</dt><dd>"
+            f"{_esc(record.independent_reviewed_at.isoformat() if record.independent_reviewed_at else 'not applicable')}</dd></div>",
+            f"<div><dt>Publication status</dt><dd>"
+            f"{_esc(str(record.publication_status))}</dd></div>",
+            f"<div><dt>Superseded by</dt><dd>"
+            f"{_esc(record.superseded_by or 'not superseded')}</dd></div>",
+            f"<div><dt>Lifecycle reason</dt><dd>"
+            f"{_esc(record.lifecycle_reason or 'not applicable')}</dd></div>",
+            f"<div><dt>Lifecycle actor</dt><dd>"
+            f"{_esc(record.lifecycle_actor or 'not applicable')}</dd></div>",
+            f"<div><dt>Lifecycle at</dt><dd>"
+            f"{_esc(record.lifecycle_at.isoformat() if record.lifecycle_at else 'not applicable')}</dd></div>",
             f"<div><dt>Source verification</dt><dd><strong>"
-            f"{_esc(verification.label)}</strong><br>{_esc(verification.statement)}</dd></div>",
+            f"{_esc(verification.label)}</strong><br>"
+            f"{_esc(verification.public_statement)}</dd></div>",
             f'<div><dt>Official source</dt><dd><a href="{_esc(record.url)}">'
             f"{_esc(record.url)}</a></dd></div>",
             f"<div><dt>Change id</dt><dd><code>{_esc(record.id)}</code></dd></div>",
             "</dl>",
-            f"<p>{_esc(record.review_note)}</p>" if record.review_note else "",
+            f"<p>{_esc(record.public_review_note)}</p>" if record.public_review_note else "",
             "<h4>The passage that changed</h4>",
-            f"<pre><code>{_esc(record.diff_excerpt)}</code></pre>",
+            f"<pre><code>{_esc(record.public_diff_excerpt)}</code></pre>",
             "</article>",
         ]
     )
@@ -553,10 +586,10 @@ def _source_row(source: Source) -> str:
     reach = "Watched" if source.reachable else "Watched in name only — our crawler cannot fetch it"
     # A REJECTED row is the most dangerous row on this page: a human has established that the
     # URL is wrong, and it is still listed (deleting it would take the finding with it, and
-    # would say nothing to whoever picked it up last week). So it carries the whole sentence —
-    # the reason and the instruction — rather than a status word a skimming reader can miss.
+    # would say nothing to whoever picked it up last week). So it carries controlled status
+    # prose and the instruction, while the operator's free-form rejection reason stays private.
     detail = (
-        f"<br><span>{_esc(source.verification.statement)}</span>"
+        f"<br><span>{_esc(source.verification.public_statement)}</span>"
         if source.verification_status == REJECTED
         else ""
     )

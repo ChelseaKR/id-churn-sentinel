@@ -45,7 +45,15 @@ from id_churn_sentinel.core.baseline import (
     load_baselines,
     write_baselines,
 )
-from id_churn_sentinel.core.changes import ChangeKind, ReviewStatus, Significance
+from id_churn_sentinel.core.changes import (
+    DEFAULT_PUBLIC_COPY,
+    LIFECYCLE_REASONS,
+    ChangeKind,
+    IndependentReviewStatus,
+    PublicationStatus,
+    ReviewStatus,
+    Significance,
+)
 from id_churn_sentinel.core.coverage import (
     DOC_PATHS,
     check_docs,
@@ -255,7 +263,45 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         choices=[str(ReviewStatus.CONFIRMED), str(ReviewStatus.DISMISSED)],
     )
-    review_cmd.add_argument("--note", default="", help="why (shown in the published feed)")
+    review_cmd.add_argument(
+        "--note",
+        default="",
+        help="private internal rationale; never copied to public artifacts",
+    )
+    review_cmd.add_argument(
+        "--public-copy",
+        default=DEFAULT_PUBLIC_COPY,
+        help="bounded factual observation copy; legal-claim terms fail closed",
+    )
+
+    approve_cmd = sub.add_parser(
+        "approve", help="record an independent decision for a substantive first review"
+    )
+    approve_cmd.add_argument("change_id")
+    approve_cmd.add_argument("--reviewer", required=True)
+    approve_cmd.add_argument(
+        "--status", required=True, choices=[str(value) for value in IndependentReviewStatus]
+    )
+    approve_cmd.add_argument("--qualification-ref", required=True)
+    approve_cmd.add_argument("--conflict-attestation-ref", required=True)
+    approve_cmd.add_argument(
+        "--note", default="", help="private independent-review rationale; never public"
+    )
+
+    correct_cmd = sub.add_parser(
+        "correct", help="append a visible supersession link without deleting history"
+    )
+    correct_cmd.add_argument("change_id")
+    correct_cmd.add_argument("--replacement-id", required=True)
+    correct_cmd.add_argument("--actor", required=True)
+    correct_cmd.add_argument("--reason", required=True, choices=LIFECYCLE_REASONS)
+
+    withdraw_cmd = sub.add_parser(
+        "withdraw", help="append a visible withdrawal without deleting history"
+    )
+    withdraw_cmd.add_argument("change_id")
+    withdraw_cmd.add_argument("--actor", required=True)
+    withdraw_cmd.add_argument("--reason", required=True, choices=LIFECYCLE_REASONS)
 
     publish_cmd = sub.add_parser("publish", help="write feed.xml + changes.json (reviewed only)")
     # `docs/`, not `dist/`, and the reason is a hosting constraint rather than a preference:
@@ -304,9 +350,19 @@ def _dispatch(
         return _cmd_watch(args, registry, fetcher)
     if args.command == "diff":
         return _cmd_diff(args)
-    if args.command == "review":
-        return _cmd_review(args)
+    if args.command in {"review", "approve", "correct", "withdraw"}:
+        return _dispatch_change_command(args)
     return _cmd_publish(args, registry)
+
+
+def _dispatch_change_command(args: argparse.Namespace) -> int:
+    handlers: dict[str, Callable[[argparse.Namespace], int]] = {
+        "review": _cmd_review,
+        "approve": _cmd_approve,
+        "correct": _cmd_correct,
+        "withdraw": _cmd_withdraw,
+    }
+    return handlers[args.command](args)
 
 
 def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
@@ -697,7 +753,16 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     print(f"new hash:      {change.new_hash or '(none — the source could not be fetched)'}")
     print(f"significance:  {change.significance}  (review status: {change.review_status})")
     if change.reviewer:
-        print(f"reviewed by:   {change.reviewer} — {change.review_note or '(no note)'}")
+        print(f"reviewed by:   {change.reviewer}")
+        print(f"public copy:   {change.review_note or '(not audited for publication)'}")
+        print(f"internal note: {change.internal_rationale or '(none)'}")
+    if change.independent_review_status is not None:
+        print(f"independent:   {change.independent_review_status} by {change.independent_reviewer}")
+    if change.publication_status is not PublicationStatus.ACTIVE:
+        print(
+            f"lifecycle:     {change.publication_status} "
+            f"({change.lifecycle_reason}; by {change.lifecycle_actor})"
+        )
     if change.kind is ChangeKind.POSSIBLY_REMOVED:
         print("\n--- source unreachable: escalation for human review ---")
     else:
@@ -720,6 +785,7 @@ def _cmd_review(args: argparse.Namespace) -> int:
             significance=Significance(args.significance),
             status=ReviewStatus(args.status),
             note=args.note,
+            public_copy=args.public_copy,
         )
         store.update_change(reviewed)
     verb = "publishable" if reviewed.publishable else "recorded, not published"
@@ -730,10 +796,58 @@ def _cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_approve(args: argparse.Namespace) -> int:
+    with SnapshotStore(args.db) as store:
+        change = store.get_change(args.change_id)
+        reviewed = change.independently_reviewed_by(
+            reviewer=args.reviewer,
+            status=IndependentReviewStatus(args.status),
+            qualification_ref=args.qualification_ref,
+            conflict_attestation_ref=args.conflict_attestation_ref,
+            rationale=args.note,
+        )
+        store.record_independent_review(reviewed)
+    result = (
+        "publishable"
+        if reviewed.publishable
+        else "returned, terminal for this immutable observation and not publishable"
+    )
+    print(
+        f"approve: {reviewed.id} → {reviewed.independent_review_status} by "
+        f"{reviewed.independent_reviewer} ({result})"
+    )
+    return 0
+
+
+def _cmd_correct(args: argparse.Namespace) -> int:
+    with SnapshotStore(args.db) as store:
+        change = store.get_change(args.change_id)
+        replacement = store.get_change(args.replacement_id)
+        if not replacement.publishable:
+            raise SentinelError("correction replacement is not independently publishable")
+        corrected = change.corrected_by(
+            replacement_id=replacement.id,
+            actor=args.actor,
+            reason=args.reason,
+        )
+        store.record_lifecycle_event(corrected)
+    print(f"correct: {corrected.id} → {corrected.superseded_by} ({corrected.lifecycle_reason})")
+    return 0
+
+
+def _cmd_withdraw(args: argparse.Namespace) -> int:
+    with SnapshotStore(args.db) as store:
+        change = store.get_change(args.change_id)
+        withdrawn = change.withdrawn_by(actor=args.actor, reason=args.reason)
+        store.record_lifecycle_event(withdrawn)
+    print(f"withdraw: {withdrawn.id} ({withdrawn.lifecycle_reason})")
+    return 0
+
+
 def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
     with SnapshotStore(args.db) as store:
-        # Confirmed only, filtered in SQL. `publish()` re-asserts the predicate on every
-        # record anyway — see core/publish.py::_guard.
+        # Confirmed only, projected from immutable review decisions. `publish()`
+        # re-asserts the predicate on every record — see core/publish.py::_guard.
         records = store.changes(review_status=ReviewStatus.CONFIRMED)
         unreviewed = len(store.changes(review_status=ReviewStatus.UNREVIEWED))
         run_status = build_public_status(store)

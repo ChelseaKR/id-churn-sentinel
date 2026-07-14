@@ -147,7 +147,7 @@ watch-weekly: ## The weekly operational run: watch, then print what a human must
 	@echo ""
 	@echo "Nothing above has been published. Anything found is UNCLASSIFIED/UNREVIEWED until a"
 	@echo "named human runs:  sentinel diff <id>  →  sentinel review <id> --reviewer '<name>' …"
-	@echo "Then, and only then:  make publish"
+	@echo "A substantive item then needs a distinct qualified `sentinel approve`; only then publish."
 
 # The published surface lives in docs/, and that is a HOSTING CONSTRAINT, not a preference.
 # Branch-based GitHub Pages serves exactly two source paths: the repository root, or /docs.
@@ -164,7 +164,7 @@ FEED_URL ?= https://github.com/ChelseaKR/id-churn-sentinel
 publish: ## Write the published site, the feeds, and the inventory — REVIEWED records only
 	@# docs/index.html          the accessible front door + the GitHub Pages entry point
 	@# docs/feed.xml            RSS 2.0, every jurisdiction
-	@# docs/changes.json        the versioned JSON feed (docs/schema/changes-v1.schema.json)
+	@# docs/changes.json        the versioned JSON feed (docs/schema/changes-v2.schema.json)
 	@# docs/feed-us-tx.xml      one feed per jurisdiction, so an org serving one state need
 	@# docs/changes-us-tx.json  not consume all 52
 	@# docs/sources.json        the inventory: every watched source AND every named gap

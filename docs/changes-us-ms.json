@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "MS",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'State of Mississippi Judiciary'. A landing page. Mississippi's DPS host ships a broken TLS chain \u2014 see KNOWN GAPS."
+      "notes": ""
     },
     {
       "source_id": "ms-dps-driver-service-bureau",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Welcome to DPS Driver Service Bureau'. GAP FIX: dps.ms.gov (the department's main host) presents a chain our trust store cannot verify; the Driver Service Bureau's own host, which is the actual driver-licensing surface, presents a chain that DOES verify. Same authority, same document class, honest TLS. KNOWN EDITORIAL CHURN: the page carries a dated news/station-closure block, so it will drift when that block turns over. That is real, visible page text about the licensing offices themselves, and a reviewer dismissing it as `editorial` is the correct outcome \u2014 it is not a rotating widget re-rolled per request (it is stable across two fetches), and suppressing it in the normalizer would mean teaching the normalizer which visible text does not count. See RESPONSIBLE-TECH \u00a7A."
+      "notes": ""
     },
     {
       "source_id": "ms-msdh-vital-records",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     }
   ]
 }

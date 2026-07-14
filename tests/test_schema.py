@@ -41,6 +41,7 @@ from id_churn_sentinel.core.registry import DOCUMENT_CLASSES, JURISDICTIONS, Reg
 from id_churn_sentinel.core.site import feed_slug
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
+CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
 
 _KNOWN_KEYWORDS = {
     "$schema",
@@ -174,6 +175,23 @@ def test_the_validator_actually_rejects_something() -> None:
     assert _validate({"n": True}, typed, typed, "$") != []  # a bool is not an integer here
     assert _validate({"b": 1}, typed, typed, "$") != []
     assert _validate({"n": 3, "b": False}, typed, typed, "$") == []
+
+
+def test_every_consumer_json_example_is_complete_and_schema_valid(
+    schema: dict[str, Any],
+) -> None:
+    """Documentation examples are copied into integrations, so they are contract fixtures."""
+
+    blocks = re.findall(
+        r"```json\n(.*?)\n```",
+        CONSUMERS_PATH.read_text(encoding="utf-8"),
+        flags=re.DOTALL,
+    )
+
+    assert len(blocks) == 2
+    for index, block in enumerate(blocks):
+        payload = json.loads(block)
+        assert _validate(payload, schema, schema, f"consumer_example[{index}]") == []
 
 
 def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:

@@ -35,6 +35,7 @@ import argparse
 import json
 import sys
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from id_churn_sentinel import __version__
@@ -52,6 +53,7 @@ from id_churn_sentinel.core.coverage import (
     coverage,
 )
 from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
+from id_churn_sentinel.core.eligibility import eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
@@ -89,6 +91,15 @@ def build_parser() -> argparse.ArgumentParser:
     sources = sub.add_parser("sources", help="registry commands")
     sources_sub = sources.add_subparsers(dest="sources_command", required=True)
     sources_sub.add_parser("validate", help="validate the committed registry (merge-blocking)")
+    eligibility_cmd = sources_sub.add_parser(
+        "eligibility",
+        help="report the fail-closed V1 watcher/publisher source denominator",
+    )
+    eligibility_cmd.add_argument(
+        "--as-of",
+        default=datetime.now(UTC).date().isoformat(),
+        help="policy date in YYYY-MM-DD (default: today in UTC)",
+    )
     check_cmd = sources_sub.add_parser(
         "check", help="fetch every source and report status (network)"
     )
@@ -298,11 +309,36 @@ def _dispatch(
 
 
 def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
+    if args.sources_command == "eligibility":
+        return _cmd_sources_eligibility(registry, args.as_of)
     if args.sources_command == "check":
         if args.twice:
             return _cmd_sources_stability(registry, fetcher)
         return _cmd_sources_check(registry, fetcher)
     return _cmd_sources_validate(registry, args.registry or default_registry_path())
+
+
+def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
+    """Show the denominator the V1 watcher and publisher will share.
+
+    This iteration is deliberately a report, not the production enforcement switch.  It makes
+    the migration work exact without pretending the alpha registry already contains human
+    verification evidence or reviewed fetch-policy decisions.
+    """
+
+    report = eligibility_report(registry, as_of=parse_as_of(raw_as_of))
+    print(
+        f"source eligibility as of {report.as_of.isoformat()}: "
+        f"{len(report.eligible)}/{len(report.decisions)} eligible"
+    )
+    for reason, count in report.reason_counts:
+        print(f"  {reason}: {count}")
+    if report.ineligible:
+        print(
+            "  fail-closed report only: watcher/publisher wiring is the next iteration; "
+            "no policy decision was inferred"
+        )
+    return 0
 
 
 def _cmd_sources_validate(registry: Registry, path: Path) -> int:

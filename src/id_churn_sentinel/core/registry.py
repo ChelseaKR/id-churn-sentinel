@@ -45,7 +45,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from id_churn_sentinel.errors import RegistryError
@@ -53,6 +53,10 @@ from id_churn_sentinel.errors import RegistryError
 __all__ = [
     "CORE_STATE_DOCUMENT_CLASSES",
     "DOCUMENT_CLASSES",
+    "FETCH_POLICY_ALLOW",
+    "FETCH_POLICY_DENY",
+    "FETCH_POLICY_OUTCOMES",
+    "FETCH_POLICY_UNREVIEWED",
     "GAP_REASONS",
     "JURISDICTIONS",
     "REGISTRY_VERSION",
@@ -61,6 +65,7 @@ __all__ = [
     "VERIFICATION_STATUSES",
     "VERIFIED",
     "WITHDRAWN",
+    "FetchPolicyDecision",
     "Gap",
     "Registry",
     "Source",
@@ -91,6 +96,13 @@ WITHDRAWN = "withdrawn"
 VERIFICATION_STATUSES: frozenset[str] = frozenset({UNVERIFIED, VERIFIED, REJECTED})
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+FETCH_POLICY_UNREVIEWED = "unreviewed"
+FETCH_POLICY_ALLOW = "allow"
+FETCH_POLICY_DENY = "deny"
+FETCH_POLICY_OUTCOMES: frozenset[str] = frozenset(
+    {FETCH_POLICY_UNREVIEWED, FETCH_POLICY_ALLOW, FETCH_POLICY_DENY}
+)
 
 # 50 states + DC + `US`, the federal bucket (passport, SSA, Selective Service, and the
 # Federal Register itself). 52 keys, not 51: federal document policy is not a state.
@@ -176,6 +188,8 @@ class Verification:
     verifier: str = ""
     at: str = ""
     note: str = ""
+    evidence: str = ""
+    expires_at: str = ""
 
     @property
     def label(self) -> str:
@@ -224,11 +238,41 @@ class Verification:
             "verifier": self.verifier,
             "verified_at": self.at,
             "note": self.note,
+            "evidence": self.evidence,
+            "expires_at": self.expires_at,
             "statement": self.statement,
         }
 
 
 WITHDRAWN_VERIFICATION = Verification(status=WITHDRAWN)
+
+
+@dataclass(frozen=True, slots=True)
+class FetchPolicyDecision:
+    """The human-owned robots/terms/fetch decision used by V1 eligibility.
+
+    Absence is represented as ``unreviewed`` rather than an implicit allow.  This makes the
+    migration from the alpha registry fail closed without fabricating 152 legal or policy
+    decisions.  A later iteration will wire the shared eligibility predicate into the watcher
+    and publisher after the registry has been reviewed and migrated.
+    """
+
+    outcome: str = FETCH_POLICY_UNREVIEWED
+    reviewer: str = ""
+    at: str = ""
+    expires_at: str = ""
+    evidence: str = ""
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "outcome": self.outcome,
+            "reviewer": self.reviewer,
+            "at": self.at,
+            "expires_at": self.expires_at,
+            "evidence": self.evidence,
+            "reason": self.reason,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -244,6 +288,8 @@ class Source:
     notes: str
     checked: Mapping[str, Any] = field(default_factory=dict)
     verification: Verification = field(default_factory=Verification)
+    active: bool = True
+    fetch_policy: FetchPolicyDecision = field(default_factory=FetchPolicyDecision)
 
     @property
     def host(self) -> str:
@@ -442,6 +488,10 @@ def _parse_source(entry: object, index: int) -> Source:
     if not isinstance(checked, dict):
         raise RegistryError(f"{where}.checked must be an object of MACHINE facts")
 
+    active = entry.get("active", True)
+    if not isinstance(active, bool):
+        raise RegistryError(f"{where}.active must be a boolean")
+
     return Source(
         id=source_id,
         jurisdiction=jurisdiction,
@@ -452,6 +502,8 @@ def _parse_source(entry: object, index: int) -> Source:
         notes=_require_str(entry, "notes", where),
         checked=checked,
         verification=_parse_verification(entry.get("verification"), verified, where),
+        active=active,
+        fetch_policy=_parse_fetch_policy(entry.get("fetch_policy"), where),
     )
 
 
@@ -494,26 +546,94 @@ def _parse_verification(raw: object, verified: bool, where: str) -> Verification
             f"fact and they may never disagree — one of them is what a consumer will read."
         )
 
-    verifier = raw.get("verifier", "")
-    at = raw.get("at", "")
-    note = raw.get("note", "")
-    if not isinstance(verifier, str) or not isinstance(at, str) or not isinstance(note, str):
-        raise RegistryError(f"{where}.verification fields must be strings")
+    values = _string_fields(
+        raw,
+        ("verifier", "at", "note", "evidence", "expires_at"),
+        f"{where}.verification",
+    )
+    verifier = values["verifier"]
+    at = values["at"]
+    expires_at = values["expires_at"]
+    _validate_human_verification(status, verifier, at, where)
+    _validate_date_range(at, expires_at, f"{where}.verification")
 
-    if status in {VERIFIED, REJECTED}:
-        if not verifier.strip():
-            raise RegistryError(
-                f"{where}.verification.status is {status!r} but no `verifier` is named. A human "
-                f"judgment with no human attached is indistinguishable from a machine's."
-            )
-        if not _DATE_RE.match(at):
-            raise RegistryError(
-                f"{where}.verification.at must be an ISO date (YYYY-MM-DD) saying WHEN the "
-                f"human looked — a verification with no date cannot go stale, which means it "
-                f"can never be re-checked. Got {at!r}."
-            )
+    return Verification(
+        status=status,
+        verifier=verifier.strip(),
+        at=at,
+        note=values["note"],
+        evidence=values["evidence"].strip(),
+        expires_at=expires_at,
+    )
 
-    return Verification(status=status, verifier=verifier.strip(), at=at, note=note)
+
+def _parse_fetch_policy(raw: object, where: str) -> FetchPolicyDecision:
+    """Parse an explicit policy decision; missing data is never treated as permission."""
+    if raw is None or raw == {}:
+        return FetchPolicyDecision()
+    if not isinstance(raw, dict):
+        raise RegistryError(f"{where}.fetch_policy must be an object")
+
+    outcome = raw.get("outcome")
+    if outcome not in FETCH_POLICY_OUTCOMES:
+        raise RegistryError(
+            f"{where}.fetch_policy.outcome {outcome!r} is not one of: "
+            f"{', '.join(sorted(FETCH_POLICY_OUTCOMES))}"
+        )
+    values = _string_fields(
+        raw,
+        ("reviewer", "at", "expires_at", "evidence", "reason"),
+        f"{where}.fetch_policy",
+    )
+
+    if outcome in {FETCH_POLICY_ALLOW, FETCH_POLICY_DENY}:
+        _validate_policy_decision(outcome, values, where)
+
+    return FetchPolicyDecision(outcome=outcome, **values)
+
+
+def _string_fields(raw: Mapping[str, Any], keys: tuple[str, ...], where: str) -> dict[str, str]:
+    values = {key: raw.get(key, "") for key in keys}
+    if not all(isinstance(value, str) for value in values.values()):
+        raise RegistryError(f"{where} fields must be strings")
+    return cast(dict[str, str], values)
+
+
+def _validate_human_verification(status: object, verifier: str, at: str, where: str) -> None:
+    if status not in {VERIFIED, REJECTED}:
+        return
+    if not verifier.strip():
+        raise RegistryError(
+            f"{where}.verification.status is {status!r} but no `verifier` is named. A human "
+            f"judgment with no human attached is indistinguishable from a machine's."
+        )
+    if not _DATE_RE.match(at):
+        raise RegistryError(
+            f"{where}.verification.at must be an ISO date (YYYY-MM-DD) saying WHEN the "
+            f"human looked — a verification with no date cannot go stale, which means it "
+            f"can never be re-checked. Got {at!r}."
+        )
+
+
+def _validate_date_range(at: str, expires_at: str, where: str) -> None:
+    if expires_at and not _DATE_RE.match(expires_at):
+        raise RegistryError(
+            f"{where}.expires_at must be an ISO date (YYYY-MM-DD); got {expires_at!r}"
+        )
+    if at and expires_at and expires_at < at:
+        raise RegistryError(f"{where}.expires_at cannot be before at")
+
+
+def _validate_policy_decision(outcome: object, values: Mapping[str, str], where: str) -> None:
+    for key in ("reviewer", "at", "expires_at", "evidence", "reason"):
+        if not values[key].strip():
+            raise RegistryError(f"{where}.fetch_policy.{key} is required for outcome {outcome!r}")
+    for key in ("at", "expires_at"):
+        if not _DATE_RE.match(values[key]):
+            raise RegistryError(
+                f"{where}.fetch_policy.{key} must be an ISO date (YYYY-MM-DD); got {values[key]!r}"
+            )
+    _validate_date_range(values["at"], values["expires_at"], f"{where}.fetch_policy")
 
 
 def _parse_gap(entry: object, index: int) -> Gap:
@@ -603,7 +723,7 @@ def _require_str(entry: dict[str, Any], key: str, where: str) -> str:
 # to 152 times. A writer that reformats the whole file on first use would bury the one line
 # that changed — the human's name — under 800 lines of reflowed whitespace, and a diff nobody
 # can read is a diff nobody reviews. The verifier's own audit trail has to stay legible.
-_INLINE_BLOCK_RE = re.compile(r'"(checked|verification)": \{\n[^{}]*?\n\s*\}')
+_INLINE_BLOCK_RE = re.compile(r'"(checked|verification|fetch_policy)": \{\n[^{}]*?\n\s*\}')
 
 
 def _inline_block(match: re.Match[str]) -> str:

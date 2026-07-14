@@ -146,7 +146,7 @@ The line is worth stating precisely, because it is the line this section exists 
 
 **The risk.** A tool that publishes "A4TE's page on Texas is out of date" could read as an attack on organizations doing hard work with fewer resources, and could be quoted that way by people hostile to all of them.
 
-**What we do.** The feed reports **changes at official government sources**. It does not audit, score, grade, or name any advocacy organization, and it never will. It says "the Texas DPS page changed"; it does not say "A4TE is wrong." The framing throughout the repo is explicit that coverage is not the gap, that the incumbents' staleness is a *monitoring* problem rather than a competence problem, and that this repo is **infrastructure for them, not a competitor to them** (`docs/CONSUMERS.md`).
+**What we do.** The feed reports human-reviewed machine observations about registry-claimed government-source candidates; a URL has source-authority standing in this contract only while its named verification is in date. It does not determine that an advocacy page is stale, audit or grade an organization, or state what changed legally. Namesake already operates a material daily canonical-PDF monitoring slice, so this project treats incumbents as potential consumers, partners, or better substitutes and tests only the narrower combined-contract hypothesis in [`CONSUMERS.md`](./CONSUMERS.md) and [`16-RESEARCH-SOURCES.md`](./16-RESEARCH-SOURCES.md).
 
 **Status:** a framing and scope commitment, not a code gate. Reviewed on every change to the feed's content.
 

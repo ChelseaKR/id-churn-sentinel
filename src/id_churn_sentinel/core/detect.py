@@ -50,12 +50,25 @@ from __future__ import annotations
 import difflib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 
 from id_churn_sentinel.core.changes import ChangeRecord
+from id_churn_sentinel.core.eligibility import (
+    SourceEligibility,
+    eligibility_report,
+    registry_revision,
+)
 from id_churn_sentinel.core.fetch import Fetcher
 from id_churn_sentinel.core.normalize import content_hash, passages
-from id_churn_sentinel.core.registry import Source
-from id_churn_sentinel.core.store import SnapshotStore
+from id_churn_sentinel.core.registry import Registry, Source
+from id_churn_sentinel.core.store import (
+    RUN_COMPLETE,
+    RUN_FAILED,
+    RUN_PARTIAL,
+    RUN_QUIET,
+    RunSourceInput,
+    SnapshotStore,
+)
 
 __all__ = [
     "DIFF_CONTEXT_LINES",
@@ -66,6 +79,7 @@ __all__ = [
     "check_stability",
     "diff_excerpt",
     "watch",
+    "watch_registry",
 ]
 
 DIFF_CONTEXT_LINES = 2
@@ -108,6 +122,10 @@ class WatchReport:
     rebaselined: list[tuple[str, str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
     possibly_removed: list[ChangeRecord] = field(default_factory=list)
+    run_id: str = ""
+    state: str = ""
+    eligible_source_ids: tuple[str, ...] = ()
+    ineligible: tuple[SourceEligibility, ...] = ()
 
     @property
     def total(self) -> int:
@@ -254,14 +272,20 @@ def diff_excerpt(previous_text: str, current_text: str, *, source_url: str) -> s
     return text
 
 
-def watch(
+def _watch_authorized_sources(
     sources: Iterable[Source],
     store: SnapshotStore,
     fetcher: Fetcher,
     *,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    run_id: str | None = None,
 ) -> WatchReport:
-    """Fetch each source, compare against its last snapshot, record any drift.
+    """Low-level comparison over an already-authorized source set.
+
+    Production callers use :func:`watch_registry`, which computes that set through the
+    canonical dated eligibility predicate and persists a run receipt before entering this
+    function.  Keeping the comparison primitive separate makes offline detector fixtures
+    small; it is not an alternate operator path.
 
     `fetcher` is injected, which is what makes the whole tool testable with no network:
     the suite passes a dict-backed stub, CI passes nothing at all, and `sentinel watch`
@@ -270,10 +294,30 @@ def watch(
     report = WatchReport()
 
     for source in sources:
+        if run_id is not None:
+            store.begin_fetch_attempt(run_id, source_id=source.id, url=source.url)
         result = fetcher.fetch(source.url)
+        if run_id is not None:
+            store.finish_fetch_attempt(
+                run_id,
+                source_id=source.id,
+                ok=result.ok,
+                http_status=result.status,
+                content_type=result.content_type or "",
+                error=result.error or "",
+                completed_at=result.fetched_at,
+            )
 
         if not result.ok:
-            _handle_failure(source, store, report, result.error, result.status, removal_threshold)
+            _handle_failure(
+                source,
+                store,
+                report,
+                result.error,
+                result.status,
+                removal_threshold,
+                run_id=run_id,
+            )
             continue
 
         new_hash, normalized = content_hash(result.body, result.content_type)
@@ -326,10 +370,136 @@ def watch(
             diff_excerpt=diff_excerpt(previous.normalized_text, normalized, source_url=source.url),
             observed_at=result.fetched_at,
         )
-        store.record_change(change)
+        store.record_change(change, run_id=run_id)
         report.changed.append(change)
 
     return report
+
+
+def watch_registry(
+    registry: Registry,
+    store: SnapshotStore,
+    fetcher: Fetcher,
+    *,
+    as_of: date,
+    jurisdiction: str | None = None,
+    removal_threshold: int = REMOVAL_THRESHOLD,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> WatchReport:
+    """Run the production watcher behind the shared fail-closed source predicate.
+
+    The exact eligible set is frozen in SQLite before any fetch begins.  Ineligible entries
+    remain in the receipt with their reasons but cannot enter the attempt denominator.  A
+    previous retrieval failure is intentionally absent from the predicate, so an eligible
+    source that failed last week is attempted again and remains visible in this week's count.
+    """
+
+    selected = (
+        registry.for_jurisdiction(jurisdiction) if jurisdiction is not None else registry.sources
+    )
+    scoped = Registry(version=registry.version, sources=selected)
+    eligibility = eligibility_report(scoped, as_of=as_of)
+    decision_by_id = {decision.source_id: decision for decision in eligibility.decisions}
+    inputs = tuple(
+        RunSourceInput(
+            source_id=source.id,
+            jurisdiction=source.jurisdiction,
+            document_class=source.document_class,
+            url=source.url,
+            authority=source.authority,
+            eligible=decision_by_id[source.id].eligible,
+            eligibility_reasons=decision_by_id[source.id].reasons,
+        )
+        for source in selected
+    )
+    run_id = store.start_watch_run(
+        as_of=as_of,
+        registry_version=registry.version,
+        registry_revision=registry_revision(registry),
+        jurisdiction=jurisdiction.upper() if jurisdiction is not None else None,
+        sources=inputs,
+        started_at=started_at,
+    )
+    eligible_ids = eligibility.attempt_source_ids
+    eligible_set = frozenset(eligible_ids)
+    authorized = tuple(source for source in selected if source.id in eligible_set)
+
+    if not authorized:
+        store.finish_watch_run(
+            run_id,
+            state=RUN_FAILED,
+            observation_count=0,
+            error="no attempt-eligible sources in scope",
+            completed_at=completed_at,
+        )
+        return WatchReport(
+            run_id=run_id,
+            state=RUN_FAILED,
+            eligible_source_ids=(),
+            ineligible=eligibility.ineligible,
+        )
+
+    try:
+        report = _watch_authorized_sources(
+            authorized,
+            store,
+            fetcher,
+            removal_threshold=removal_threshold,
+            run_id=run_id,
+        )
+    except Exception as exc:
+        # Persist the failed terminal state, then preserve the original exception and
+        # traceback.  Catching `Exception` intentionally excludes operator interrupts and
+        # process termination; those leave a `running` receipt, which `status.json` presents
+        # as non-success rather than inventing a completion.
+        store.finish_watch_run(
+            run_id,
+            state=RUN_FAILED,
+            error=f"{type(exc).__name__}: {exc}",
+            completed_at=completed_at,
+        )
+        raise
+
+    observation_count = len(report.changed) + len(report.possibly_removed)
+    state = RUN_PARTIAL if report.unreachable else RUN_COMPLETE if observation_count else RUN_QUIET
+    store.finish_watch_run(
+        run_id,
+        state=state,
+        observation_count=observation_count,
+        completed_at=completed_at,
+    )
+    report.run_id = run_id
+    report.state = state
+    report.eligible_source_ids = eligible_ids
+    report.ineligible = eligibility.ineligible
+    return report
+
+
+def watch(
+    registry: Registry,
+    store: SnapshotStore,
+    fetcher: Fetcher,
+    *,
+    jurisdiction: str | None = None,
+    removal_threshold: int = REMOVAL_THRESHOLD,
+) -> WatchReport:
+    """Production watcher API; eligibility is always evaluated on today's UTC date.
+
+    ``watch_registry`` carries explicit clock injection for deterministic tests and historical
+    audit tooling.  This production entry point deliberately accepts neither an arbitrary
+    iterable of sources nor an operator-selected policy date: backdating must never revive an
+    expired verification or fetch-policy approval.
+    """
+
+    return watch_registry(
+        registry,
+        store,
+        fetcher,
+        as_of=datetime.now(UTC).date(),
+        jurisdiction=jurisdiction,
+        removal_threshold=removal_threshold,
+    )
 
 
 def _handle_failure(
@@ -339,6 +509,8 @@ def _handle_failure(
     error: str | None,
     status: int | None,
     removal_threshold: int,
+    *,
+    run_id: str | None = None,
 ) -> None:
     """One failed fetch: hold the baseline, count the streak, escalate if it is long enough.
 
@@ -382,5 +554,5 @@ def _handle_failure(
         consecutive_failures=streak,
         last_error=reason,
     )
-    store.record_change(escalation)
+    store.record_change(escalation, run_id=run_id)
     report.possibly_removed.append(escalation)

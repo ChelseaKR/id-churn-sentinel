@@ -46,6 +46,9 @@ from id_churn_sentinel.core.registry import (
     load_registry,
 )
 from id_churn_sentinel.core.site import feed_slug
+from id_churn_sentinel.errors import PublishError
+
+from .conftest import eligible_source
 
 pytestmark = pytest.mark.source_labelling
 
@@ -75,8 +78,8 @@ def federal_change(confirmed_change: ChangeRecord) -> ChangeRecord:
 
 
 @pytest.fixture
-def published(tmp_path: Path, real_registry: Registry, federal_change: ChangeRecord) -> Path:
-    publish([federal_change], tmp_path, registry=real_registry, now=NOW)
+def published(tmp_path: Path, real_registry: Registry) -> Path:
+    publish([], tmp_path, registry=real_registry, now=NOW)
     return tmp_path
 
 
@@ -163,24 +166,13 @@ def test_every_per_jurisdiction_feed_carries_the_status_of_its_own_sources(
         assert "UNVERIFIED" in description
 
 
-def test_every_published_change_carries_the_status_of_the_source_it_cites(
-    published: Path, federal_change: ChangeRecord
+def test_a_change_from_an_unverified_source_is_refused_before_any_artifact_is_written(
+    tmp_path: Path, real_registry: Registry, federal_change: ChangeRecord
 ) -> None:
-    """A change item reading "[US] passport changed at <url>" is an implicit assertion that
-    <url> IS the official US passport page. Nobody has confirmed that. The item says so."""
-    payload = json.loads((published / "changes.json").read_text())
-    item = payload["changes"][0]
-
-    assert item["id"] == federal_change.id
-    assert item["source_verification"]["status"] == UNVERIFIED
-    assert item["source_verification"]["verifier"] == ""
-    assert "NO HUMAN has confirmed" in item["source_verification"]["statement"]
-
-    # ...and in the RSS body, where an actual subscriber will read it.
-    rss_item = _channel(published / "feed.xml").findall("item")[0]
-    description = rss_item.findtext("description") or ""
-    assert "Source verification: UNVERIFIED — machine-checked, not human-confirmed" in description
-    assert "source-verification:unverified" in {c.text for c in rss_item.findall("category")}
+    """A reviewed diff cannot make an unverified source authoritative by publication."""
+    with pytest.raises(PublishError, match=r"not publication-eligible.*unverified"):
+        publish([federal_change], tmp_path, registry=real_registry, now=NOW)
+    assert not (tmp_path / "changes.json").exists()
 
 
 def test_the_site_says_it_above_the_fold_and_before_the_numbers(published: Path) -> None:
@@ -242,9 +234,12 @@ def test_a_verified_source_is_published_as_verified_with_the_humans_name(
     with the name of the person who did it and the date they did it. Nothing here is typed by
     hand, so nothing here can lag behind the registry."""
     verified = replace(
-        source,
-        verified=True,
-        verification=Verification(status=VERIFIED, verifier="Chelsea Kelly-Reif", at="2026-07-14"),
+        eligible_source(source),
+        verification=replace(
+            eligible_source(source).verification,
+            verifier="Chelsea Kelly-Reif",
+            at="2026-07-13",
+        ),
     )
     registry = Registry(version="1.0", sources=(verified,))
 
@@ -256,10 +251,10 @@ def test_a_verified_source_is_published_as_verified_with_the_humans_name(
     entry = payload["sources"][0]
     assert entry["verification_status"] == VERIFIED
     assert entry["verified_by"] == "Chelsea Kelly-Reif"
-    assert entry["verified_at"] == "2026-07-14"
+    assert entry["verified_at"] == "2026-07-13"
 
     page = (tmp_path / "index.html").read_text()
-    assert "VERIFIED — confirmed by Chelsea Kelly-Reif on 2026-07-14" in page
+    assert "VERIFIED — confirmed by Chelsea Kelly-Reif on 2026-07-13" in page
     assert "All 1 sources are human-verified" in page
 
     channel = _channel(tmp_path / "feed.xml")
@@ -321,19 +316,14 @@ def test_a_rejected_source_is_published_as_rejected_rather_than_quietly_dropped(
     assert "must not be relied on" in page
 
 
-def test_a_change_citing_a_source_that_left_the_registry_says_so(
+def test_a_change_citing_a_source_that_left_the_registry_is_refused(
     tmp_path: Path, registry: Registry, confirmed_change: ChangeRecord
 ) -> None:
-    """The one case where we genuinely do not know: a published change cites a source that has
-    since been removed. We do not omit the field, we do not guess, and we do not crash the
-    publisher — we say `withdrawn` and explain it. Omission would read as "fine"."""
+    """A withdrawn source cannot support a newly published observation."""
     orphan = replace(confirmed_change, id="orphan0000000000", source_id="gone-from-registry")
 
-    publish([orphan], tmp_path, registry=registry, now=NOW)
-
-    item = json.loads((tmp_path / "changes.json").read_text())["changes"][0]
-    assert item["source_verification"]["status"] == "withdrawn"
-    assert "no longer in the registry" in item["source_verification"]["statement"]
+    with pytest.raises(PublishError, match="withdrawn or absent"):
+        publish([orphan], tmp_path, registry=registry, now=NOW)
 
 
 def _channel(path: Path) -> ET.Element:

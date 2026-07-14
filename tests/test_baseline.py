@@ -24,7 +24,7 @@ from id_churn_sentinel.core.baseline import (
     load_baselines,
     write_baselines,
 )
-from id_churn_sentinel.core.detect import watch
+from id_churn_sentinel.core.detect import _watch_authorized_sources as watch
 from id_churn_sentinel.core.registry import Registry, Source, load_registry
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.errors import RegistryError

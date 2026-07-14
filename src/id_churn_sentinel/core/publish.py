@@ -66,13 +66,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Any
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord
 from id_churn_sentinel.core.coverage import coverage
+from id_churn_sentinel.core.eligibility import evaluate_source
 from id_churn_sentinel.core.registry import (
     UNVERIFIED,
     Registry,
@@ -80,7 +81,8 @@ from id_churn_sentinel.core.registry import (
     Verification,
 )
 from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_site
-from id_churn_sentinel.errors import PublishError
+from id_churn_sentinel.core.status import PublicRunStatus, no_run_status, status_json
+from id_churn_sentinel.errors import PublishError, RegistryError
 
 __all__ = [
     "FEED_SCHEMA_VERSION",
@@ -143,6 +145,7 @@ class PublishResult:
         "published",
         "site_path",
         "sources_path",
+        "status_path",
     )
 
     def __init__(
@@ -154,6 +157,7 @@ class PublishResult:
         jurisdiction_feeds: tuple[Path, ...] = (),
         site_path: Path | None = None,
         sources_path: Path | None = None,
+        status_path: Path | None = None,
     ) -> None:
         self.feed_path = feed_path
         self.changes_path = changes_path
@@ -161,9 +165,15 @@ class PublishResult:
         self.jurisdiction_feeds = jurisdiction_feeds
         self.site_path = site_path
         self.sources_path = sources_path
+        self.status_path = status_path
 
 
-def _guard(records: Iterable[ChangeRecord]) -> tuple[ChangeRecord, ...]:
+def _guard(
+    records: Iterable[ChangeRecord],
+    *,
+    registry: Registry,
+    as_of: date,
+) -> tuple[ChangeRecord, ...]:
     """Filter to publishable records, then prove it.
 
     The `if not record.publishable` branch below should be dead code — the comprehension
@@ -176,6 +186,26 @@ def _guard(records: Iterable[ChangeRecord]) -> tuple[ChangeRecord, ...]:
         if not record.publishable:  # pragma: no cover — defensive; the filter guarantees this
             raise PublishError(
                 f"refusing to publish change {record.id}: not reviewed and confirmed by a human"
+            )
+        try:
+            source = registry.by_id(record.source_id)
+        except RegistryError as exc:
+            raise PublishError(
+                f"refusing to publish change {record.id}: source {record.source_id!r} is "
+                "withdrawn or absent from the canonical registry"
+            ) from exc
+        decision = evaluate_source(source, as_of=as_of)
+        if not decision.eligible:
+            raise PublishError(
+                f"refusing to publish change {record.id}: source {record.source_id!r} is "
+                f"not publication-eligible ({', '.join(decision.reasons)})"
+            )
+        identity = (record.jurisdiction, record.document_class, record.url)
+        canonical = (source.jurisdiction, source.document_class, source.url)
+        if identity != canonical:
+            raise PublishError(
+                f"refusing to publish change {record.id}: observation source identity does "
+                "not match the eligible canonical registry entry"
             )
     return selected
 
@@ -199,6 +229,8 @@ def publish(
     registry: Registry,
     feed_url: str = REPO_URL,
     now: datetime | None = None,
+    run_status: PublicRunStatus | None = None,
+    eligibility_as_of: date | None = None,
 ) -> PublishResult:
     """Write the whole published surface into `out_dir` (in this repo, `docs/`). Reviewed
     records only.
@@ -220,8 +252,13 @@ def publish(
     needs a URL it can subscribe to now, and a feed that only springs into existence when
     something has already gone wrong is a feed nobody is subscribed to on the day it matters.
     """
-    published = _guard(records)
     generated_at = now or datetime.now(UTC)
+    published = _guard(
+        records,
+        registry=registry,
+        as_of=eligibility_as_of or generated_at.date(),
+    )
+    public_status = run_status or no_run_status()
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_nojekyll(out_dir)
@@ -267,9 +304,20 @@ def publish(
     report = coverage(registry)
     sources_path = out_dir / "sources.json"
     sources_path.write_text(sources_json(registry, generated_at=generated_at), encoding="utf-8")
+    status_path = out_dir / "status.json"
+    status_path.write_text(
+        status_json(public_status, generated_at=generated_at),
+        encoding="utf-8",
+    )
     site_path = out_dir / "index.html"
     site_path.write_text(
-        render_site(registry, report, _sorted(published), generated_at=generated_at),
+        render_site(
+            registry,
+            report,
+            _sorted(published),
+            generated_at=generated_at,
+            run_status=public_status,
+        ),
         encoding="utf-8",
     )
 
@@ -280,6 +328,7 @@ def publish(
         jurisdiction_feeds=tuple(feeds),
         site_path=site_path,
         sources_path=sources_path,
+        status_path=status_path,
     )
 
 

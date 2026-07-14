@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/status-v1.schema.json",
+  "title": "ID Churn Sentinel public run status v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "state",
+    "stale",
+    "stale_after_seconds",
+    "message",
+    "last_attempted_run",
+    "last_successful_run"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "state": {
+      "type": "string",
+      "enum": ["running", "quiet", "complete", "partial", "failed", "stale"]
+    },
+    "stale": { "type": "boolean" },
+    "stale_after_seconds": { "type": "integer", "minimum": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "last_attempted_run": {
+      "oneOf": [{ "$ref": "#/$defs/run" }, { "type": "null" }]
+    },
+    "last_successful_run": {
+      "oneOf": [{ "$ref": "#/$defs/run" }, { "type": "null" }]
+    }
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "state",
+        "started_at",
+        "completed_at",
+        "as_of",
+        "scope",
+        "registry_version",
+        "registry_revision",
+        "eligible_source_ids",
+        "attempted_source_ids",
+        "successful_source_ids",
+        "eligible_count",
+        "attempted_count",
+        "successful_retrieval_count",
+        "attempt_completeness",
+        "observation_count",
+        "has_internal_error"
+      ],
+      "properties": {
+        "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "state": {
+          "type": "string",
+          "enum": ["running", "quiet", "complete", "partial", "failed"]
+        },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": {
+          "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "as_of": { "type": "string", "format": "date" },
+        "scope": { "type": "string", "minLength": 1 },
+        "registry_version": { "type": "string", "minLength": 1 },
+        "registry_revision": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "eligible_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "attempted_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "successful_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "eligible_count": { "type": "integer", "minimum": 0 },
+        "attempted_count": { "type": "integer", "minimum": 0 },
+        "successful_retrieval_count": { "type": "integer", "minimum": 0 },
+        "attempt_completeness": {
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "observation_count": { "type": "integer", "minimum": 0 },
+        "has_internal_error": { "type": "boolean" }
+      }
+    }
+  }
+}

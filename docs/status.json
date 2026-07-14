@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "state": "stale",
+  "stale": true,
+  "stale_after_seconds": 691200,
+  "message": "No terminal watch receipt is recent enough. Feed silence is not evidence of no change.",
+  "last_attempted_run": null,
+  "last_successful_run": null
+}

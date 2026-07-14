@@ -1,7 +1,7 @@
 """Shared fixtures — and the reason this suite never touches the network.
 
 `StubFetcher` implements the `Fetcher` protocol over a dict. Every test that exercises
-`watch()`, and every test that exercises the CLI, injects one. There is no test in this
+the detector or watcher, and every test that exercises the CLI, injects one. There is no test in this
 repo that resolves a hostname, opens a socket, or depends on a state website being up,
 which is what makes the suite runnable on a plane, in a locked-down CI runner, and on the
 day Texas's DPS site is down.
@@ -10,6 +10,7 @@ day Texas's DPS site is down.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,10 +18,66 @@ import pytest
 
 from id_churn_sentinel.core.changes import ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.fetch import FetchResult
-from id_churn_sentinel.core.registry import Registry, Source
+from id_churn_sentinel.core.registry import (
+    FETCH_POLICY_ALLOW,
+    VERIFIED,
+    FetchPolicyDecision,
+    Registry,
+    Source,
+    Verification,
+)
 from id_churn_sentinel.core.store import SnapshotStore
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def eligible_source(source: Source) -> Source:
+    """Synthetic, fully evidenced source for watcher/publisher unit tests.
+
+    These identities are fixtures only; they never modify the committed registry or pretend
+    its real verification queue has been completed.
+    """
+
+    return replace(
+        source,
+        verified=True,
+        verification=Verification(
+            status=VERIFIED,
+            verifier="Synthetic Source Reviewer",
+            at="2026-01-01",
+            evidence="tests/evidence/synthetic-source-review.json",
+            expires_at="2099-12-31",
+        ),
+        fetch_policy=FetchPolicyDecision(
+            outcome=FETCH_POLICY_ALLOW,
+            reviewer="Synthetic Policy Reviewer",
+            at="2026-01-01",
+            expires_at="2099-12-31",
+            evidence="tests/evidence/synthetic-fetch-policy-review.json",
+            reason="synthetic fixture authorizes the injected offline fetcher",
+        ),
+    )
+
+
+def eligible_source_entry(source: Source) -> dict[str, object]:
+    eligible = eligible_source(source)
+    return {
+        "id": eligible.id,
+        "jurisdiction": eligible.jurisdiction,
+        "document_class": eligible.document_class,
+        "url": eligible.url,
+        "authority": eligible.authority,
+        "verified": True,
+        "verification": {
+            "status": eligible.verification.status,
+            "verifier": eligible.verification.verifier,
+            "at": eligible.verification.at,
+            "evidence": eligible.verification.evidence,
+            "expires_at": eligible.verification.expires_at,
+        },
+        "fetch_policy": eligible.fetch_policy.to_dict(),
+        "notes": "synthetic test fixture",
+    }
 
 
 class StubFetcher:
@@ -113,7 +170,10 @@ def registry(source: Source, arizona_source: Source, federal_source: Source) -> 
     status, so there is no code path — and therefore no test — in which a source reaches a
     consumer with its status silently omitted.
     """
-    return Registry(version="1.0", sources=(source, arizona_source, federal_source))
+    return Registry(
+        version="1.0",
+        sources=tuple(eligible_source(item) for item in (source, arizona_source, federal_source)),
+    )
 
 
 @pytest.fixture

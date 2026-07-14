@@ -2,6 +2,32 @@
 
 Estimates are ideal engineering/operations days and exclude elapsed specialist or partner review. `P0` blocks V1.0; `P1` is cut before a P0 slips. Owners are roles from the master plan.
 
+## Implementation ledger (2026-07-14)
+
+This ledger records landed software scope without marking external evidence complete:
+
+- `SRC-03/04/05`: registry evidence/expiry/fetch-policy fields, derived anti-fabrication tests,
+  and the shared fail-closed predicate are implemented. The 152 real verification and policy
+  decisions remain human work under `SRC-01/02`.
+- `ENG-01`: the ordered, checksummed, per-migration atomic framework plus run, attempt, and
+  run-observation entities are implemented. Remaining V1 review, correction, publication,
+  retention, and backup entities plus a production backup/rollback rehearsal keep the item open.
+- `ENG-02`: exact registry revision and eligible/attempted/successful source sets, persisted
+  attempts, atomic observation associations, race-safe terminalization, and constrained
+  quiet/complete/partial/failed receipts are implemented. Deployment, alerting, and qualifying
+  operational receipts remain open.
+- `ENG-03`: closed-schema aggregate `status.json`, derived stale health, separate
+  last-attempted/last-successful aggregate runs, explicit scope, and site health that ignores
+  scoped-only success and does not reuse generation time are implemented. Staging/production
+  evidence remains open.
+- `ENG-06`: the publisher now enforces the shared source predicate and canonical source identity.
+  Atomic promotion, signed manifests, and the clean verifier remain open.
+- `ENG-07`: the status schema and real-output compatibility test are implemented; correction and
+  release contracts and the complete migration guide remain open.
+
+No line above substitutes for the acceptance receipt in the backlog table or the release
+checklist.
+
 The P0 estimates sum to **169 ideal days**. Role allocation follows the named
 owner (shared security/operations items are allocated to the specialist role):
 

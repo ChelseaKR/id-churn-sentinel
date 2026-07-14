@@ -168,6 +168,7 @@ publish: ## Write the published site, the feeds, and the inventory — REVIEWED 
 	@# docs/feed-us-tx.xml      one feed per jurisdiction, so an org serving one state need
 	@# docs/changes-us-tx.json  not consume all 52
 	@# docs/sources.json        the inventory: every watched source AND every named gap
+	@# docs/status.json         persisted watch health; generated_at is never watch success
 	@# docs/.nojekyll           stops Pages running Jekyll, which SILENTLY drops files
 	@#
 	@# It writes only those filenames: the prose docs alongside them (README, CONSUMERS,

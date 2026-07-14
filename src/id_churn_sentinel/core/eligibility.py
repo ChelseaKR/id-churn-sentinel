@@ -1,16 +1,18 @@
-"""Fail-closed source eligibility, shared by the planned watcher and publisher gates.
+"""Fail-closed source eligibility shared by the watcher and publisher gates.
 
-Iteration 1 owns the canonical decision and reporting layer.  It intentionally does not yet
-change alpha watch or publication behaviour: the committed registry still needs 152 human
-verification/evidence decisions and matching robots/terms/fetch-policy decisions.  The next
-iteration can wire both call sites to this one predicate without inventing policy data.
+The committed registry may still contain zero eligible entries.  That is a readiness fact,
+not permission to bypass the gate: the production watcher and publisher both call this module
+and fail closed without inventing verification or fetch-policy decisions.
 """
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
+from hashlib import sha256
+from typing import Any
 
 from id_churn_sentinel.core.registry import (
     FETCH_POLICY_ALLOW,
@@ -28,6 +30,7 @@ __all__ = [
     "eligibility_report",
     "evaluate_source",
     "parse_as_of",
+    "registry_revision",
 ]
 
 
@@ -159,3 +162,58 @@ def eligibility_report(registry: Registry, *, as_of: date) -> EligibilityReport:
         as_of=as_of,
         decisions=tuple(evaluate_source(source, as_of=as_of) for source in registry.sources),
     )
+
+
+def registry_revision(registry: Registry) -> str:
+    """Hash the complete canonical registry meaning captured by a watcher receipt.
+
+    This deliberately hashes more than the fields used by eligibility.  A URL, authority,
+    checked result, note, or named gap changing between two runs is provenance even if the
+    attempt denominator stays the same.  JSON canonicalization makes the digest independent
+    of in-memory mapping order.
+    """
+
+    payload: dict[str, Any] = {
+        "registry_version": registry.version,
+        "sources": [
+            {
+                "id": source.id,
+                "jurisdiction": source.jurisdiction,
+                "document_class": source.document_class,
+                "url": source.url,
+                "authority": source.authority,
+                "verified": source.verified,
+                "notes": source.notes,
+                "checked": dict(source.checked),
+                "verification": {
+                    "status": source.verification.status,
+                    "verifier": source.verification.verifier,
+                    "at": source.verification.at,
+                    "note": source.verification.note,
+                    "evidence": source.verification.evidence,
+                    "expires_at": source.verification.expires_at,
+                },
+                "active": source.active,
+                "fetch_policy": source.fetch_policy.to_dict(),
+            }
+            for source in registry.sources
+        ],
+        "gaps": [
+            {
+                "jurisdiction": gap.jurisdiction,
+                "document_class": gap.document_class,
+                "reason": gap.reason,
+                "hosts": list(gap.hosts),
+                "checked": gap.checked,
+                "detail": gap.detail,
+            }
+            for gap in registry.gaps
+        ],
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()

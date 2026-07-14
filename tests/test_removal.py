@@ -23,7 +23,12 @@ from pathlib import Path
 import pytest
 
 from id_churn_sentinel.core.changes import ChangeKind, ReviewStatus, Significance
-from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, watch
+from id_churn_sentinel.core.detect import (
+    REMOVAL_THRESHOLD,
+)
+from id_churn_sentinel.core.detect import (
+    _watch_authorized_sources as watch,
+)
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore

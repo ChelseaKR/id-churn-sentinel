@@ -28,7 +28,7 @@ from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import SnapshotStore
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source_entry
 
 pytestmark = pytest.mark.feed_integrity
 
@@ -200,17 +200,7 @@ def test_the_end_to_end_cli_flow_withholds_until_a_human_reviews(
         json.dumps(
             {
                 "registry_version": "1.0",
-                "sources": [
-                    {
-                        "id": source.id,
-                        "jurisdiction": source.jurisdiction,
-                        "document_class": source.document_class,
-                        "url": source.url,
-                        "authority": source.authority,
-                        "verified": False,
-                        "notes": "",
-                    }
-                ],
+                "sources": [eligible_source_entry(source)],
             }
         ),
         encoding="utf-8",
@@ -330,7 +320,7 @@ def test_the_committed_site_is_servable_by_pages_from_the_branch() -> None:
     """
     assert (PUBLISHED / "index.html").exists(), "no Pages entry point at docs/index.html"
     assert (PUBLISHED / ".nojekyll").exists(), "Pages would run Jekyll over the published feed"
-    for artifact in ("feed.xml", "changes.json", "sources.json", "schema"):
+    for artifact in ("feed.xml", "changes.json", "sources.json", "status.json", "schema"):
         assert (PUBLISHED / artifact).exists()
 
 

@@ -21,6 +21,7 @@ The invariant is enforced in four independent places, and this file proves each 
 from __future__ import annotations
 
 import inspect
+import json
 import sqlite3
 from pathlib import Path
 
@@ -28,13 +29,18 @@ import pytest
 
 from id_churn_sentinel.cli import build_parser, main
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
-from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, watch
+from id_churn_sentinel.core.detect import (
+    REMOVAL_THRESHOLD,
+)
+from id_churn_sentinel.core.detect import (
+    _watch_authorized_sources as watch,
+)
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.errors import ReviewError, StoreError
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source_entry
 
 pytestmark = pytest.mark.no_auto_classification
 
@@ -214,9 +220,7 @@ def test_the_cli_watch_command_leaves_everything_unreviewed(
     """Layer 4, end to end: the real command, over real drift, classifies nothing."""
     registry_path = tmp_path / "registry.json"
     registry_path.write_text(
-        '{"registry_version": "1.0", "sources": [{"id": "' + source.id + '",'
-        ' "jurisdiction": "TX", "document_class": "drivers_license", "url": "' + source.url + '",'
-        ' "authority": "TX DPS", "verified": false, "notes": ""}]}',
+        json.dumps({"registry_version": "1.0", "sources": [eligible_source_entry(source)]}),
         encoding="utf-8",
     )
     db = tmp_path / "cli.db"

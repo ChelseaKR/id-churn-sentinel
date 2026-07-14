@@ -74,9 +74,7 @@
         },
         "verifier": { "type": "string", "description": "The NAME of the human who ruled on this source. Empty when nobody has." },
         "verified_at": { "type": "string", "description": "ISO date (YYYY-MM-DD) the human ruled on it. Empty when nobody has. A verification with no date could never go stale, which means it could never be re-checked." },
-        "note": { "type": "string", "description": "For a rejection: why the registry's authority or scope claim failed. May be empty." },
-        "evidence": { "type": "string", "description": "Reference to the retained evidence used for human source verification. Empty on legacy/unverified records; V1 eligibility fails closed when it is missing." },
-        "expires_at": { "type": "string", "description": "ISO date (YYYY-MM-DD) through which verification remains in policy. Empty on legacy/unverified records; V1 eligibility fails closed when it is missing." },
+        "note": { "type": "string", "description": "For a rejection: why the registry's authority or scope claim failed. May be empty. Eligibility evidence and expiry are registry-internal in this closed v1 feed contract." },
         "statement": { "type": "string", "description": "The status as a SENTENCE. Status is never signalled by a colour or an icon anywhere in this project — including here, where the field a lazy integrator renders is the one that has to carry the meaning." }
       }
     },

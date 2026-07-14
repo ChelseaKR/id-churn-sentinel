@@ -37,11 +37,20 @@ import pytest
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, publish
-from id_churn_sentinel.core.registry import DOCUMENT_CLASSES, JURISDICTIONS, Registry
+from id_churn_sentinel.core.registry import (
+    DOCUMENT_CLASSES,
+    JURISDICTIONS,
+    VERIFIED,
+    Registry,
+    Verification,
+)
 from id_churn_sentinel.core.site import feed_slug
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "docs" / "schema" / "changes-v1.schema.json"
 CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
+V1_VERIFICATION_SCHEMA_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
+)
 
 _KNOWN_KEYWORDS = {
     "$schema",
@@ -239,8 +248,24 @@ def test_the_schema_describes_every_field_the_code_emits(
     assert described - emitted == set(), "the schema describes fields the code never emits"
     assert set(schema["$defs"]["change"]["required"]) == emitted
     verification_schema = schema["$defs"]["verification"]
-    assert set(item["source_verification"]) <= set(verification_schema["properties"])
-    assert set(verification_schema["required"]) <= set(item["source_verification"])
+    assert set(item["source_verification"]) == set(verification_schema["properties"])
+    assert set(verification_schema["required"]) == set(item["source_verification"])
+
+
+def test_internal_eligibility_metadata_preserves_the_closed_v1_feed_contract() -> None:
+    verification = Verification(
+        status=VERIFIED,
+        verifier="Source Reviewer",
+        at="2026-07-12",
+        note="reviewed",
+        evidence="evidence/verification/source.json",
+        expires_at="2027-07-12",
+    )
+    payload = verification.to_dict()
+    prior_schema = json.loads(V1_VERIFICATION_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    assert _validate(payload, prior_schema, prior_schema, "$") == []
+    assert set(payload) == {"status", "verifier", "verified_at", "note", "statement"}
 
 
 def test_the_schema_describes_every_field_of_a_published_source(

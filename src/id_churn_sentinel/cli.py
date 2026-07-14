@@ -319,7 +319,7 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
 
 
 def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
-    """Show the denominator the V1 watcher and publisher will share.
+    """Show the attempt set and the wider registry-readiness audit separately.
 
     This iteration is deliberately a report, not the production enforcement switch.  It makes
     the migration work exact without pretending the alpha registry already contains human
@@ -329,7 +329,10 @@ def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
     report = eligibility_report(registry, as_of=parse_as_of(raw_as_of))
     print(
         f"source eligibility as of {report.as_of.isoformat()}: "
-        f"{len(report.eligible)}/{len(report.decisions)} eligible"
+        f"attempt denominator {len(report.attempt_source_ids)} source(s)"
+    )
+    print(
+        f"  registry audit: {len(report.eligible)}/{len(report.decisions)} entries attempt-eligible"
     )
     for reason, count in report.reason_counts:
         print(f"  {reason}: {count}")

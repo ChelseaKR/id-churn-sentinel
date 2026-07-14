@@ -53,6 +53,12 @@ class EligibilityReport:
         return tuple(decision for decision in self.decisions if decision.eligible)
 
     @property
+    def attempt_source_ids(self) -> tuple[str, ...]:
+        """The exact source set a watcher run may place in its attempt denominator."""
+
+        return tuple(decision.source_id for decision in self.eligible)
+
+    @property
     def ineligible(self) -> tuple[SourceEligibility, ...]:
         return tuple(decision for decision in self.decisions if not decision.eligible)
 

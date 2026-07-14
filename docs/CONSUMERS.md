@@ -222,8 +222,6 @@ The following is a complete schema-valid illustrative record. Its source is deli
         "verifier": "Alex Rivera",
         "verified_at": "2026-07-10",
         "note": "",
-        "evidence": "evidence/verification/tx-dps-2026-07-10.json",
-        "expires_at": "2027-07-10",
         "statement": "VERIFIED — Alex Rivera confirmed this URL for the stated jurisdiction and document class on 2026-07-10."
       }
     }

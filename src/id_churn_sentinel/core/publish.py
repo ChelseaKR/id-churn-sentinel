@@ -97,9 +97,9 @@ __all__ = [
 # Bump on any breaking change to the `changes.json` shape. Consumers pin against it.
 #
 # The versioning promise, stated once and kept: **a bump means a break.** Adding a new
-# OPTIONAL field is not a break and does not bump this — a consumer who ignores unknown keys
-# (which every JSON consumer does) is unaffected. Removing a field, renaming one, changing a
-# type, or narrowing an enum IS a break, and bumps it. The formal shape is
+# The contract is closed: its schema rejects unknown properties, so adding even an optional
+# field can break a validating consumer and requires a separately versioned contract. Removing
+# a field, renaming one, changing a type, or narrowing an enum is likewise a break. The shape is
 # `docs/schema/changes-v1.schema.json`, and a test asserts the schema and the code agree —
 # a schema document that drifts from its implementation is worse than none, because an
 # integrator builds against it.

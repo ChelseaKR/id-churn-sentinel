@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chelseakr.github.io/id-churn-sentinel/schema/source-verification-v1.0.schema.json",
+  "title": "ID Churn Sentinel source verification — closed feed contract v1.0",
+  "type": "object",
+  "required": ["status", "verifier", "verified_at", "note", "statement"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["unverified", "verified", "rejected", "withdrawn"]
+    },
+    "verifier": { "type": "string" },
+    "verified_at": { "type": "string" },
+    "note": { "type": "string" },
+    "statement": { "type": "string" }
+  }
+}

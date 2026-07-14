@@ -24,7 +24,7 @@ help: ## Show this help
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
 install: ## Create the env and install the project + dev tooling (Python 3.12+ via uv)
-	uv sync --group dev
+	uv sync --frozen --group dev
 	uv run python -c "import sys; print('id-churn-sentinel env on Python', sys.version.split()[0])"
 
 dev: install ## Alias for install. There is no server: this is a CLI + a static feed.
@@ -87,7 +87,7 @@ no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_s
 no-auto-classification: ## [7/7] SAFETY GATE: the tool never classifies a change without a human
 	uv run pytest -m no_auto_classification -q
 
-verify: ## The full merge gate — all seven stages, in order
+verify: install ## The full merge gate — frozen install plus all seven stages, in order
 	@echo "== [1/7] lint ==";                   $(MAKE) --no-print-directory lint
 	@echo "== [2/7] typecheck ==";              $(MAKE) --no-print-directory type
 	@echo "== [3/7] tests + coverage (>=90) =="; $(MAKE) --no-print-directory cov

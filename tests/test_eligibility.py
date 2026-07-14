@@ -157,14 +157,16 @@ def test_a_prior_fetch_failure_does_not_remove_the_source_from_the_denominator(
 def test_registry_report_keeps_every_source_in_the_denominator(
     source: Source, arizona_source: Source
 ) -> None:
-    registry = Registry(version="1.0", sources=(_eligible(source), arizona_source))
+    inactive = replace(_eligible(arizona_source), active=False)
+    registry = Registry(version="1.0", sources=(_eligible(source), inactive))
 
     report = eligibility_report(registry, as_of=AS_OF)
 
     assert len(report.decisions) == 2
     assert len(report.eligible) == 1
     assert len(report.ineligible) == 1
-    assert dict(report.reason_counts) == {"fetch-policy-unreviewed": 1, "unverified": 1}
+    assert report.attempt_source_ids == (source.id,)
+    assert dict(report.reason_counts) == {"inactive": 1}
 
 
 def test_committed_registry_reports_the_real_zero_eligible_denominator() -> None:
@@ -259,7 +261,8 @@ def test_cli_reports_the_exact_fail_closed_denominator(
 
     assert main(["--registry", str(path), "sources", "eligibility", "--as-of", "2026-07-13"]) == 0
     output = capsys.readouterr().out
-    assert "1/2 eligible" in output
+    assert "attempt denominator 1 source(s)" in output
+    assert "registry audit: 1/2 entries attempt-eligible" in output
     assert "unverified: 1" in output
     assert "fetch-policy-unreviewed: 1" in output
     assert "report only" in output
@@ -270,7 +273,8 @@ def test_cli_reports_the_exact_fail_closed_denominator(
     )
     assert main(["--registry", str(path), "sources", "eligibility", "--as-of", "2026-07-13"]) == 0
     all_eligible_output = capsys.readouterr().out
-    assert "1/1 eligible" in all_eligible_output
+    assert "attempt denominator 1 source(s)" in all_eligible_output
+    assert "registry audit: 1/1 entries attempt-eligible" in all_eligible_output
     assert "report only" in all_eligible_output
 
 

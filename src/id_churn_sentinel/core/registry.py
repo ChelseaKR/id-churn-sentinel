@@ -44,6 +44,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
@@ -94,8 +95,6 @@ REJECTED = "rejected"  # a named human opened the URL and found it is NOT the of
 WITHDRAWN = "withdrawn"
 
 VERIFICATION_STATUSES: frozenset[str] = frozenset({UNVERIFIED, VERIFIED, REJECTED})
-
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 FETCH_POLICY_UNREVIEWED = "unreviewed"
 FETCH_POLICY_ALLOW = "allow"
@@ -613,7 +612,7 @@ def _validate_human_verification(status: object, verifier: str, at: str, where: 
             f"{where}.verification.status is {status!r} but no `verifier` is named. A human "
             f"judgment with no human attached is indistinguishable from a machine's."
         )
-    if not _DATE_RE.match(at):
+    if not at:
         raise RegistryError(
             f"{where}.verification.at must be an ISO date (YYYY-MM-DD) saying WHEN the "
             f"human looked — a verification with no date cannot go stale, which means it "
@@ -622,11 +621,9 @@ def _validate_human_verification(status: object, verifier: str, at: str, where: 
 
 
 def _validate_date_range(at: str, expires_at: str, where: str) -> None:
-    if expires_at and not _DATE_RE.match(expires_at):
-        raise RegistryError(
-            f"{where}.expires_at must be an ISO date (YYYY-MM-DD); got {expires_at!r}"
-        )
-    if at and expires_at and expires_at < at:
+    at_date = _parse_registry_date(at, f"{where}.at") if at else None
+    expiry_date = _parse_registry_date(expires_at, f"{where}.expires_at") if expires_at else None
+    if at_date and expiry_date and expiry_date < at_date:
         raise RegistryError(f"{where}.expires_at cannot be before at")
 
 
@@ -634,12 +631,17 @@ def _validate_policy_decision(outcome: object, values: Mapping[str, str], where:
     for key in ("reviewer", "at", "expires_at", "evidence", "reason"):
         if not values[key].strip():
             raise RegistryError(f"{where}.fetch_policy.{key} is required for outcome {outcome!r}")
-    for key in ("at", "expires_at"):
-        if not _DATE_RE.match(values[key]):
-            raise RegistryError(
-                f"{where}.fetch_policy.{key} must be an ISO date (YYYY-MM-DD); got {values[key]!r}"
-            )
     _validate_date_range(values["at"], values["expires_at"], f"{where}.fetch_policy")
+
+
+def _parse_registry_date(raw: str, where: str) -> date:
+    try:
+        parsed = date.fromisoformat(raw)
+    except ValueError as exc:
+        raise RegistryError(f"{where} must be an ISO date (YYYY-MM-DD); got {raw!r}") from exc
+    if parsed.isoformat() != raw:
+        raise RegistryError(f"{where} must be an ISO date (YYYY-MM-DD); got {raw!r}")
+    return parsed
 
 
 def _parse_gap(entry: object, index: int) -> Gap:

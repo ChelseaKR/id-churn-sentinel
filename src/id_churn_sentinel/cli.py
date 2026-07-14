@@ -333,11 +333,10 @@ def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
     )
     for reason, count in report.reason_counts:
         print(f"  {reason}: {count}")
-    if report.ineligible:
-        print(
-            "  fail-closed report only: watcher/publisher wiring is the next iteration; "
-            "no policy decision was inferred"
-        )
+    print(
+        "  fail-closed report only: watcher/publisher wiring is the next iteration; "
+        "no policy decision was inferred"
+    )
     return 0
 
 

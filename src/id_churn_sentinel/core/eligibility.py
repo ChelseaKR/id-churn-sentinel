@@ -107,6 +107,14 @@ def _verification_reasons(source: Source, as_of: date) -> tuple[str, ...]:
         return ("verification-status-ineligible",)
 
     reasons: list[str] = []
+    if not verification.verifier.strip():
+        reasons.append("verification-verifier-missing")
+    if not verification.at:
+        reasons.append("verification-date-missing")
+    else:
+        verified_at = parse_as_of(verification.at)
+        if verified_at > as_of:
+            reasons.append("verification-not-yet-effective")
     if not verification.evidence:
         reasons.append("verification-evidence-missing")
     if not verification.expires_at:
@@ -130,7 +138,9 @@ def _policy_reasons(source: Source, as_of: date) -> tuple[str, ...]:
         ("reason", "fetch-policy-reason-missing"),
         ("expires_at", "fetch-policy-expiry-missing"),
     )
-    reasons = [reason for field, reason in required if not getattr(policy, field)]
+    reasons = [reason for field, reason in required if not getattr(policy, field).strip()]
+    if policy.at and parse_as_of(policy.at) > as_of:
+        reasons.append("fetch-policy-not-yet-effective")
     if policy.expires_at and parse_as_of(policy.expires_at) < as_of:
         reasons.append("fetch-policy-recheck-due")
     return tuple(reasons)

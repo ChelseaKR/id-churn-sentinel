@@ -112,6 +112,19 @@ def test_expiry_date_is_inclusive(source: Source) -> None:
     assert evaluate_source(on_boundary, as_of=AS_OF).eligible
 
 
+def test_future_dated_decisions_are_not_yet_eligible(source: Source) -> None:
+    future = replace(
+        _eligible(source),
+        verification=replace(_eligible(source).verification, at="2026-07-14"),
+        fetch_policy=replace(_policy(), at="2026-07-14"),
+    )
+
+    assert evaluate_source(future, as_of=AS_OF).reasons == (
+        "verification-not-yet-effective",
+        "fetch-policy-not-yet-effective",
+    )
+
+
 def test_denied_or_inactive_sources_are_ineligible(source: Source) -> None:
     denied = replace(_eligible(source), fetch_policy=_policy(outcome=FETCH_POLICY_DENY))
     inactive = replace(_eligible(source), active=False)
@@ -190,6 +203,14 @@ def test_registry_parses_a_complete_policy_and_rejects_a_partial_one(tmp_path: P
     with pytest.raises(RegistryError, match=r"fetch_policy\.at is required"):
         load_registry(path)
 
+    entry["fetch_policy"] = {
+        **_policy().to_dict(),
+        "at": "2026-02-30",
+    }
+    path.write_text(json.dumps({"registry_version": "1.0", "sources": [entry]}), encoding="utf-8")
+    with pytest.raises(RegistryError, match=r"fetch_policy\.at must be an ISO date"):
+        load_registry(path)
+
 
 def test_cli_reports_the_exact_fail_closed_denominator(
     tmp_path: Path, source: Source, capsys: pytest.CaptureFixture[str]
@@ -233,6 +254,15 @@ def test_cli_reports_the_exact_fail_closed_denominator(
     assert "unverified: 1" in output
     assert "fetch-policy-unreviewed: 1" in output
     assert "report only" in output
+
+    path.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [raw_source]}),
+        encoding="utf-8",
+    )
+    assert main(["--registry", str(path), "sources", "eligibility", "--as-of", "2026-07-13"]) == 0
+    all_eligible_output = capsys.readouterr().out
+    assert "1/1 eligible" in all_eligible_output
+    assert "report only" in all_eligible_output
 
 
 def test_bad_policy_date_is_refused() -> None:

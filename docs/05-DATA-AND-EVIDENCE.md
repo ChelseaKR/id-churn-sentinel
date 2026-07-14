@@ -1,5 +1,10 @@
 # Data and evidence plan
 
+> **Commercial activity hold — July 14, 2026.** Noncommercial data-governance,
+> privacy, and open-source technical work may continue. Pilot, partner, customer,
+> external-review, and production-service assumptions in this plan are paused
+> under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Evidence principles
 
 1. Preserve what the machine observed separately from what a human judged.

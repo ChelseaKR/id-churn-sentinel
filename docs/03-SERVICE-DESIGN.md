@@ -1,8 +1,15 @@
 # Service design
 
+> **Commercial activity hold — July 14, 2026.** This file preserves a proposed
+> future operating model. No customer onboarding, partner support, pilot consent,
+> service-level commitment, or external operational relationship described here
+> is active. Only noncommercial public-interest research, documentation, safety
+> analysis, and open-source technical work may continue under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Service promise
 
-ID Churn Sentinel promises a reviewed, reproducible observation that an identified official-source candidate changed. It does not promise legal completeness, legal meaning, or an unchanged jurisdiction. Every customer-facing moment must preserve that distinction.
+The proposed service promise was a reviewed, reproducible observation that an identified official-source candidate changed. It would not promise legal completeness, legal meaning, or an unchanged jurisdiction. If external service activity is ever separately authorized, every downstream-facing moment must preserve that distinction.
 
 ## Actors
 
@@ -50,9 +57,9 @@ ID Churn Sentinel promises a reviewed, reproducible observation that an identifi
 | Act | partner editorial ticket | optional support, no advice | partner-owned ticket reference |
 | Correct | correction/withdrawal visible | incident and governance workflow | supersession chain, postmortem |
 
-## Support model
+## Historical support model — paused
 
-Public documentation and a security/correction address are always available. Pilot partners receive business-day operational support; support may explain fields and evidence but must not interpret the law. Sev-1 safety or privacy reports page the service owner. All other requests receive acknowledgment within two business days.
+Public documentation and repository issue-reporting mechanisms may remain available. The historical model contemplated business-day operational support for pilot partners, bounded to explaining fields and evidence without interpreting law. Those partner-support commitments, escalation promises, and response-time targets are not active while the commercial hold remains in effect.
 
 ## Manual work and automation boundary
 

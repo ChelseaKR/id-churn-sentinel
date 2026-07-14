@@ -1,10 +1,19 @@
-# Consumers — who this feed is for, and why they are the customers
+# Consumers — technical integration guide and historical audience hypotheses
 
-> **Last verified: 2026-07-13 · Recheck cadence: per consumer conversation.**
+> **Commercial activity hold — July 14, 2026.** Technical documentation for the
+> free public artifacts may remain available. The named organizations, proposed
+> integrations, offers, outreach, partnerships, support, funding, and maintenance
+> models below are historical hypotheses only. No organization is represented as
+> a customer, partner, prospect, pilot participant, sponsor, or user. Do not use
+> this file for outreach while [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md)
+> remains in effect.
+
+> **Historical research date: 2026-07-13.** No consumer conversation or outreach
+> is authorized while the commercial hold remains active.
 
 ## The thesis in one paragraph
 
-Existing organizations already do the hard part of trans ID-document guidance — the writing, legal review, plain language, community trust, and, in Namesake's case, a daily extracted-text monitor for canonical-source PDFs. Freshness is therefore not an untouched category. Our narrower dated hypothesis is that no public offering yet combines a multi-jurisdiction source registry, dated verification and fetch eligibility, heterogeneous text evidence, independent review/correction, named gaps/run health, and a public no-reader-tracking feed. This repo is designed to test that combined contract and to integrate with existing editorial or monitoring workflows, not replace them. **Those organizations are intended customers, partners, or build/partner/buy comparators.**
+Existing organizations already do the hard part of trans ID-document guidance — the writing, legal review, plain language, community trust, and, in Namesake's case, a daily extracted-text monitor for canonical-source PDFs. Freshness is therefore not an untouched category. The historical hypothesis was that no public offering yet combined a multi-jurisdiction source registry, dated verification and fetch eligibility, heterogeneous text evidence, independent review/correction, named gaps/run health, and a public no-reader-tracking feed. The repository was designed to test that combined contract and possible integration with existing editorial or monitoring workflows, not replace them. **The named organizations were modeled as possible future consumers, partners, or build/partner/buy comparators; none is represented as having agreed to any role.**
 
 Building a 52nd guidance website would be the obvious move and the wrong one. The world does not need another page telling a trans person what documents to bring; it needs the four pages that already exist to be *right this week*.
 
@@ -320,29 +329,29 @@ That is correct and it is deliberate. Every change the watcher detects is born `
 
 **Integrator guidance:** treat `changes: []` as a successful poll returning no new items. Pin on `schema_version`. Do not treat an empty `changes` array as an error condition, and do not alert your team on it.
 
-## How each consumer would use it
+## Historical integration hypotheses — no outreach active
 
 ### Advocates for Trans Equality (A4TE) — ID Documents Center
 Covers 50 states + DC + 5 territories + 5 federal document classes, and asks users to email in corrections: *"Due to the ever-changing nature of state laws and policies, we are working to keep the ID Documents Center as up to date as possible. If you see something that needs updating, please contact us."*
 
-**The offer:** supplement the contact form with a queue. Map each of their jurisdiction/document pages to one or more independently trusted `source_id`s. Poll `changes.json` weekly; when a human-reviewed change lands for a mapped source, open a research ticket with the diff attached. Their editors still decide whether their guidance is stale or needs revision; the feed only gives them earlier evidence to investigate.
+**Historical integration hypothesis:** supplement the contact form with a queue. A possible future integrator could map jurisdiction/document pages to independently trusted `source_id`s, poll `changes.json`, and investigate cited observations using its own editorial process. This is not a proposal to, relationship with, or representation about A4TE.
 
-**Why it's cheap for them:** one cron job, one mapping table, zero new content obligations. And they get the highest-value thing we have: `diff_excerpt` tells their writer *what sentence to look at*, so re-verification is minutes rather than a full page re-read.
+**Historical implementation estimate:** the concept assumed one scheduled job and one mapping table. That estimate was not validated with A4TE and is not a claim about its systems, costs, needs, or interest.
 
 ### Trans Lifeline — ID Change Library
 Volunteer-maintained since 2016, self-acknowledged incomplete (entries flagged *"Help Us Find It"*), no API, no export, **no last-updated dates**.
 
-**The offer:** a dated research queue, not a content-freshness certification. Even without integration, `changes.json` can tell volunteers which mapped source pages had human-reviewed observed changes this quarter. Volunteer effort is their scarcest resource, and this converts “re-check everything, eventually” into “investigate these cited observations first.” `observed_at` is only when this crawler saw the source content; it is not the agency's change date or a last-updated date for the library.
+**Historical integration hypothesis:** a dated research queue, not a content-freshness certification. A possible future integrator could use `changes.json` to prioritize which mapped source pages to investigate. `observed_at` is only when this crawler saw the source content; it is not the agency's change date or a last-updated date for the library. This is not a proposal to, relationship with, or representation about Trans Lifeline.
 
 ### Namesake (namesake.fyi)
 Open-source and well-engineered. Namesake already runs a scheduled daily monitor for PDFs with canonical source URLs, compares extracted text with its local copy, emits changed-line diffs, and opens or updates an issue when drift appears.
 
-**The offer:** begin with build/partner/buy discovery, not a pitch that assumes they lack monitoring. Reuse or integrate their canonical-PDF extraction and issue workflow where it fits; contribute improvements upstream if that is safer and cheaper; and test whether this product's additional value is the combined multi-jurisdiction verification, eligibility, heterogeneous-source evidence, run-health/gap, independent-review/correction, and public-feed contract. Our unverified registry is not a head start on authoritative URLs: it is a set of candidates that may help discovery only after Namesake or another named human independently verifies them.
+**Historical integration hypothesis:** a future, separately authorized build/partner/buy analysis would begin by assessing reuse or upstream contribution, not by assuming Namesake lacks monitoring. The unverified registry is not a head start on authoritative URLs. This is not a proposal to, relationship with, or representation about Namesake.
 
 ### Legal-aid organizations and law-school clinics
 (Lambda Legal, TLDEF, Transgender Law Center, state legal-aid orgs, name-change clinics.)
 
-**The offer:** an RSS feed in a Slack channel. A clinic that runs name-change days can learn that a mapped DMV source page had a reviewed observed change, inspect the cited passage, and use its own qualified process to decide whether requirements or clinic materials changed. This is the lowest-effort integration and involves **no filtering at all**: a clinic in Texas subscribes to `feed-us-tx.xml`. Zero engineering. (Telling a legal-aid clinic to “just filter `changes.json`” was telling it to write code before it could inspect its own state feed—which is why the per-jurisdiction feeds exist.)
+**Historical integration hypothesis:** a clinic could place a public RSS feed in an internal channel, inspect cited observations, and use its own qualified process to decide whether its materials need review. The per-jurisdiction feeds illustrate a low-effort technical path. No clinic is represented as using, evaluating, or being solicited for this workflow.
 
 ### Journalists and researchers
 The alpha `changes.json` is a reviewed record of when the crawler observed candidate-source content move. Text/HTML records include a passage diff; binary records currently do not. The newest-five snapshot window supports recent checking, but a durable longitudinal primary-source archive and months-later reproduction are V1 gates, not current claims. A journalist should treat a URL as authoritative only when its source verification is `verified` and in date, and should still inspect the source itself.
@@ -357,20 +366,20 @@ There is no SDK, no auth, no rate limit, no account, and no signup form. That is
 - **No tracking of any kind** in the published bytes: no analytics, no beacon, no pixel, no cookie, no UTM parameter — and the published *site* additionally makes **no third-party request at all**: no CDN script, no external stylesheet, no web font, no image. Every external request is a request that tells a third party who is reading about trans ID law, and a page that surveils the people it claims to protect would be a disgrace.
 - **This is enforced, not promised.** `test_the_feed_requires_no_account_and_carries_no_tracking` and `test_the_published_site_makes_no_third_party_requests` assert it on the **published bytes** and run in the merge-blocking `feed_integrity` gate. If someone adds a font from Google, the build goes red.
 - **There is nothing to subscribe *to*.** Both consumption paths are you fetching a static file. No webhook, no mailing list, no push, no registration — and therefore no list of who reads this.
-- **Consequently we cannot report readership, and never will.** We do not know who consumes this or how many of you there are. That is a deliberate trade: the metric is worth less than the risk. If you integrate, we would love to hear from you — but nothing makes you tell us, and nothing observes you if you don't.
+- **Consequently we cannot report readership.** We do not know who consumes the artifacts or how many readers there are. The artifact does not require or request that a reader identify itself; nothing in the repository observes a reader who does not do so.
 
 **The one honest limit, stated concretely rather than vaguely: the files are hosted on GitHub** (raw.githubusercontent.com, and github.io once Pages is on). **GitHub's access logs exist, and they contain the IP address of anyone who fetches a file** — including which per-jurisdiction feed they fetched, which is more revealing than the unscoped one, not less. We do not control those logs, we do not receive them, we cannot delete them, and no amount of care in this repository changes that.
 
 What we *do* control, and do: the logs are **not ours**, are **not enriched with any identity**, and are **not required** in order to consume anything. There is no account to tie an IP to. If that residual risk matters for your threat model, fetch over Tor or a VPN, or mirror the artifacts once and serve them internally — nothing about the feed makes any of that harder, and mirroring is explicitly fine (MIT).
 
-## The sustainability thesis
+## Historical sustainability hypotheses — paused
 
-**The consumers are the customers.** The model, in order of preference:
+The following models were planning hypotheses only; none is active, validated, offered, or authorized:
 
-1. **Grant-funded infrastructure.** This is the classic case for it: a small, boring, shared dependency that four organizations each need and none can justify building alone. The pitch is not "fund a trans ID website"; it is "fund the monitor that keeps the four existing ones from going stale," and it costs a fraction of any of them.
-2. **Cost-shared maintenance.** If two or more orgs integrate it, a modest shared maintenance contract is easier to justify than four separate internal monitoring efforts — because that is precisely what it replaces.
-3. **It survives neglect.** Zero runtime dependencies, SQLite, a static feed, a cron job. If funding never materializes, the marginal cost of keeping it running is a few dollars a month and the reviewer's time. It is designed to not die quietly, which is more than can be said for most civic-tech infrastructure.
+1. **Grant-funded infrastructure hypothesis.** The planning rationale considered whether a small shared dependency might fit future public-interest funding. No funding request or sponsor relationship exists.
+2. **Cost-shared maintenance hypothesis.** The planning artifact considered shared maintenance only as an unvalidated possibility. No maintenance service or contract is offered.
+3. **Low-dependency technical design.** Zero runtime dependencies, SQLite, and static artifacts reduce technical upkeep, but they do not create or imply an operating service, reviewer capacity, support commitment, or sustainability.
 
-**What would make this a failure:** building it, publishing it, and having no incumbent consume it. That is why M5 in `docs/ROADMAP.md` is *"one org wiring the feed into their content workflow"* — not "the feed exists," not "the feed is well-engineered." The feed existing is table stakes. Someone depending on it is the point.
+**Historical validation criterion:** the former plan treated lack of institutional use as a negative result and named one organization integrating the feed as an M5 outcome. That criterion is preserved for provenance; no organization is being recruited or represented as using the feed.
 
-**What would make it a success:** an A4TE writer finding out that Texas changed its DL page from a ticket in their queue, instead of from a user who already made the trip.
+**Historical scenario:** the plan illustrated possible value with an A4TE writer receiving a mapped observation before a harmed user reported stale guidance. That hypothetical is not a claim about A4TE, its workflow, or any relationship.

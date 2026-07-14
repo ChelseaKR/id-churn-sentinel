@@ -1,5 +1,11 @@
 # V1.0 risk register
 
+> **Commercial activity hold — July 14, 2026.** Risks involving recruiting,
+> pilots, paid panels, partners, funders, customer adoption, contracts, or revenue
+> are historical planning scenarios, not evidence that any such activity or
+> relationship exists. Noncommercial safety and technical risk work may continue
+> under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 Scale: likelihood and impact are Low / Medium / High. Product lead reviews weekly; High-impact triggers are reviewed immediately with the governance lead.
 
 | ID | Risk | L | I | Early signal / trigger | Prevention | Contingency | Owner |

@@ -1,5 +1,11 @@
 # V1.0 system architecture
 
+> **Commercial activity hold — July 14, 2026.** Noncommercial architecture,
+> safety, and open-source technical work may continue. Production-service,
+> partner-integration, support, staffing, procurement, and external deployment
+> assumptions in this plan are not active commitments. See
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Architectural outcome
 
 Keep the product a small, inspectable batch system: Python CLI, committed registry, SQLite evidence store, and atomically published static artifacts. V1 adds stronger review state, release manifests, source/run health, and recovery—not a web application or account system.

@@ -1,5 +1,11 @@
 # Security, privacy, and threat model
 
+> **Commercial activity hold — July 14, 2026.** Noncommercial security, privacy,
+> threat-modeling, and open-source technical work may continue. References to
+> pilot contacts, partners, customers, support, contracts, or external operations
+> are historical scenarios; no such activity or relationship is represented as
+> active. See [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Security objective
 
 Protect evidence integrity and reviewer authority while minimizing the existence of sensitive data. The most important privacy control is that the service does not know who reads transgender identity-document updates.

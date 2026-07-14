@@ -1,5 +1,12 @@
 # Product requirements — V1.0
 
+> **Commercial activity hold — July 14, 2026.** This PRD preserves proposed
+> requirements; it is not an active pilot, recruitment, customer, support, or
+> commercial program. External validation and business activity described below
+> are paused. Noncommercial public-interest research, documentation, safety
+> analysis, and open-source technical work may continue under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Problem
 
 Organizations already maintain trusted transgender identity-document guidance, but official pages change, disappear, redirect, or silently become stale. Their current detection mechanism is periodic manual rereading or a user reporting harm after guidance has failed. A generic webpage-change alert does not preserve the changed passage, distinguish outages from drift, expose coverage gaps, or provide a governance-safe publication path.

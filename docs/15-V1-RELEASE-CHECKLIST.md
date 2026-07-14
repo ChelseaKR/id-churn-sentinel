@@ -1,5 +1,11 @@
 # V1.0 release checklist
 
+> **Commercial activity hold — July 14, 2026.** This checklist is a historical
+> readiness template, not an active release, pilot, partner, funding, support, or
+> commercial work plan. Its noncommercial technical and safety gates may inform
+> open-source work, but they do not authorize any external program or service.
+> See [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 **Rule:** every must-pass item needs an owner, date, result, and evidence link in the release issue. “Planned,” “known,” and “works on my machine” are not passes. Domain owners attest their evidence; product and community-governance are the two joint release authorities and both sign the final ship/hold decision. Any unresolved blocking finding from community safety, security/privacy, accessibility, legal boundary, engineering integrity, or operations forces a hold.
 
 ## Requirement evidence index

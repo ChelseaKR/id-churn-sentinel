@@ -1,4 +1,11 @@
-# V1.0 delivery roadmap
+# V1.0 delivery roadmap — historical/paused
+
+> **Commercial activity hold — July 14, 2026.** The dates, staffing assumptions,
+> recruiting, pilots, partnerships, funding, support, and release gates below are
+> preserved as historical forecasts, not current work or commitments. Only
+> noncommercial public-interest research, documentation, safety analysis, and
+> open-source technical work may continue under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
 
 This is the execution roadmap for V1.0. [`ROADMAP.md`](./ROADMAP.md) remains the implementation history and prior milestone record.
 
@@ -6,7 +13,7 @@ This is the execution roadmap for V1.0. [`ROADMAP.md`](./ROADMAP.md) remains the
 
 Assumes one product/technical lead at 80% for 28.5 weeks (114 days), a 0.5 FTE implementation engineer for 20 weeks (50 days), 0.5 FTE verification/operations for 16 weeks (40 days), 0.2 FTE governance/review operations through release (29 days), and 20 budgeted specialist days across counsel, security, accessibility, and language. The 169-day P0 backlog assigns exactly 114 product/engineering, 34 verification/operations, 6 governance, and 15 specialist days. Product/engineering therefore uses 69.5% of 164 days; verification/operations 85% of 40; governance 20.7% of 29; specialists 75% of 20. Re-estimate remaining work at each gate; if any role's forecast rises above 85%, add capacity or move the date. P1 cuts cannot remove PDF comparison for active sources, Spanish V1 metadata, signing, retention, or deployment.
 
-## Now — prove the foundation (Jul 13–Sep 25, 2026)
+## Historical phase 1 — prove the foundation (Jul 13–Sep 25, 2026)
 
 | Outcome | Owner | Dependencies | Exit evidence |
 |---|---|---|---|
@@ -20,7 +27,7 @@ Assumes one product/technical lead at 80% for 28.5 weeks (114 days), a 0.5 FTE i
 
 **Risks:** reviewer availability, machine-checked sources proving wrong, and partner procurement delay. Mitigate with federal/high-use sources first, parallel repair queue, and an unpaid shadow pilot that does not require vendor onboarding.
 
-## Next — close controls and run pilot (Sep 14–Nov 13, 2026)
+## Historical phase 2 — close controls and run pilot (Sep 14–Nov 13, 2026)
 
 | Outcome | Owner | Dependencies | Exit evidence |
 |---|---|---|---|
@@ -35,11 +42,11 @@ Assumes one product/technical lead at 80% for 28.5 weeks (114 days), a 0.5 FTE i
 
 **Risks:** a quiet real-world period provides few alerts; use clearly labeled synthetic exercises. Never manufacture public change records. The accessible static review bundle and optional delivery helpers are the first cuts if critical-path evidence slips; active-PDF comparison is not cuttable while PDFs remain active.
 
-## Prove operations and release — decide, don’t merely deploy (Oct 19, 2026–Jan 29, 2027)
+## Historical phase 3 — prove operations and release (Oct 19, 2026–Jan 29, 2027)
 
 Freeze and receipt the complete operational baseline by October 16, then run eight consecutive eligible production-like cycles through December 14. Use the holiday contingency and January 4–15 RC window for clean migration, golden-corpus, security, accessibility, signing, deployment, restore, and rollback tests. A pre-baseline rehearsal or a sequence invalidated by a material control change does not count. Reconcile pilot findings with requirements, close or explicitly block every P0, and hold the joint release review by January 29. Release only if every must-pass checklist item has evidence. Otherwise publish a dated hold decision and revised critical path.
 
-## Later — after evidence, not before
+## Historical later options — not authorized
 
 - accessible static reviewer bundle and richer PDF/visual comparison beyond the bounded V1 path;
 - additional design partners and service integrations;

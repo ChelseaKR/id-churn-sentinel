@@ -1,5 +1,11 @@
 # Test and evaluation strategy
 
+> **Commercial activity hold — July 14, 2026.** Automated, synthetic, and
+> noncommercial technical evaluation may continue. Partner recruitment, pilot
+> participation, paid external evaluation, and customer-facing validation
+> described here are historical plans and are paused under
+> [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Quality claim
 
 Tests must demonstrate the safety properties and operating outcome, not merely code coverage. Network-independent unit and contract tests gate every change; controlled live checks and human evaluations supply evidence the fixture suite cannot.

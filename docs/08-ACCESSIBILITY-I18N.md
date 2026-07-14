@@ -1,5 +1,10 @@
 # Accessibility and internationalization plan
 
+> **Commercial activity hold — July 14, 2026.** Noncommercial accessibility and
+> internationalization work may continue. Any paid reviewer engagement, external
+> participant recruitment, service commitment, or pilot validation described
+> here is paused under [`COMMERCIAL-STATUS.md`](./COMMERCIAL-STATUS.md).
+
 ## Standard and users
 
 V1 targets WCAG 2.2 AA for the public site and any browser-based review bundle. The CLI follows equivalent keyboard, text, error-identification, and non-color principles. Design for screen-reader users, low-vision users, cognitive and motor disabilities, low bandwidth, older hardware, and people working under stress.

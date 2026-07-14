@@ -68,10 +68,11 @@ import json
 from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime
 from email.utils import format_datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord
+from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, PublicationStatus
 from id_churn_sentinel.core.coverage import coverage
 from id_churn_sentinel.core.eligibility import evaluate_source
 from id_churn_sentinel.core.registry import (
@@ -102,10 +103,10 @@ __all__ = [
 # The contract is closed: its schema rejects unknown properties, so adding even an optional
 # field can break a validating consumer and requires a separately versioned contract. Removing
 # a field, renaming one, changing a type, or narrowing an enum is likewise a break. The shape is
-# `docs/schema/changes-v1.schema.json`, and a test asserts the schema and the code agree —
+# `docs/schema/changes-v2.schema.json`, and a test asserts the schema and the code agree —
 # a schema document that drifts from its implementation is worse than none, because an
 # integrator builds against it.
-FEED_SCHEMA_VERSION = "1.0"
+FEED_SCHEMA_VERSION = "2.0"
 
 # The inventory feed's own version, independent of the change feed's: what we watch and what
 # we changed about *how* we publish are different questions on different clocks.
@@ -181,33 +182,110 @@ def _guard(
     today's code, and the cost of being wrong is publishing an unreviewed, machine-observed
     hash change to organizations who will reasonably read it as "the law changed."
     """
-    selected = tuple(record for record in records if record.publishable)
+    candidates = tuple(records)
+    malformed_observations = tuple(
+        record.id for record in candidates if not record.observation_valid
+    )
+    if malformed_observations:
+        raise PublishError(
+            "refusing to publish malformed observation state for change(s): "
+            + ", ".join(str(identifier) for identifier in malformed_observations)
+        )
+    malformed = tuple(record.id for record in candidates if not record.lifecycle_valid)
+    if malformed:
+        raise PublishError(
+            "refusing to publish malformed lifecycle state for change(s): " + ", ".join(malformed)
+        )
+    selected = tuple(record for record in candidates if record.publishable)
     for record in selected:
         if not record.publishable:  # pragma: no cover — defensive; the filter guarantees this
             raise PublishError(
                 f"refusing to publish change {record.id}: not reviewed and confirmed by a human"
             )
-        try:
-            source = registry.by_id(record.source_id)
-        except RegistryError as exc:
-            raise PublishError(
-                f"refusing to publish change {record.id}: source {record.source_id!r} is "
-                "withdrawn or absent from the canonical registry"
-            ) from exc
-        decision = evaluate_source(source, as_of=as_of)
-        if not decision.eligible:
-            raise PublishError(
-                f"refusing to publish change {record.id}: source {record.source_id!r} is "
-                f"not publication-eligible ({', '.join(decision.reasons)})"
-            )
-        identity = (record.jurisdiction, record.document_class, record.url)
-        canonical = (source.jurisdiction, source.document_class, source.url)
-        if identity != canonical:
-            raise PublishError(
-                f"refusing to publish change {record.id}: observation source identity does "
-                "not match the eligible canonical registry entry"
-            )
+        _validate_record_source(record, registry=registry, as_of=as_of)
+    _validate_correction_graph(selected)
     return selected
+
+
+def _validate_record_source(record: ChangeRecord, *, registry: Registry, as_of: date) -> None:
+    try:
+        source = registry.by_id(record.source_id)
+    except RegistryError as exc:
+        raise PublishError(
+            f"refusing to publish change {record.id}: source {record.source_id!r} is "
+            "withdrawn or absent from the canonical registry"
+        ) from exc
+    decision = evaluate_source(source, as_of=as_of)
+    if not decision.eligible:
+        raise PublishError(
+            f"refusing to publish change {record.id}: source {record.source_id!r} is "
+            f"not publication-eligible ({', '.join(decision.reasons)})"
+        )
+    identity = (record.jurisdiction, record.document_class, record.url)
+    canonical = (source.jurisdiction, source.document_class, source.url)
+    if identity != canonical:
+        raise PublishError(
+            f"refusing to publish change {record.id}: observation source identity does "
+            "not match the eligible canonical registry entry"
+        )
+
+
+def _validate_correction_graph(records: tuple[ChangeRecord, ...]) -> None:
+    by_id = {record.id: record for record in records}
+    if len(by_id) != len(records):
+        raise PublishError("refusing to publish duplicate change ids")
+    for record in records:
+        if (
+            record.publication_status is PublicationStatus.CORRECTED
+            and (record.superseded_by or "") not in by_id
+        ):
+            raise PublishError(
+                f"refusing to publish corrected change {record.id}: replacement is absent"
+            )
+        if record.publication_status is PublicationStatus.CORRECTED:
+            replacement = by_id[record.superseded_by or ""]
+            subject = (
+                record.source_id,
+                record.jurisdiction,
+                record.document_class,
+                record.url,
+            )
+            successor = (
+                replacement.source_id,
+                replacement.jurisdiction,
+                replacement.document_class,
+                replacement.url,
+            )
+            if subject != successor:
+                raise PublishError(
+                    f"refusing to publish corrected change {record.id}: replacement source "
+                    "identity differs"
+                )
+            replacement_ready_at = replacement.independent_reviewed_at or replacement.reviewed_at
+            if (
+                record.lifecycle_at is None
+                or replacement_ready_at is None
+                or record.lifecycle_at < replacement_ready_at
+            ):
+                raise PublishError(
+                    f"refusing to publish corrected change {record.id}: correction predates "
+                    "replacement approval"
+                )
+    for record in records:
+        _walk_correction_chain(record, by_id)
+
+
+def _walk_correction_chain(record: ChangeRecord, by_id: dict[str, ChangeRecord]) -> None:
+    seen: set[str] = set()
+    cursor = record
+    while cursor.publication_status is PublicationStatus.CORRECTED:
+        if cursor.id in seen:
+            raise PublishError("refusing to publish a correction supersession cycle")
+        seen.add(cursor.id)
+        successor = by_id.get(cursor.superseded_by or "")
+        if successor is None:  # established above; defensive for future refactors
+            raise PublishError(f"correction chain for {record.id} is incomplete")
+        cursor = successor
 
 
 # Written into the published directory, and it is not a formality. GitHub Pages runs the output
@@ -253,79 +331,85 @@ def publish(
     something has already gone wrong is a feed nobody is subscribed to on the day it matters.
     """
     generated_at = now or datetime.now(UTC)
+    publication_as_of = eligibility_as_of or generated_at.date()
     published = _guard(
         records,
         registry=registry,
-        as_of=eligibility_as_of or generated_at.date(),
+        as_of=publication_as_of,
     )
     public_status = run_status or no_run_status()
+    rendered: dict[str, str] = {
+        "feed.xml": feed_xml(
+            published,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=registry,
+            eligibility_as_of=publication_as_of,
+        ),
+        "changes.json": changes_json(
+            published,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=registry,
+            eligibility_as_of=publication_as_of,
+        ),
+    }
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    _write_nojekyll(out_dir)
-    feed_path = out_dir / "feed.xml"
-    changes_path = out_dir / "changes.json"
-
-    feed_path.write_text(
-        feed_xml(published, feed_url=feed_url, generated_at=generated_at, registry=registry),
-        encoding="utf-8",
-    )
-    changes_path.write_text(
-        changes_json(published, feed_url=feed_url, generated_at=generated_at, registry=registry),
-        encoding="utf-8",
-    )
-
-    feeds: list[Path] = []
+    feed_names: list[str] = []
     for jurisdiction in sorted(registry.jurisdictions):
         slug = feed_slug(jurisdiction)
         scoped = tuple(r for r in published if r.jurisdiction == jurisdiction)
-        jurisdiction_feed = out_dir / f"feed-{slug}.xml"
-        jurisdiction_feed.write_text(
-            feed_xml(
-                scoped,
-                feed_url=feed_url,
-                generated_at=generated_at,
-                registry=registry,
-                jurisdiction=jurisdiction,
-            ),
-            encoding="utf-8",
+        feed_name = f"feed-{slug}.xml"
+        rendered[feed_name] = feed_xml(
+            scoped,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=registry,
+            jurisdiction=jurisdiction,
+            eligibility_as_of=publication_as_of,
         )
-        (out_dir / f"changes-{slug}.json").write_text(
-            changes_json(
-                scoped,
-                feed_url=feed_url,
-                generated_at=generated_at,
-                registry=registry,
-                jurisdiction=jurisdiction,
-            ),
-            encoding="utf-8",
+        rendered[f"changes-{slug}.json"] = changes_json(
+            scoped,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=registry,
+            jurisdiction=jurisdiction,
+            eligibility_as_of=publication_as_of,
         )
-        feeds.append(jurisdiction_feed)
+        feed_names.append(feed_name)
 
     report = coverage(registry)
+    rendered["sources.json"] = sources_json(registry, generated_at=generated_at)
+    rendered["status.json"] = status_json(public_status, generated_at=generated_at)
+    rendered["index.html"] = render_site(
+        registry,
+        report,
+        _sorted(published),
+        generated_at=generated_at,
+        run_status=public_status,
+        eligibility_as_of=publication_as_of,
+    )
+
+    # Complete every validation/rendering step before touching the public directory. Atomic
+    # promotion and signed release manifests remain ENG-06, but a late scoped-render failure
+    # must not partially overwrite an otherwise coherent release.
+    out_dir.mkdir(parents=True, exist_ok=True)
+    _write_nojekyll(out_dir)
+    for filename, content in rendered.items():
+        (out_dir / filename).write_text(content, encoding="utf-8")
+
+    feed_path = out_dir / "feed.xml"
+    changes_path = out_dir / "changes.json"
+    feeds = tuple(out_dir / name for name in feed_names)
     sources_path = out_dir / "sources.json"
-    sources_path.write_text(sources_json(registry, generated_at=generated_at), encoding="utf-8")
     status_path = out_dir / "status.json"
-    status_path.write_text(
-        status_json(public_status, generated_at=generated_at),
-        encoding="utf-8",
-    )
     site_path = out_dir / "index.html"
-    site_path.write_text(
-        render_site(
-            registry,
-            report,
-            _sorted(published),
-            generated_at=generated_at,
-            run_status=public_status,
-        ),
-        encoding="utf-8",
-    )
 
     return PublishResult(
         feed_path=feed_path,
         changes_path=changes_path,
         published=len(published),
-        jurisdiction_feeds=tuple(feeds),
+        jurisdiction_feeds=feeds,
         site_path=site_path,
         sources_path=sources_path,
         status_path=status_path,
@@ -349,9 +433,11 @@ def source_payload(source: Source) -> dict[str, Any]:
         "human_verified": source.verified,
         "verified_by": source.verification.verifier,
         "verified_at": source.verification.at,
-        "verification_statement": source.verification.statement,
+        "verification_statement": source.verification.public_statement,
         "reachable_by_our_crawler": source.reachable,
-        "notes": source.notes,
+        # Free-form registry rationale stays internal.  A public source payload carries only
+        # the controlled verification statement and never republishes operator notes.
+        "notes": "",
     }
 
 
@@ -379,6 +465,7 @@ def changes_json(
     generated_at: datetime,
     registry: Registry,
     jurisdiction: str | None = None,
+    eligibility_as_of: date | None = None,
 ) -> str:
     """The documented, versioned JSON feed. Sorted newest-first; stable, so a consumer
     diffing two fetches sees only real movement.
@@ -397,6 +484,11 @@ def changes_json(
     comes from a verified list of Texas's official pages. It does not. Now the file says so,
     in a field, before it says anything else.
     """
+    records = _guard(
+        records,
+        registry=registry,
+        as_of=eligibility_as_of or generated_at.date(),
+    )
     scoped_sources = tuple(
         source
         for source in sorted(registry.sources, key=lambda s: (s.jurisdiction, s.id))
@@ -500,6 +592,7 @@ def feed_xml(
     generated_at: datetime,
     registry: Registry,
     jurisdiction: str | None = None,
+    eligibility_as_of: date | None = None,
 ) -> str:
     """RSS 2.0. Hand-written rather than via a library: it is forty lines of stdlib string
     building, and it keeps the runtime dependency count at zero (see `pyproject.toml`).
@@ -522,6 +615,11 @@ def feed_xml(
     An RSS reader shows the channel description once and the items forever; if the registry's
     status only lived on the website, a subscriber would never see it at all.
     """
+    records = _guard(
+        records,
+        registry=registry,
+        as_of=eligibility_as_of or generated_at.date(),
+    )
     scoped_sources = tuple(
         source
         for source in registry.sources
@@ -590,9 +688,14 @@ def _item_xml(record: ChangeRecord, verification: Verification) -> str:
     # Different observation, different sentence.
     removed = record.kind is ChangeKind.POSSIBLY_REMOVED
     what = "SOURCE UNREACHABLE (possibly removed)" if removed else "change"
+    lifecycle = (
+        ""
+        if record.publication_status is PublicationStatus.ACTIVE
+        else f" [{record.publication_status}]"
+    )
     title = (
         f"[{record.jurisdiction}] {record.document_class} — "
-        f"{record.significance} {what} at {record.url}"
+        f"{record.significance} {what}{lifecycle} at {record.url}"
     )
     detail = (
         "Source unreachable — human-reviewed escalation:"
@@ -610,24 +713,50 @@ def _item_xml(record: ChangeRecord, verification: Verification) -> str:
         # named a reviewer but stayed silent about the source would read as though both had
         # been checked.
         f"Source verification: {verification.label}\n"
-        f"  {verification.statement}\n"
+        f"  {verification.public_statement}\n"
         f"Kind (machine-observed): {record.kind}\n"
         f"Significance (human-reviewed): {record.significance}\n"
         f"Reviewed by: {record.reviewer}\n"
-        f"Reviewer note: {record.review_note or '(none)'}\n"
+        f"Reviewed at: {record.reviewed_at.isoformat() if record.reviewed_at else '(missing)'}\n"
+        f"Public observation copy: {record.public_review_note}\n"
+        f"Independent review: {record.independent_review_status or 'not required'}"
+        f"{f' by {record.independent_reviewer}' if record.independent_reviewer else ''}"
+        f"{f' at {record.independent_reviewed_at.isoformat()}' if record.independent_reviewed_at else ''}\n"
+        f"Publication status: {record.publication_status}\n"
+        f"Superseded by: {record.superseded_by or '(none)'}\n"
+        f"Lifecycle reason: {record.lifecycle_reason or '(none)'}\n"
+        f"Lifecycle actor: {record.lifecycle_actor or '(none)'}\n"
+        f"Lifecycle at: {record.lifecycle_at.isoformat() if record.lifecycle_at else '(none)'}\n"
         f"Previous hash: {record.previous_hash}\n"
         f"New hash: {record.new_hash or '(none — the source could not be fetched)'}\n\n"
-        f"{detail}\n{record.diff_excerpt}"
+        f"{detail}\n{record.public_diff_excerpt}"
     )
+    guid = record.id
+    published_at = record.observed_at
+    if record.publication_status is not PublicationStatus.ACTIVE:
+        lifecycle_identity = "\n".join(
+            (
+                record.id,
+                str(record.publication_status),
+                record.superseded_by or "",
+                record.lifecycle_reason,
+                record.lifecycle_actor or "",
+                record.lifecycle_at.isoformat() if record.lifecycle_at else "",
+            )
+        )
+        guid = f"{record.id}-lifecycle-{sha256(lifecycle_identity.encode()).hexdigest()[:16]}"
+        if record.lifecycle_at is not None:
+            published_at = record.lifecycle_at
     return (
         "    <item>\n"
         f"      <title>{_esc(title)}</title>\n"
         f"      <link>{_esc(record.url)}</link>\n"
-        f'      <guid isPermaLink="false">{_esc(record.id)}</guid>\n'
-        f"      <pubDate>{format_datetime(record.observed_at)}</pubDate>\n"
+        f'      <guid isPermaLink="false">{_esc(guid)}</guid>\n'
+        f"      <pubDate>{format_datetime(published_at)}</pubDate>\n"
         f"      <category>{_esc(record.jurisdiction)}</category>\n"
         f"      <category>{_esc(record.document_class)}</category>\n"
         f"      <category>{_esc(record.kind)}</category>\n"
+        f"      <category>publication-status:{_esc(record.publication_status)}</category>\n"
         # Machine-readable in RSS too, so a pipeline can filter on it without parsing prose.
         # An RSS consumer who wants only human-verified sources can have that today; what they
         # cannot have is a feed that forgot to tell them the difference exists.
@@ -638,7 +767,11 @@ def _item_xml(record: ChangeRecord, verification: Verification) -> str:
 
 
 def _sorted(records: Sequence[ChangeRecord]) -> list[ChangeRecord]:
-    return sorted(records, key=lambda r: (r.observed_at, r.id), reverse=True)
+    return sorted(
+        records,
+        key=lambda record: (record.lifecycle_at or record.observed_at, record.id),
+        reverse=True,
+    )
 
 
 def _esc(value: str) -> str:

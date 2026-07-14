@@ -16,7 +16,12 @@ from pathlib import Path
 
 import pytest
 
-from id_churn_sentinel.core.changes import ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.changes import (
+    ChangeRecord,
+    IndependentReviewStatus,
+    ReviewStatus,
+    Significance,
+)
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import (
     FETCH_POLICY_ALLOW,
@@ -203,9 +208,15 @@ def observed_change(source: Source) -> ChangeRecord:
 
 @pytest.fixture
 def confirmed_change(observed_change: ChangeRecord) -> ChangeRecord:
-    return observed_change.reviewed_by(
+    first = observed_change.reviewed_by(
         reviewer="Chelsea Kelly-Reif",
         significance=Significance.SUBSTANTIVE,
         status=ReviewStatus.CONFIRMED,
         note="TX added a court-order requirement to the DL change page.",
+    )
+    return first.independently_reviewed_by(
+        reviewer="Synthetic Independent Reviewer",
+        status=IndependentReviewStatus.CONFIRMED,
+        qualification_ref="tests/evidence/synthetic-independent-qualification.json",
+        conflict_attestation_ref="tests/evidence/synthetic-independent-conflict.json",
     )

@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "MI",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff."
+      "notes": ""
     },
     {
       "source_id": "mi-mcl-333-2831-new-birth-certificate",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute \u2014 'New certificate of birth; establishment; requirements' \u2014 and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page \u2014 the entry claims only that this is an official Michigan page for this document class."
+      "notes": ""
     },
     {
       "source_id": "mi-scao-pc51-name-change-petition",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: courts.michigan.gov's name-change landing page is a client-rendered SPA that normalizes to ZERO passages \u2014 hashing it would watch a template, not a policy. The SCAO-approved form PC 51 ('Petition for Name Change') is the operative document a Michigan name-change actually runs on, it is served as a static PDF by the same official host, and it answers us with 200. A revision to the form is exactly the change a legal-aid clinic needs to know about. Hashed as raw bytes (no passage diff)."
+      "notes": ""
     }
   ]
 }

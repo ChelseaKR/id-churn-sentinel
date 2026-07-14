@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "coverage": {
     "sources": 152,
     "jurisdictions_covered": 52,
@@ -25,7 +25,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Alaska Court System Self-Help'. The plausible /shc/name/ deep links 404; this is the live self-help hub."
+      "notes": ""
     },
     {
       "source_id": "ak-havrs-vital-records",
@@ -39,7 +39,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 (post-redirect URL recorded), h1 'Health Analytics and Vital Records (HAVRS)'. The older /dph/VitalStats path 301s here."
+      "notes": ""
     },
     {
       "source_id": "al-adph-vital-records",
@@ -53,7 +53,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Vital Records | Alabama Department of Public Health (ADPH)', h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "al-alea-driver-license",
@@ -67,7 +67,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Driver License | Alabama Law Enforcement Agency', h1 'Driver License'."
+      "notes": ""
     },
     {
       "source_id": "al-judicial-system",
@@ -81,7 +81,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'ALABAMA JUDICIAL SYSTEM'. A landing page: no statewide name-change instruction page was found, and alacourt.gov (the case-lookup host) does not resolve for us at all. Recorded as a landing page rather than invented as a deep link."
+      "notes": ""
     },
     {
       "source_id": "ar-adh-certificates-records",
@@ -95,7 +95,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Certificates & Records'. Arkansas's DL and courts hosts both ship broken TLS chains \u2014 see the KNOWN GAPS block."
+      "notes": ""
     },
     {
       "source_id": "az-adhs-vital-records",
@@ -109,7 +109,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200. The <title> is the unhelpful site-wide 'ADHS', so the page was confirmed on its body text, which normalizes to ~5.6k characters of Vital Records content \u2014 a reminder that a title alone is not a verification."
+      "notes": ""
     },
     {
       "source_id": "az-adot-mvd",
@@ -123,7 +123,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Driver Services | Department of Transportation'. NOT the obvious URL, and that is the point: azdot.gov/mvd \u2014 the MVD landing page \u2014 was in this registry for one day and was caught by the first real two-run watch pass as a FALSE-DRIFT source. It renders a 'frequently viewed links' widget populated with a random sample of site links, which re-rolls on a slow cycle, so the page hashed differently between two watch runs five minutes apart with a diff consisting entirely of link titles ('rest area rules' \u2192 'penalties'). It would have minted a change record most weeks, forever. This deeper page carries the same driver-services content and no rotating widget."
+      "notes": ""
     },
     {
       "source_id": "az-courts-self-service",
@@ -137,7 +137,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Self-Service Center Home'. The statewide self-service centre that publishes the name-change forms."
+      "notes": ""
     },
     {
       "source_id": "ca-cdph-vital-records",
@@ -151,7 +151,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "The issuing office for the amended certificate the court order produces. THE URL IS CORRECT AND THE PAGE IS LIVE, but www.cdph.ca.gov SERVES A BROKEN CERTIFICATE CHAIN: its leaf is issued by 'Sectigo Public Server Authentication CA OV R36' while the chain it presents contains a different, stale intermediate ('Sectigo RSA Organization Validation Secure Server CA'). Browsers and curl paper over this by chasing the AIA extension to fetch the missing intermediate; Python/OpenSSL does not, so our fetcher gets CERTIFICATE_VERIFY_FAILED. Proven on 2026-07-13: supplying the AIA intermediate by hand makes the same request return 200. WE DO NOT DISABLE TLS VERIFICATION TO WORK AROUND THIS \u2014 a watcher serving people in hostile jurisdictions does not accept unverifiable TLS, and a source we cannot fetch safely is one we report as unreachable. The fix belongs to CDPH's server operators."
+      "notes": ""
     },
     {
       "source_id": "ca-court-gender-recognition",
@@ -165,7 +165,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted. In California the gender-recognition petition is the route to an amended birth certificate, so the operative page is a court page, not a vital-records one. This is exactly the kind of jurisdiction-specific routing that makes a generic 'state vital records' registry wrong."
+      "notes": ""
     },
     {
       "source_id": "ca-court-name-change",
@@ -179,7 +179,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "ca-dmv-update-dl-id",
@@ -193,7 +193,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "co-judicial-name-change-adult",
@@ -207,7 +207,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Adult'. The Colorado Judicial Branch's adult self-help hub, which carries the adult name-change forms (JDF 432/433). Colorado's DMV and vital-records pages are LIVE but 403 our crawler \u2014 see the KNOWN GAPS block in _README; we did not spoof a browser UA to get around it."
+      "notes": ""
     },
     {
       "source_id": "ct-dmv",
@@ -221,7 +221,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Connecticut DMV | CT.gov'."
+      "notes": ""
     },
     {
       "source_id": "ct-dph-vital-records",
@@ -235,7 +235,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "dc-dmv",
@@ -249,7 +249,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200. A landing page; DC DMV's gender-designation page is a deep link a verifier should substitute."
+      "notes": ""
     },
     {
       "source_id": "dc-vital-records",
@@ -263,7 +263,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "DC is a jurisdiction in its own right in this registry (not a state, not the federal bucket) because its ID rules are its own."
+      "notes": ""
     },
     {
       "source_id": "de-code-16-31-vital-statistics",
@@ -277,7 +277,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: dhss.delaware.gov presents a certificate chain our trust store cannot verify, and we do not disable certificate verification to compensate. The Delaware Code Online serves the same statutory content \u2014 Title 16 Ch. 31 subchapter III, the vital-records subchapter that carries \u00a73131 (amendment of records) \u2014 with a chain that verifies. 427 passages, no volatile content."
+      "notes": ""
     },
     {
       "source_id": "de-courts",
@@ -291,7 +291,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Delaware Courts'. A landing page. Delaware's vital-records host has a broken TLS chain \u2014 see KNOWN GAPS."
+      "notes": ""
     },
     {
       "source_id": "de-dmv",
@@ -305,7 +305,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Delaware Division of Motor Vehicles'."
+      "notes": ""
     },
     {
       "source_id": "fl-doh-birth-certificates",
@@ -319,7 +319,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after one redirect, title 'Birth Certificates - Florida Department of Health', h1 'Birth Certificates'. The registry records the post-redirect URL, which is the current official location."
+      "notes": ""
     },
     {
       "source_id": "fl-hsmv-driver-licenses",
@@ -333,7 +333,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'General Information'. FLHSMV's requirements page for driver licence and ID card changes."
+      "notes": ""
     },
     {
       "source_id": "ga-courts",
@@ -347,7 +347,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Welcome to the Georgia Judicial Gateway'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "ga-dds",
@@ -361,7 +361,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Georgia Department of Driver Services'. A landing page; the guessed /change-name-or-address deep link 404s, so it was not invented."
+      "notes": ""
     },
     {
       "source_id": "ga-dph-vital-records",
@@ -375,7 +375,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 (the post-redirect, case-normalized URL is recorded), h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "hi-courts",
@@ -389,7 +389,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Judiciary'. A landing page whose h1 is 'Featured News' \u2014 a rotating news block, so this entry is a candidate for editorial drift. Kept and watched; if it proves noisy run-over-run it is a normalizer or registry problem, not a policy signal."
+      "notes": ""
     },
     {
       "source_id": "hi-doh-vital-records",
@@ -403,7 +403,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "hi-hrs-286-102-licensing",
@@ -417,7 +417,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, heading '\u00a7286-102 Licensing.' PARTIAL GAP FIX, and the partiality is the point: Hawaii has NO state DMV \u2014 driver licensing is administered by the four counties (Honolulu, Hawai'i, Maui, Kaua'i), so there is no statewide issuing authority whose page we could watch. What IS statewide is the statute the counties administer, HRS \u00a7286-102, and that is what this entry watches. It does NOT claim to watch a county licensing process. The county surfaces were tried: honolulu.gov/csd answers but titles its driver-licensing page with a rotating NEWS HEADLINE (false-drift on a slow cycle); hawaiicounty.gov 403s our UA; the Maui and Kaua'i pages 404. MACHINE FACT: capitol.hawaii.gov 403s under concurrent load and answers a single request fine \u2014 at a weekly cadence of one fetch this is not expected to bite, but if this source starts flapping, suspect rate-limiting before suspecting removal."
+      "notes": ""
     },
     {
       "source_id": "ia-courts-representing-yourself",
@@ -431,7 +431,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Representing Yourself - Overview'."
+      "notes": ""
     },
     {
       "source_id": "ia-dot-dmv-services",
@@ -445,7 +445,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after one redirect, h1 'DMV Services'. The registry records the post-redirect URL."
+      "notes": ""
     },
     {
       "source_id": "ia-hhs-vital-records",
@@ -459,7 +459,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (The /public-health/health-statistics/vital-records path 404s \u2014 this is the live one.)"
+      "notes": ""
     },
     {
       "source_id": "id-code-49-306-license-application",
@@ -473,7 +473,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Section 49-306 \u2013 Idaho State Legislature'. GAP FIX: itd.idaho.gov presents a chain our trust store cannot verify, and we will not turn verification off. Idaho Code \u00a749-306 ('Application for driver's license and instruction permit') is the statute ITD administers, and legislature.idaho.gov serves it with a chain that verifies. 233 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "id-court-self-help",
@@ -487,7 +487,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Idaho Court Assistance Office & Self-Help Center!'."
+      "notes": ""
     },
     {
       "source_id": "id-dhw-change-birth-certificate",
@@ -501,7 +501,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Change a Birth Certificate'. A genuine deep link and a high-signal one: Idaho's ability to amend the sex field on a birth certificate has been litigated (F.V. v. Barron) and legislated against, so this exact page is where a reversal would appear."
+      "notes": ""
     },
     {
       "source_id": "il-courts-self-help",
@@ -515,7 +515,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'State of Illinois Office of the Illinois Courts'. A landing page, not a deep link \u2014 the verifier should replace it with the approved statewide name-change form page once they locate it. Kept as a landing page on the same reasoning the repo already applies elsewhere: a landing page still detects a site reorganization, which is itself a signal worth having."
+      "notes": ""
     },
     {
       "source_id": "il-idph-vital-records",
@@ -529,7 +529,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "Live-fetched 200."
+      "notes": ""
     },
     {
       "source_id": "il-sos-drivers-license",
@@ -543,7 +543,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "NOT REACHABLE, BUT NOT A 404. www.ilsos.gov fails at the connection layer, not the HTTP layer: HTTP/2 requests die with INTERNAL_ERROR and HTTP/1.1 requests time out with zero bytes received \u2014 including against the bare host root, and from two independent network vantage points. There is no status code to read, so there is nothing to call dead. Left in place with the machine facts recorded rather than deleted on a guess: a host that will not complete a TLS/HTTP exchange is an outage or a network-level block, and neither is a policy change. Still a landing page rather than a deep link; a verifier with a working route to ilsos.gov should replace it with the specific change-of-information page."
+      "notes": ""
     },
     {
       "source_id": "in-bmv",
@@ -557,7 +557,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Bureau of Motor Vehicles: Home'. A landing page \u2014 the plausible-looking /bmv/licenses-permits-ids/change-your-name-or-address/ deep link 404s, so it was not invented."
+      "notes": ""
     },
     {
       "source_id": "in-courts-self-service",
@@ -571,7 +571,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Self-Service Legal Center: Home', h1 'Court forms'."
+      "notes": ""
     },
     {
       "source_id": "in-doh-vital-records",
@@ -585,7 +585,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Vital Records: Home'."
+      "notes": ""
     },
     {
       "source_id": "ks-dov-drivers",
@@ -599,7 +599,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Kansas Department of Revenue Division of Vehicles Home Page'. A landing page; a verifier should deep-link the driver's-licence change page."
+      "notes": ""
     },
     {
       "source_id": "ks-kdhe-amend-birth-certificate",
@@ -613,7 +613,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Amend Adult Birth Certificates'. THE high-signal Kansas target: Kansas stopped amending the sex field on birth certificates by executive/legal action rather than by statute, and this is the page on which that kind of reversal actually surfaces."
+      "notes": ""
     },
     {
       "source_id": "ks-kdhe-vital-statistics",
@@ -627,7 +627,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Office of Vital Statistics'."
+      "notes": ""
     },
     {
       "source_id": "ks-statute-60-1401-change-of-name",
@@ -641,7 +641,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title '60-1401'. GAP FIX: kscourts.gov serves a Cloudflare JS interstitial to every non-browser client, and we do not pretend to be a browser. K.S.A. 60-1401 is the name-change statute; the Revisor of Statutes serves it as static HTML. 59 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "ky-chfs-vital-statistics",
@@ -655,7 +655,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'The Office of Vital Statistics - Cabinet for Health and Family Services'."
+      "notes": ""
     },
     {
       "source_id": "ky-courts",
@@ -669,7 +669,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Kentucky Court of Justice'."
+      "notes": ""
     },
     {
       "source_id": "ky-drive",
@@ -683,7 +683,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Welcome - DRIVE'."
+      "notes": ""
     },
     {
       "source_id": "la-ldh-vital-record-amendments",
@@ -697,7 +697,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Record Amendments'. The high-signal Louisiana target: amendment policy is what governs whether a sex designation can be corrected at all, and it is the page a reversal would land on."
+      "notes": ""
     },
     {
       "source_id": "la-ldh-vital-records",
@@ -711,7 +711,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Center for Vital Records and Statistics'."
+      "notes": ""
     },
     {
       "source_id": "la-rs-13-4751-petition-for-name-change",
@@ -725,7 +725,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, heading '\u00a74751. Petition for name change; adults; minors' (verified by reading the page text \u2014 the site's `d=` document ids are opaque and a neighbouring id resolved to an unrelated statute about annual reports, so this URL was confirmed by its CONTENT, not by its shape). GAP FIX: lasc.org normalizes to zero passages. 68 passages of statutory text; stable across two fetches."
+      "notes": ""
     },
     {
       "source_id": "ma-courts-name-changes",
@@ -739,7 +739,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Name Changes | Mass.gov', h1 'Name Changes'. The Commonwealth's hub page for the Probate and Family Court name-change petition (CJP 27)."
+      "notes": ""
     },
     {
       "source_id": "ma-rmv",
@@ -753,7 +753,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "Live-fetched 200."
+      "notes": ""
     },
     {
       "source_id": "ma-rvrs-vital-records",
@@ -767,7 +767,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "MA and RI are in the seed because they are the only two of 51 jurisdictions Namesake fully supports \u2014 the point being that even a well-engineered incumbent's *covered* jurisdictions still need someone watching the underlying pages."
+      "notes": ""
     },
     {
       "source_id": "md-courts",
@@ -781,7 +781,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Home | Maryland Courts'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "md-mva",
@@ -795,7 +795,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 (post-redirect URL recorded), h1 'Motor Vehicle Administration'."
+      "notes": ""
     },
     {
       "source_id": "md-vsa",
@@ -809,7 +809,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Statistics Administration'."
+      "notes": ""
     },
     {
       "source_id": "me-bmv",
@@ -823,7 +823,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Bureau of Motor Vehicles'."
+      "notes": ""
     },
     {
       "source_id": "me-cdc-vital-records",
@@ -837,7 +837,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (The older /public-health-systems/data-research/vital-records/ path 404s.)"
+      "notes": ""
     },
     {
       "source_id": "me-courts",
@@ -851,7 +851,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Maine Courts'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "mi-mcl-257-307-license-application",
@@ -865,7 +865,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff."
+      "notes": ""
     },
     {
       "source_id": "mi-mcl-333-2831-new-birth-certificate",
@@ -879,7 +879,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute \u2014 'New certificate of birth; establishment; requirements' \u2014 and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page \u2014 the entry claims only that this is an official Michigan page for this document class."
+      "notes": ""
     },
     {
       "source_id": "mi-scao-pc51-name-change-petition",
@@ -893,7 +893,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. GAP FIX: courts.michigan.gov's name-change landing page is a client-rendered SPA that normalizes to ZERO passages \u2014 hashing it would watch a template, not a policy. The SCAO-approved form PC 51 ('Petition for Name Change') is the operative document a Michigan name-change actually runs on, it is served as a static PDF by the same official host, and it answers us with 200. A revision to the form is exactly the change a legal-aid clinic needs to know about. Hashed as raw bytes (no passage diff)."
+      "notes": ""
     },
     {
       "source_id": "mn-doh-vital-records",
@@ -907,7 +907,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Minnesota Vital Records and Certificates'."
+      "notes": ""
     },
     {
       "source_id": "mn-dvs",
@@ -921,7 +921,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Driver and Vehicle Services'."
+      "notes": ""
     },
     {
       "source_id": "mn-statute-259-10-change-of-name",
@@ -935,7 +935,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Sec. 259.10 MN Statutes'. GAP FIX: mncourts.gov serves a Cloudflare JS interstitial to every non-browser client. Minn. Stat. \u00a7259.10 is the name-change statute. 297 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "mo-courts",
@@ -949,7 +949,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Your Missouri Courts'. A landing page. NOTE: this host returned HTTP 500 on one probe and 200 minutes later \u2014 expect intermittent failures, which are outages and never drift."
+      "notes": ""
     },
     {
       "source_id": "mo-dhss-vital-records",
@@ -963,7 +963,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Bureau of Vital Records | Health & Senior Services'."
+      "notes": ""
     },
     {
       "source_id": "mo-dor-driver-license",
@@ -977,7 +977,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Driver Licensing'."
+      "notes": ""
     },
     {
       "source_id": "ms-courts",
@@ -991,7 +991,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'State of Mississippi Judiciary'. A landing page. Mississippi's DPS host ships a broken TLS chain \u2014 see KNOWN GAPS."
+      "notes": ""
     },
     {
       "source_id": "ms-dps-driver-service-bureau",
@@ -1005,7 +1005,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Welcome to DPS Driver Service Bureau'. GAP FIX: dps.ms.gov (the department's main host) presents a chain our trust store cannot verify; the Driver Service Bureau's own host, which is the actual driver-licensing surface, presents a chain that DOES verify. Same authority, same document class, honest TLS. KNOWN EDITORIAL CHURN: the page carries a dated news/station-closure block, so it will drift when that block turns over. That is real, visible page text about the licensing offices themselves, and a reviewer dismissing it as `editorial` is the correct outcome \u2014 it is not a rotating widget re-rolled per request (it is stable across two fetches), and suppressing it in the normalizer would mean teaching the normalizer which visible text does not count. See RESPONSIBLE-TECH \u00a7A."
+      "notes": ""
     },
     {
       "source_id": "ms-msdh-vital-records",
@@ -1019,7 +1019,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "mt-courts-forms",
@@ -1033,7 +1033,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200. A forms index; drift here often means a form revision."
+      "notes": ""
     },
     {
       "source_id": "mt-dphhs-vital-records",
@@ -1047,7 +1047,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'. High-signal: Montana's birth-certificate sex-amendment rule has been through rulemaking, injunction, and non-compliance, and this office is where the current posture shows up."
+      "notes": ""
     },
     {
       "source_id": "mt-mca-61-5-111-drivers-license",
@@ -1061,7 +1061,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title \"61-5-111. Contents of driver's license, renewal, license expirations, license replacements, grace period, and fees\". GAP FIX: mvdmt.gov (which dojmt.gov/driving redirects to) serves a Cloudflare JS interstitial. MCA 61-5-111 is the statute governing what a Montana licence contains and how it is renewed/replaced. 75 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "nc-dmv",
@@ -1075,7 +1075,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'The Official North Carolina DMV Website'."
+      "notes": ""
     },
     {
       "source_id": "nc-gs-101-name-change",
@@ -1089,7 +1089,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Chapter 101'. GAP FIX: nccourts.gov 403s our descriptive UA. N.C.G.S. Chapter 101 ('Names of Persons') is the name-change statute the clerks of superior court administer, and it is live: \u00a7101-2 was amended by S.L. 2025-54 effective 1 December 2025, which is exactly the kind of movement this tool exists to catch. 54 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "nc-vital-records",
@@ -1103,7 +1103,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'North Carolina Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "nd-courts",
@@ -1117,7 +1117,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'North Dakota Court System'. A landing page whose h1 is 'Featured News' \u2014 a rotating block, so this is a candidate for editorial drift; watched, and reassessed if it proves noisy."
+      "notes": ""
     },
     {
       "source_id": "nd-dot-driver",
@@ -1131,7 +1131,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Driver | NDDOT'."
+      "notes": ""
     },
     {
       "source_id": "nd-hhs-vital-records",
@@ -1145,7 +1145,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "ne-dhhs-vital-records",
@@ -1159,7 +1159,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "ne-dmv",
@@ -1173,7 +1173,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 \"Driver's License, ID and Permits\"."
+      "notes": ""
     },
     {
       "source_id": "ne-judicial",
@@ -1187,7 +1187,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Self-Help'; the page names the name-change process. NOT the landing page, deliberately: nebraskajudicial.gov/ was caught by `sentinel sources check --twice` as a FALSE-DRIFT source. It renders a 'recently adopted rules' list in NON-DETERMINISTIC ORDER \u2014 two fetches seconds apart returned the same rules with two of them swapped, which is a different hash and therefore a weekly change record whose diff is two identical lines in a different order. Same content, different order, permanent false alarm. The self-help page is stable across fetches and is the better watch target anyway."
+      "notes": ""
     },
     {
       "source_id": "nh-rsa-547-3-i-change-of-name",
@@ -1201,7 +1201,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Section 547:3-i Change of Name.' GAP FIX: courts.nh.gov 403s our UA. RSA 547:3-i is the probate-court name-change statute. 12 passages of static statutory text, no volatile content, stable across two fetches."
+      "notes": ""
     },
     {
       "source_id": "nh-rsa-5c-87-birth-record-amendment",
@@ -1215,7 +1215,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Section 5-C:87 Initiating Amendments and Corrections to Birth Records.' GAP FIX: every nh.gov host we tried 403s our descriptive UA, so NH had no source at all. RSA 5-C:87 is the statute that governs amending a New Hampshire birth record. Static statutory HTML, 20 passages, no session ticker and no date stamp; identical hash across two back-to-back fetches. Statutory surface, not the DHHS process page."
+      "notes": ""
     },
     {
       "source_id": "nh-saf-c-1000-driver-licensing-rules",
@@ -1229,7 +1229,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Saf-C 1000 Driver License'. GAP FIX: dmv.nh.gov 403s our UA. Saf-C 1000 is the DMV's own administrative rule chapter \u2014 the rules the licensing counter actually applies \u2014 published on the General Court's rules server, which answers us. 4,099 passages of static rule text; stable across two fetches."
+      "notes": ""
     },
     {
       "source_id": "nj-courts",
@@ -1243,7 +1243,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Welcome to the New Jersey Courts'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "nj-doh-vital-statistics",
@@ -1257,7 +1257,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Statistics'."
+      "notes": ""
     },
     {
       "source_id": "nj-mvc",
@@ -1271,7 +1271,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'NJ Motor Vehicle Commission'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "nm-courts",
@@ -1285,7 +1285,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after one redirect to the apex domain, h1 'Home \u2013 New Mexico Courts'. The registry records the post-redirect URL."
+      "notes": ""
     },
     {
       "source_id": "nm-doh-vital-records",
@@ -1299,7 +1299,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "nm-mvd",
@@ -1313,7 +1313,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, 'Motor Vehicle Division NM'."
+      "notes": ""
     },
     {
       "source_id": "nv-courts",
@@ -1327,7 +1327,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Nevada Judiciary'. A landing page; the /self-help deep link 404s."
+      "notes": ""
     },
     {
       "source_id": "nv-nac-483-drivers-licenses",
@@ -1341,7 +1341,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'NAC: CHAPTER 483 - DRIVERS' LICENSES; DRIVING SCHOOLS AND DRIVING INSTRUCTORS'. GAP FIX: dmv.nv.gov serves a 624-byte JavaScript shell that normalizes to one passage \u2014 hashing it would watch a loading spinner. NAC 483 is the DMV's own regulation chapter, served as static HTML by the Legislature's site. 8,203 passages; stable across two fetches. Same build-stamp note as nv-nrs-440."
+      "notes": ""
     },
     {
       "source_id": "nv-nrs-440-vital-statistics",
@@ -1355,7 +1355,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'NRS: CHAPTER 440 - VITAL STATISTICS'. GAP FIX, and this one is the repeat of a lesson: dpbh.nv.gov had to be REMOVED from this registry because the nv.gov CMS renders a rotating 'Nevada state symbol' trivia block (state fish \u2192 state reptile) that re-rolls on EVERY request \u2014 so Nevada had no birth-certificate source at all. leg.state.nv.us is a different system entirely, carries no such widget, and hashed identically across two back-to-back fetches. NRS 440 is the vital-statistics chapter. MACHINE FACT: the page carries a build stamp ('[Rev. 4/15/2026 \u2026]') that moves when the chapter is rebuilt; that correlates with real edits rather than with the clock, but if this source produces a diff whose only change is the stamp, dismiss it as editorial."
+      "notes": ""
     },
     {
       "source_id": "ny-courts-name-change",
@@ -1369,7 +1369,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "corpus-vetted. BOT-BLOCKED, NOT DEAD: HTTP 403 to our descriptive UA, to a browser UA, and from an independent vantage point. nycourts.gov appears to block non-interactive clients wholesale. The URL came from the hand-corrected corpus and is not in doubt; what is in doubt is whether we will ever be allowed to watch it."
+      "notes": ""
     },
     {
       "source_id": "ny-dmv-change-information",
@@ -1383,7 +1383,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "ny-doh-vital-records",
@@ -1397,7 +1397,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "BOT-BLOCKED, NOT DEAD, AND THE CLEANEST EXAMPLE OF WHY THAT DISTINCTION MATTERS: health.ny.gov returns HTTP 403 to our descriptive User-Agent and HTTP 200 to a browser User-Agent, from the same machine, seconds apart. The page is up; we are being filtered on our UA. Deleting this entry on the strength of a 403 would have silently dropped New York's birth-certificate office out of the registry. NOTE for the verifier: New York City births are issued by NYC DOHMH, not the state \u2014 a separate source this registry does not yet carry. A registry that silently routed a NYC-born person to the state office would be exactly the kind of wrong answer that costs someone a filing fee and three months."
+      "notes": ""
     },
     {
       "source_id": "oh-bmv",
@@ -1411,7 +1411,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Ohio BMV'. A landing page; the guessed name-change deep link 404s. Ohio's health department host answers HTTP 404 to every non-browser client we have \u2014 see KNOWN GAPS \u2014 so Ohio has no birth-certificate source."
+      "notes": ""
     },
     {
       "source_id": "oh-oac-3701-5-vital-statistics",
@@ -1425,7 +1425,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Chapter 3701-5 - Ohio Administrative Code | Ohio Laws', h1 'Chapter 3701-5 | Vital Statistics'. GAP FIX: odh.ohio.gov returns HTTP 404 to every non-browser client we have tried, including its own site root \u2014 a WAF wearing a 404's clothes. codes.ohio.gov publishes ODH's OWN administrative rules (the vital-statistics chapter ODH administers) and answers us with 200. 738 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "oh-supreme-court",
@@ -1439,7 +1439,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'The Supreme Court of Ohio & The Ohio Judicial System'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "ok-service-oklahoma",
@@ -1453,7 +1453,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Welcome to Service Oklahoma'. Oklahoma moved driver licensing from DPS to Service Oklahoma; the older /service/all-services/mobility/driver-license.html path 404s."
+      "notes": ""
     },
     {
       "source_id": "ok-vital-records",
@@ -1467,7 +1467,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Oklahoma Vital Records'. High-signal: Oklahoma barred sex-designation amendments to birth certificates by executive order, and this is the office that would publish the consequence."
+      "notes": ""
     },
     {
       "source_id": "ok-vital-records-forms",
@@ -1481,7 +1481,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records Forms'. The forms index \u2014 a form revision is often the first visible trace of a process change."
+      "notes": ""
     },
     {
       "source_id": "or-courts-name-sex-change",
@@ -1495,7 +1495,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Name and Sex Change'. CAUTION FOR FUTURE MAINTAINERS: courts.oregon.gov serves SOFT 404s \u2014 a missing page returns HTTP 200 with a body titled '404 Page Not Found'. A status-code-only liveness check would happily accept a dead Oregon URL. This entry's title was read, not just its status code."
+      "notes": ""
     },
     {
       "source_id": "or-dmv-gender-marker",
@@ -1509,7 +1509,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Changing Your Gender Marker on Your Driver's License or ID Card'. One of the very few state DMV pages in the country dedicated explicitly to the gender marker \u2014 which makes it one of the highest-signal watch targets in the registry."
+      "notes": ""
     },
     {
       "source_id": "or-dmv-name-change",
@@ -1523,7 +1523,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Changing Your Name'. Distinct from the gender-marker page and changes independently of it."
+      "notes": ""
     },
     {
       "source_id": "or-oha-vital-records",
@@ -1537,7 +1537,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, 'Oregon Vital Records and Certificates'."
+      "notes": ""
     },
     {
       "source_id": "pa-courts",
@@ -1551,7 +1551,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Home | Unified Judicial System of Pennsylvania'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "pa-dmv",
@@ -1565,7 +1565,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect from dmv.pa.gov (post-redirect URL recorded), h1 'Driver and Vehicle Services'."
+      "notes": ""
     },
     {
       "source_id": "pa-doh-vital-records",
@@ -1579,7 +1579,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "ri-dmv-licenses",
@@ -1593,7 +1593,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Licenses & IDs | RI Division of Motor Vehicles'."
+      "notes": ""
     },
     {
       "source_id": "ri-doh-vital-records",
@@ -1607,7 +1607,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "Live-fetched 200."
+      "notes": ""
     },
     {
       "source_id": "ri-gl-33-22-28-name-change",
@@ -1621,7 +1621,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, heading '\u00a7 33-22-28. Name change.' (confirmed by reading the page: the neighbouring \u00a733-22-27 is about execution for costs, so this URL was picked from the chapter index by CONTENT, not by guessing a section number). NEWLY-NAMED HOLE, NOW CLOSED: Rhode Island had no court_order_name_change source and was not in the old GAP list either \u2014 a silent thin spot, which is exactly what the derived coverage gate now makes impossible. Rhode Island name changes are heard in the city/town probate courts, so there is no single statewide court page; the statute they apply is statewide, and that is what this watches. 35 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "sc-code-15-49-change-of-name",
@@ -1635,7 +1635,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Code of Laws - Title 15 - Chapter 49 - CIVIL REMEDIES AND PROCEDURES'. GAP FIX: sccourts.org's robots.txt disallows our user-agent from the ENTIRE site (the site root too), and we honour robots.txt without appeal. The South Carolina Legislature publishes the name-change chapter (\u00a715-49-10 et seq.) and its robots.txt permits us. 104 passages; stable."
+      "notes": ""
     },
     {
       "source_id": "sc-dmv",
@@ -1649,7 +1649,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect from scdmvonline.com (post-redirect URL recorded), title 'Home | SCDMV'."
+      "notes": ""
     },
     {
       "source_id": "sc-dph-vital-records",
@@ -1663,7 +1663,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (SC DHEC split into DPH in 2024; the old scdhec.gov host now fails TLS hostname verification.)"
+      "notes": ""
     },
     {
       "source_id": "sd-doh-vital-records",
@@ -1677,7 +1677,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "sd-ujs",
@@ -1691,7 +1691,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Home | South Dakota Unified Judicial System'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "tn-courts",
@@ -1705,7 +1705,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Homepage | Tennessee Administrative Office of the Courts'. A landing page: the self-represented-litigant deep link 404s, and no statewide name-change form page was found. Recorded honestly as a landing page rather than invented as a deep link."
+      "notes": ""
     },
     {
       "source_id": "tn-doh-vital-records",
@@ -1719,7 +1719,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Tennessee Office of Vital Records'. (The obvious-looking /health/health-program-areas/vital-records.html 404s \u2014 this is the live path.)"
+      "notes": ""
     },
     {
       "source_id": "tn-driver-services",
@@ -1733,7 +1733,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Driver Services'."
+      "notes": ""
     },
     {
       "source_id": "tx-dps-change-dl-id",
@@ -1747,7 +1747,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "tx-dshs-vital-statistics",
@@ -1761,7 +1761,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "High-priority watch target: Texas policy on gender-marker amendment has moved by internal directive rather than by statute, which is precisely the kind of change that never makes it into a legislative tracker and only shows up as an edited web page."
+      "notes": ""
     },
     {
       "source_id": "tx-family-code-45-change-of-name",
@@ -1775,7 +1775,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Texas Constitution and Statutes'. GAP FIX, with the limit stated: Texas publishes NO statewide name-change instructions \u2014 the process is county-level, which is why this jurisdiction/document-class pair was previously a gap 'in the world rather than in the crawler'. What IS statewide is Family Code Chapter 45 ('Change of Name'), the statute every Texas county court applies, and that is what this entry watches. It does not claim to watch a county's filing process, and it is not a substitute for one. 83 passages, ZERO volatile lines; stable."
+      "notes": ""
     },
     {
       "source_id": "us-federal-register-sex-marker",
@@ -1789,7 +1789,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "REPAIRED 2026-07-13. The previous URL was the Federal Register's HTML search page (/documents/search?...), which federalregister.gov's robots.txt explicitly Disallows. Our fetcher honours robots.txt without appeal, so that entry was not merely noisy \u2014 it was UNFETCHABLE BY CONSTRUCTION and would have failed silently forever. Replaced with the public JSON API, which robots.txt does not disallow and which returns 200. This is the swap docs/ROADMAP.md M3 anticipated. LIMIT, stated plainly: the API returns single-line JSON, so it normalizes to one passage and a diff shows the whole line changing rather than a tidy per-rule delta. It still names the new rule titles in the diff, which is the signal that matters, and it is strictly better than a source we could never legally fetch."
+      "notes": ""
     },
     {
       "source_id": "us-passport-change-correct",
@@ -1803,7 +1803,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it."
+      "notes": ""
     },
     {
       "source_id": "us-passport-sex-markers",
@@ -1817,7 +1817,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. MACHINE FACT worth keeping: travel.state.gov is SLOW and erratically so \u2014 measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal."
+      "notes": ""
     },
     {
       "source_id": "us-selective-service-register",
@@ -1831,7 +1831,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "Registration requirements. In scope because Selective Service registration status is sex-assigned-at-birth-linked and gates federal benefits and some state licenses, which makes it a real, frequently-missed step for trans people \u2014 and a document class the incumbents mostly omit."
+      "notes": ""
     },
     {
       "source_id": "us-ssa-number-card",
@@ -1845,7 +1845,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "SSA's SSN-card landing page, where name-change instructions live. Same ssa.gov WAF block as us-ssa-ss5-form: HTTP 403 to every client we tried, from every vantage point we tried. NOT confirmed alive and NOT confirmed dead \u2014 we simply cannot see it. A human with a browser must open this one; that is precisely the job `verified` exists to record."
+      "notes": ""
     },
     {
       "source_id": "us-ssa-ss5-form",
@@ -1859,7 +1859,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": "corpus-vetted. Form SS-5 (Application for a Social Security Card). A PDF: hashed as raw bytes, so drift here reports 'the form changed, open it' with no text diff \u2014 see core/normalize.py. BOT-BLOCKED, NOT DEAD: ssa.gov returns HTTP 403 to our descriptive UA, to a browser UA, and from two independent network vantage points \u2014 an edge WAF, not a missing file. A 403 is a fetch failure, and a fetch failure is never drift. Kept: the URL is right, the block is theirs. Expect this source to accrue a failure streak (see `possibly_removed` escalation in core/detect.py); the escalation record carries the literal error, so a reviewer can tell a block from a removal at a glance."
+      "notes": ""
     },
     {
       "source_id": "ut-courts-name-change",
@@ -1873,7 +1873,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Name Change Forms & Instructions (Adults and Minors)'. A genuine deep link, and preferred over the utcourts.gov landing page \u2014 which carries a rotating scam-alert banner in its body text and would therefore have been a false-drift source."
+      "notes": ""
     },
     {
       "source_id": "ut-dld",
@@ -1887,7 +1887,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Utah Driver License Division'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "ut-vital-records",
@@ -1901,7 +1901,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Office of Vital Records and Statistics'."
+      "notes": ""
     },
     {
       "source_id": "va-courts",
@@ -1915,7 +1915,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Front Page | Virginia Court System'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "va-dmv",
@@ -1929,7 +1929,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Home | Virginia Department of Motor Vehicles'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "va-vdh-vital-records",
@@ -1943,7 +1943,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Office of Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "vt-judiciary",
@@ -1957,7 +1957,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect from vermontjudiciary.org (post-redirect URL recorded), title 'Vermont Judiciary'. Vermont's DMV 403s our crawler \u2014 see KNOWN GAPS."
+      "notes": ""
     },
     {
       "source_id": "vt-vital-records",
@@ -1971,7 +1971,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Health Statistics & Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "wa-courts-name-change-form",
@@ -1985,7 +1985,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted. A forms index page; drift here often means a form revision."
+      "notes": ""
     },
     {
       "source_id": "wa-doh-vital-records",
@@ -1999,7 +1999,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "Live-fetched 200."
+      "notes": ""
     },
     {
       "source_id": "wa-dol-gender-designation",
@@ -2013,7 +2013,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "corpus-vetted."
+      "notes": ""
     },
     {
       "source_id": "wi-courts",
@@ -2027,7 +2027,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Welcome to the Wisconsin Court System website'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "wi-dhs-vital-records",
@@ -2041,7 +2041,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "wi-dmv",
@@ -2055,7 +2055,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Welcome to the Wisconsin DMV'. Several plausible /Pages/dmv/... deep links 404, so the DMV hub was used rather than a guessed path."
+      "notes": ""
     },
     {
       "source_id": "wv-courts",
@@ -2069,7 +2069,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Home | West Virginia Judiciary'. A landing page."
+      "notes": ""
     },
     {
       "source_id": "wv-dmv",
@@ -2083,7 +2083,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'West Virginia Division of Motor Vehicles'."
+      "notes": ""
     },
     {
       "source_id": "wv-vital-registration",
@@ -2097,7 +2097,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Registration'."
+      "notes": ""
     },
     {
       "source_id": "wy-courts",
@@ -2111,7 +2111,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200 after a redirect from courts.state.wy.us (post-redirect URL recorded), h1 'Welcome to the Wyoming Judicial Branch'."
+      "notes": ""
     },
     {
       "source_id": "wy-driver-services",
@@ -2125,7 +2125,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Driver License and Records'."
+      "notes": ""
     },
     {
       "source_id": "wy-health-vital-records",
@@ -2139,7 +2139,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Record Services'."
+      "notes": ""
     }
   ],
   "gaps": [

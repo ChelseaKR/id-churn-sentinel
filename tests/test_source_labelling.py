@@ -29,12 +29,17 @@ import json
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from id_churn_sentinel.core.changes import ChangeRecord
+from id_churn_sentinel.core.changes import (
+    ChangeRecord,
+    IndependentReviewStatus,
+    ReviewStatus,
+    Significance,
+)
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     REJECTED,
@@ -66,14 +71,30 @@ def real_registry() -> Registry:
 
 
 @pytest.fixture
-def federal_change(confirmed_change: ChangeRecord) -> ChangeRecord:
+def federal_change(federal_source: Source) -> ChangeRecord:
     """A published change citing a source that really is in the committed registry."""
-    return replace(
-        confirmed_change,
-        source_id="us-passport-sex-markers",
-        jurisdiction="US",
-        document_class="passport",
-        url="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+    observed = ChangeRecord.observed(
+        source_id=federal_source.id,
+        jurisdiction=federal_source.jurisdiction,
+        document_class=federal_source.document_class,
+        url=federal_source.url,
+        previous_hash="c" * 64,
+        new_hash="d" * 64,
+        diff_excerpt="-old federal passage\n+new federal passage",
+        observed_at=NOW - timedelta(hours=3),
+    )
+    first = observed.reviewed_by(
+        reviewer="First Federal Reviewer",
+        significance=Significance.SUBSTANTIVE,
+        status=ReviewStatus.CONFIRMED,
+        reviewed_at=NOW - timedelta(hours=2),
+    )
+    return first.independently_reviewed_by(
+        reviewer="Independent Federal Reviewer",
+        status=IndependentReviewStatus.CONFIRMED,
+        qualification_ref="tests/evidence/synthetic-independent-qualification.json",
+        conflict_attestation_ref="tests/evidence/synthetic-independent-conflict.json",
+        reviewed_at=NOW - timedelta(hours=1),
     )
 
 
@@ -320,7 +341,21 @@ def test_a_change_citing_a_source_that_left_the_registry_is_refused(
     tmp_path: Path, registry: Registry, confirmed_change: ChangeRecord
 ) -> None:
     """A withdrawn source cannot support a newly published observation."""
-    orphan = replace(confirmed_change, id="orphan0000000000", source_id="gone-from-registry")
+    orphan = ChangeRecord.observed(
+        source_id="gone-from-registry",
+        jurisdiction=confirmed_change.jurisdiction,
+        document_class=confirmed_change.document_class,
+        url=confirmed_change.url,
+        previous_hash="e" * 64,
+        new_hash="f" * 64,
+        diff_excerpt="-old orphan passage\n+new orphan passage",
+        observed_at=NOW - timedelta(hours=2),
+    ).reviewed_by(
+        reviewer="Orphan Source Reviewer",
+        significance=Significance.EDITORIAL,
+        status=ReviewStatus.CONFIRMED,
+        reviewed_at=NOW - timedelta(hours=1),
+    )
 
     with pytest.raises(PublishError, match="withdrawn or absent"):
         publish([orphan], tmp_path, registry=registry, now=NOW)

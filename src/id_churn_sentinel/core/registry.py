@@ -230,19 +230,32 @@ class Verification:
             "guidance."
         )
 
+    @property
+    def public_statement(self) -> str:
+        """Public-safe status prose that never reflects the free-form registry note."""
+
+        if self.status == REJECTED:
+            return (
+                f"REJECTED — {self.verifier} opened this URL on {self.at} and found it is NOT "
+                "the official page for this document class in this jurisdiction. It is flagged "
+                "for repair and must not be relied on."
+            )
+        return self.statement
+
     def to_dict(self) -> dict[str, str]:
         """The closed v1 feed shape published alongside every source.
 
         Eligibility evidence and expiry remain registry-internal until a separately versioned
-        public contract is introduced.  The published v1 schema rejects unknown properties,
-        so emitting those fields here would break existing validating consumers.
+        public contract is introduced. The legacy `note` field remains present but is always
+        empty; free-form registry rationale is private. The published v1 schema rejects unknown
+        properties, so emitting those fields here would break existing validating consumers.
         """
         return {
             "status": self.status,
             "verifier": self.verifier,
             "verified_at": self.at,
-            "note": self.note,
-            "statement": self.statement,
+            "note": "",
+            "statement": self.public_statement,
         }
 
 

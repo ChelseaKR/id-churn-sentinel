@@ -27,6 +27,7 @@ dist/
 # is not a gitignore's job to enforce, and is enforced by `make no-unreviewed-in-feed`.
 
 # Tooling
+.DS_Store
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-14T06:02:02.159249+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-14T07:44:52.628945+00:00",
   "feed_url": "https://github.com/ChelseaKR/id-churn-sentinel",
   "jurisdiction": "HI",
   "disclaimer": "This feed reports that an official source page changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any watched source.",
@@ -26,7 +26,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, title 'Judiciary'. A landing page whose h1 is 'Featured News' \u2014 a rotating news block, so this entry is a candidate for editorial drift. Kept and watched; if it proves noisy run-over-run it is a normalizer or registry problem, not a policy signal."
+      "notes": ""
     },
     {
       "source_id": "hi-doh-vital-records",
@@ -40,7 +40,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
+      "notes": ""
     },
     {
       "source_id": "hi-hrs-286-102-licensing",
@@ -54,7 +54,7 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": "live-fetched. HTTP 200, heading '\u00a7286-102 Licensing.' PARTIAL GAP FIX, and the partiality is the point: Hawaii has NO state DMV \u2014 driver licensing is administered by the four counties (Honolulu, Hawai'i, Maui, Kaua'i), so there is no statewide issuing authority whose page we could watch. What IS statewide is the statute the counties administer, HRS \u00a7286-102, and that is what this entry watches. It does NOT claim to watch a county licensing process. The county surfaces were tried: honolulu.gov/csd answers but titles its driver-licensing page with a rotating NEWS HEADLINE (false-drift on a slow cycle); hawaiicounty.gov 403s our UA; the Maui and Kaua'i pages 404. MACHINE FACT: capitol.hawaii.gov 403s under concurrent load and answers a single request fine \u2014 at a weekly cadence of one fetch this is not expected to bite, but if this source starts flapping, suspect rate-limiting before suspecting removal."
+      "notes": ""
     }
   ]
 }

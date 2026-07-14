@@ -29,14 +29,27 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from hashlib import sha256
 from pathlib import Path
 from types import TracebackType
 from uuid import uuid4
 
-from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.changes import (
+    ChangeKind,
+    ChangeRecord,
+    IndependentReviewStatus,
+    PublicationStatus,
+    ReviewStatus,
+    Significance,
+    actor_identity,
+    canonical_actor,
+    governance_reference_is_safe,
+    observation_fields_are_valid,
+    private_text_is_safe,
+    public_copy_is_safe,
+)
 from id_churn_sentinel.errors import StoreError
 
 __all__ = [
@@ -205,6 +218,232 @@ CREATE INDEX IF NOT EXISTS idx_run_observations_change
     ON run_observations (change_id, run_id);
 """,
     ),
+    (
+        3,
+        "v1-append-only-review-and-correction-events",
+        """
+CREATE TABLE IF NOT EXISTS review_decisions (
+    decision_id                    TEXT PRIMARY KEY,
+    change_id                      TEXT NOT NULL REFERENCES changes(change_id) ON DELETE RESTRICT,
+    stage                          TEXT NOT NULL CHECK (stage IN ('first', 'independent')),
+    decision                       TEXT NOT NULL
+        CHECK (decision IN ('confirmed', 'dismissed', 'returned')),
+    significance                   TEXT NOT NULL
+        CHECK (significance IN ('unclassified', 'editorial', 'substantive')),
+    actor                          TEXT NOT NULL
+        CHECK (actor = canonical_actor(actor) AND actor <> ''),
+    decided_at                     TEXT NOT NULL CHECK (julianday(decided_at) IS NOT NULL),
+    internal_rationale             TEXT NOT NULL DEFAULT ''
+        CHECK (private_text_is_safe(internal_rationale)),
+    public_copy                    TEXT NOT NULL DEFAULT '',
+    qualification_ref              TEXT NOT NULL DEFAULT '',
+    conflict_attestation_ref       TEXT NOT NULL DEFAULT '',
+    UNIQUE (change_id, stage),
+    CHECK (
+        (stage = 'first'
+         AND decision IN ('confirmed', 'dismissed')
+         AND (decision <> 'confirmed' OR significance <> 'unclassified')
+         AND ((decision = 'confirmed' AND public_copy_is_safe(public_copy))
+              OR (decision = 'dismissed' AND public_copy = ''))
+         AND qualification_ref = ''
+         AND conflict_attestation_ref = '')
+        OR
+        (stage = 'independent'
+         AND decision IN ('confirmed', 'returned')
+         AND significance = 'substantive'
+         AND public_copy = ''
+         AND governance_reference_is_safe(qualification_ref)
+         AND governance_reference_is_safe(conflict_attestation_ref)
+         AND (decision <> 'returned' OR length(trim(internal_rationale)) > 0))
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_decisions_change
+    ON review_decisions (change_id, stage);
+
+CREATE TRIGGER IF NOT EXISTS trg_changes_observation_valid_on_insert
+BEFORE INSERT ON changes
+BEGIN
+    SELECT CASE WHEN NOT observation_fields_are_valid(
+        NEW.change_id, NEW.source_id, NEW.observed_at, NEW.previous_hash,
+        NEW.new_hash, NEW.diff_excerpt, NEW.kind
+    ) THEN RAISE(ABORT, 'change observation fields are invalid') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_changes_observation_no_update
+BEFORE UPDATE OF change_id, source_id, jurisdiction, document_class, url, observed_at,
+                 previous_hash, new_hash, diff_excerpt, kind ON changes
+BEGIN
+    SELECT RAISE(ABORT, 'change observations are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_changes_no_delete
+BEFORE DELETE ON changes
+BEGIN
+    SELECT RAISE(ABORT, 'change observations are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_review_decisions_no_update
+BEFORE UPDATE ON review_decisions
+BEGIN
+    SELECT RAISE(ABORT, 'review decisions are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_review_decisions_no_delete
+BEFORE DELETE ON review_decisions
+BEGIN
+    SELECT RAISE(ABORT, 'review decisions are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_first_review_follows_observation
+BEFORE INSERT ON review_decisions
+WHEN NEW.stage = 'first'
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM changes AS observation
+        WHERE observation.change_id = NEW.change_id
+          AND julianday(NEW.decided_at) >= julianday(observation.observed_at)
+    ) THEN RAISE(ABORT, 'first review cannot precede observation') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_independent_review_requires_first
+BEFORE INSERT ON review_decisions
+WHEN NEW.stage = 'independent'
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.change_id
+          AND first.stage = 'first'
+          AND first.decision = 'confirmed'
+          AND first.significance = 'substantive'
+    ) THEN RAISE(ABORT, 'independent review requires first-confirmed substantive review') END;
+    SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.change_id
+          AND first.stage = 'first'
+          AND actor_identity(first.actor) = actor_identity(NEW.actor)
+    ) THEN RAISE(ABORT, 'independent reviewer must differ from first reviewer') END;
+    SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.change_id
+          AND first.stage = 'first'
+          AND julianday(NEW.decided_at) < julianday(first.decided_at)
+    ) THEN RAISE(ABORT, 'independent review cannot precede first review') END;
+END;
+
+CREATE TABLE IF NOT EXISTS change_lifecycle_events (
+    event_id                 TEXT PRIMARY KEY,
+    change_id                TEXT NOT NULL UNIQUE
+        REFERENCES changes(change_id) ON DELETE RESTRICT,
+    action                   TEXT NOT NULL CHECK (action IN ('corrected', 'withdrawn')),
+    superseded_by_change_id  TEXT REFERENCES changes(change_id) ON DELETE RESTRICT,
+    reason                   TEXT NOT NULL CHECK (reason IN (
+        'source_evidence_error', 'review_error', 'duplicate_record',
+        'privacy_or_safety', 'superseded_observation', 'other_governed_reason'
+    )),
+    actor                    TEXT NOT NULL
+        CHECK (actor = canonical_actor(actor) AND actor <> ''),
+    decided_at               TEXT NOT NULL CHECK (julianday(decided_at) IS NOT NULL),
+    CHECK (
+        (action = 'corrected' AND superseded_by_change_id IS NOT NULL
+         AND superseded_by_change_id <> change_id)
+        OR (action = 'withdrawn' AND superseded_by_change_id IS NULL)
+    )
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_change_lifecycle_no_update
+BEFORE UPDATE ON change_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'change lifecycle events are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_change_lifecycle_no_delete
+BEFORE DELETE ON change_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'change lifecycle events are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_lifecycle_requires_publishable_subject
+BEFORE INSERT ON change_lifecycle_events
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.change_id
+          AND first.stage = 'first'
+          AND first.decision = 'confirmed'
+          AND first.significance <> 'unclassified'
+          AND length(trim(first.public_copy)) > 0
+          AND (
+              first.significance <> 'substantive'
+              OR EXISTS (
+                  SELECT 1 FROM review_decisions AS second
+                  WHERE second.change_id = NEW.change_id
+                    AND second.stage = 'independent'
+                    AND second.decision = 'confirmed'
+                    AND actor_identity(second.actor) <> actor_identity(first.actor)
+              )
+          )
+    ) THEN RAISE(ABORT, 'lifecycle event requires publishable reviewed subject') END;
+    SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM review_decisions AS decision
+        WHERE decision.change_id = NEW.change_id
+          AND julianday(NEW.decided_at) < julianday(decision.decided_at)
+    ) THEN RAISE(ABORT, 'lifecycle event cannot precede review decisions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_correction_requires_publishable_replacement
+BEFORE INSERT ON change_lifecycle_events
+WHEN NEW.action = 'corrected'
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1
+        FROM changes AS subject
+        JOIN changes AS replacement
+          ON replacement.change_id = NEW.superseded_by_change_id
+        WHERE subject.change_id = NEW.change_id
+          AND replacement.source_id = subject.source_id
+          AND replacement.jurisdiction = subject.jurisdiction
+          AND replacement.document_class = subject.document_class
+          AND replacement.url = subject.url
+    ) THEN RAISE(ABORT, 'correction replacement source identity differs') END;
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.superseded_by_change_id
+          AND first.stage = 'first'
+          AND first.decision = 'confirmed'
+          AND first.significance <> 'unclassified'
+          AND length(trim(first.public_copy)) > 0
+          AND (
+              first.significance <> 'substantive'
+              OR EXISTS (
+                  SELECT 1 FROM review_decisions AS second
+                  WHERE second.change_id = NEW.superseded_by_change_id
+                    AND second.stage = 'independent'
+                    AND second.decision = 'confirmed'
+                    AND actor_identity(second.actor) <> actor_identity(first.actor)
+              )
+          )
+    ) THEN RAISE(ABORT, 'correction replacement must be publishable and reviewed') END;
+    SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM review_decisions AS decision
+        WHERE decision.change_id = NEW.superseded_by_change_id
+          AND julianday(NEW.decided_at) < julianday(decision.decided_at)
+    ) THEN RAISE(ABORT, 'correction cannot precede replacement review') END;
+    SELECT CASE WHEN EXISTS (
+        WITH RECURSIVE successors(change_id) AS (
+            SELECT NEW.superseded_by_change_id
+            UNION ALL
+            SELECT event.superseded_by_change_id
+            FROM change_lifecycle_events AS event
+            JOIN successors ON event.change_id = successors.change_id
+            WHERE event.action = 'corrected'
+              AND event.superseded_by_change_id IS NOT NULL
+        )
+        SELECT 1 FROM successors WHERE change_id = NEW.change_id
+    ) THEN RAISE(ABORT, 'correction supersession cycle') END;
+END;
+""",
+    ),
 )
 
 _V1_REQUIRED_COLUMNS = {
@@ -255,6 +494,32 @@ _V1_REQUIRED_COLUMNS = {
         }
     ),
     "run_observations": frozenset({"run_id", "change_id", "observed_at"}),
+    "review_decisions": frozenset(
+        {
+            "decision_id",
+            "change_id",
+            "stage",
+            "decision",
+            "significance",
+            "actor",
+            "decided_at",
+            "internal_rationale",
+            "public_copy",
+            "qualification_ref",
+            "conflict_attestation_ref",
+        }
+    ),
+    "change_lifecycle_events": frozenset(
+        {
+            "event_id",
+            "change_id",
+            "action",
+            "superseded_by_change_id",
+            "reason",
+            "actor",
+            "decided_at",
+        }
+    ),
 }
 
 
@@ -339,6 +604,23 @@ def _initialize_base_schema(conn: sqlite3.Connection) -> None:
         raise StoreError(f"base schema initialization failed: {exc}") from exc
 
 
+def _read_known_migration_ledger(
+    conn: sqlite3.Connection,
+) -> dict[int, tuple[str, str]]:
+    applied = {
+        int(row["version"]): (str(row["name"]), str(row["checksum"]))
+        for row in conn.execute("SELECT version, name, checksum FROM schema_migrations")
+    }
+    known_versions = {version for version, _, _ in _MIGRATIONS}
+    unknown = sorted(set(applied) - known_versions)
+    if unknown:
+        raise StoreError(
+            "store contains migration version(s) this build does not know: "
+            + ", ".join(str(version) for version in unknown)
+        )
+    return applied
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Additive migrations for stores created by an earlier version.
 
@@ -369,40 +651,42 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.rollback()
         raise StoreError(f"migration ledger initialization failed: {exc}") from exc
 
-    applied = {
-        int(row["version"]): (str(row["name"]), str(row["checksum"]))
-        for row in conn.execute("SELECT version, name, checksum FROM schema_migrations")
-    }
-    known_versions = {version for version, _, _ in _MIGRATIONS}
-    unknown = sorted(set(applied) - known_versions)
-    if unknown:
-        raise StoreError(
-            "store contains migration version(s) this build does not know: "
-            + ", ".join(str(version) for version in unknown)
-        )
+    current_migration: tuple[int, str] | None = None
+    try:
+        # Read the ledger only after taking the writer lock. Otherwise two first-open
+        # processes can both observe an empty ledger and race on the same version row.
+        conn.execute("BEGIN IMMEDIATE")
+        applied = _read_known_migration_ledger(conn)
 
-    for version, name, sql in _MIGRATIONS:
-        checksum = sha256(sql.encode("utf-8")).hexdigest()
-        recorded = applied.get(version)
-        if recorded is not None:
-            if recorded != (name, checksum):
-                raise StoreError(
-                    f"migration {version} checksum/name mismatch: store has {recorded[0]!r}; "
-                    f"this build expects {name!r}"
-                )
-            continue
-        try:
-            conn.execute("BEGIN IMMEDIATE")
+        for version, name, sql in _MIGRATIONS:
+            current_migration = (version, name)
+            checksum = sha256(sql.encode("utf-8")).hexdigest()
+            recorded = applied.get(version)
+            if recorded is not None:
+                if recorded != (name, checksum):
+                    raise StoreError(
+                        f"migration {version} checksum/name mismatch: store has "
+                        f"{recorded[0]!r}; this build expects {name!r}"
+                    )
+                continue
             _execute_sql_script(conn, sql)
             conn.execute(
                 "INSERT INTO schema_migrations (version, name, checksum, applied_at) "
                 "VALUES (?, ?, ?, ?)",
                 (version, name, checksum, datetime.now(UTC).isoformat()),
             )
-            conn.commit()
-        except sqlite3.DatabaseError as exc:
-            conn.rollback()
-            raise StoreError(f"migration {version} ({name}) failed: {exc}") from exc
+        conn.commit()
+    except StoreError:
+        conn.rollback()
+        raise
+    except sqlite3.DatabaseError as exc:
+        conn.rollback()
+        context = (
+            f"migration {current_migration[0]} ({current_migration[1]})"
+            if current_migration is not None
+            else "migration audit"
+        )
+        raise StoreError(f"{context} failed: {exc}") from exc
 
     for table, required in _V1_REQUIRED_COLUMNS.items():
         actual = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})")}
@@ -465,6 +749,26 @@ class SnapshotStore:
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
         try:
+            self._conn.create_function("actor_identity", 1, actor_identity, deterministic=True)
+            self._conn.create_function("canonical_actor", 1, canonical_actor, deterministic=True)
+            self._conn.create_function(
+                "public_copy_is_safe", 1, public_copy_is_safe, deterministic=True
+            )
+            self._conn.create_function(
+                "governance_reference_is_safe",
+                1,
+                governance_reference_is_safe,
+                deterministic=True,
+            )
+            self._conn.create_function(
+                "private_text_is_safe", 1, private_text_is_safe, deterministic=True
+            )
+            self._conn.create_function(
+                "observation_fields_are_valid",
+                7,
+                observation_fields_are_valid,
+                deterministic=True,
+            )
             self._conn.execute("PRAGMA foreign_keys = ON")
             _initialize_base_schema(self._conn)
             _migrate(self._conn)
@@ -481,7 +785,11 @@ class SnapshotStore:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        self.close()
+        if exc_type is None:
+            self.close()
+            return
+        self._conn.rollback()
+        self._conn.close()
 
     def close(self) -> None:
         self._conn.commit()
@@ -925,6 +1233,8 @@ class SnapshotStore:
         forgiveness to the primary-key collision we actually want to tolerate, and leaves
         the CHECK constraints loud.
         """
+        if not change.observation_valid:
+            raise StoreError("change observation fields are invalid")
         try:
             self._conn.execute("BEGIN IMMEDIATE")
             self._conn.execute(
@@ -997,28 +1307,175 @@ class SnapshotStore:
         except sqlite3.DatabaseError as exc:
             self._conn.rollback()
             raise StoreError(f"could not record change: {exc}") from exc
+        except Exception as exc:
+            self._conn.rollback()
+            raise StoreError("could not record change: invalid non-database value") from exc
         self._conn.commit()
 
     def update_change(self, change: ChangeRecord) -> None:
-        """Persist a reviewed record over its observed predecessor."""
+        """Append the first human decision without mutating the observation.
+
+        The method name is retained for the alpha CLI/API, but the V1 storage meaning is now
+        append-only.  The old mutable columns remain only for migration compatibility and are
+        never written by this path.
+        """
+        if (
+            not change.observation_valid
+            or change.review_status is ReviewStatus.UNREVIEWED
+            or not change.reviewer
+            or change.reviewed_at is None
+            or not change.first_review_valid
+        ):
+            raise StoreError("first review decision is incomplete")
+        decision_id = _stable_event_id(
+            "review",
+            change.id,
+            "first",
+            str(change.review_status),
+            change.reviewer,
+            change.reviewed_at.isoformat(),
+        )
         try:
-            cursor = self._conn.execute(
-                "UPDATE changes SET significance = ?, review_status = ?, reviewer = ?,"
-                " reviewed_at = ?, review_note = ? WHERE change_id = ?",
+            self._conn.execute("BEGIN IMMEDIATE")
+            if (
+                self._conn.execute(
+                    "SELECT 1 FROM changes WHERE change_id = ?", (change.id,)
+                ).fetchone()
+                is None
+            ):
+                raise StoreError(f"unknown change id: {change.id!r}")
+            self._conn.execute(
+                "INSERT INTO review_decisions "
+                "(decision_id, change_id, stage, decision, significance, actor, decided_at, "
+                " internal_rationale, public_copy) VALUES (?, ?, 'first', ?, ?, ?, ?, ?, ?)",
                 (
-                    str(change.significance),
-                    str(change.review_status),
-                    change.reviewer,
-                    change.reviewed_at.isoformat() if change.reviewed_at else None,
-                    change.review_note,
+                    decision_id,
                     change.id,
+                    str(change.review_status),
+                    str(change.significance),
+                    change.reviewer,
+                    _as_utc(change.reviewed_at).isoformat(),
+                    change.internal_rationale,
+                    change.review_note,
                 ),
             )
+            self._conn.commit()
         except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
             raise StoreError(f"change rejected by the store's integrity rules: {exc}") from exc
-        if cursor.rowcount == 0:
-            raise StoreError(f"unknown change id: {change.id!r}")
-        self._conn.commit()
+        except StoreError:
+            self._conn.rollback()
+            raise
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not append first review: {exc}") from exc
+        except Exception as exc:
+            self._conn.rollback()
+            raise StoreError("could not append first review: invalid non-database value") from exc
+
+    def record_independent_review(self, change: ChangeRecord) -> None:
+        """Append a qualified, conflict-attested decision for a substantive item."""
+
+        if (
+            not change.observation_valid
+            or not change.first_review_valid
+            or change.independent_review_status is None
+            or not change.independent_reviewer
+            or change.independent_reviewed_at is None
+            or not change.independent_qualification_ref
+            or not change.independent_conflict_attestation_ref
+            or not change.independent_review_valid
+        ):
+            raise StoreError("independent review decision is incomplete")
+        decision_id = _stable_event_id(
+            "review",
+            change.id,
+            "independent",
+            str(change.independent_review_status),
+            change.independent_reviewer,
+            change.independent_reviewed_at.isoformat(),
+        )
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            self._conn.execute(
+                "INSERT INTO review_decisions "
+                "(decision_id, change_id, stage, decision, significance, actor, decided_at, "
+                " internal_rationale, public_copy, qualification_ref, "
+                " conflict_attestation_ref) "
+                "VALUES (?, ?, 'independent', ?, 'substantive', ?, ?, ?, '', ?, ?)",
+                (
+                    decision_id,
+                    change.id,
+                    str(change.independent_review_status),
+                    change.independent_reviewer,
+                    _as_utc(change.independent_reviewed_at).isoformat(),
+                    change.independent_rationale,
+                    change.independent_qualification_ref,
+                    change.independent_conflict_attestation_ref,
+                ),
+            )
+            self._conn.commit()
+        except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
+            raise StoreError(f"independent review rejected by integrity rules: {exc}") from exc
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not append independent review: {exc}") from exc
+        except Exception as exc:
+            self._conn.rollback()
+            raise StoreError(
+                "could not append independent review: invalid non-database value"
+            ) from exc
+
+    def record_lifecycle_event(self, change: ChangeRecord) -> None:
+        """Append one correction or withdrawal event; history is never overwritten."""
+
+        if (
+            change.publication_status is PublicationStatus.ACTIVE
+            or not change.lifecycle_reason
+            or not change.lifecycle_actor
+            or change.lifecycle_at is None
+            or not change.lifecycle_valid
+            or not change.publishable
+        ):
+            raise StoreError("correction or withdrawal event is incomplete")
+        action = str(change.publication_status)
+        event_id = _stable_event_id(
+            "lifecycle",
+            change.id,
+            action,
+            change.superseded_by or "",
+            change.lifecycle_actor,
+            change.lifecycle_at.isoformat(),
+        )
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            self._conn.execute(
+                "INSERT INTO change_lifecycle_events "
+                "(event_id, change_id, action, superseded_by_change_id, reason, actor, "
+                " decided_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event_id,
+                    change.id,
+                    action,
+                    change.superseded_by,
+                    change.lifecycle_reason,
+                    change.lifecycle_actor,
+                    _as_utc(change.lifecycle_at).isoformat(),
+                ),
+            )
+            self._conn.commit()
+        except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
+            raise StoreError(f"lifecycle event rejected by integrity rules: {exc}") from exc
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not append lifecycle event: {exc}") from exc
+        except Exception as exc:
+            self._conn.rollback()
+            raise StoreError(
+                "could not append lifecycle event: invalid non-database value"
+            ) from exc
 
     def get_change(self, change_id: str) -> ChangeRecord:
         row = self._conn.execute(
@@ -1026,7 +1483,7 @@ class SnapshotStore:
         ).fetchone()
         if row is None:
             raise StoreError(f"unknown change id: {change_id!r}")
-        return _row_to_change(row)
+        return self._project_change(row)
 
     def changes(
         self,
@@ -1034,14 +1491,13 @@ class SnapshotStore:
         review_status: ReviewStatus | None = None,
         jurisdiction: str | None = None,
     ) -> tuple[ChangeRecord, ...]:
-        """Query changes, newest first. Filtering happens in SQL so the publisher's
-        "confirmed only" query is one statement a reader can audit, not a Python filter
-        that a later refactor could widen by accident."""
+        """Query changes, newest first, then filter the immutable-event projection.
+
+        Review state no longer lives in mutable columns: each row is projected from
+        append-only decisions before any review-status filter is applied.
+        """
         clauses: list[str] = []
         params: list[str] = []
-        if review_status is not None:
-            clauses.append("review_status = ?")
-            params.append(str(review_status))
         if jurisdiction is not None:
             clauses.append("jurisdiction = ?")
             params.append(jurisdiction.upper())
@@ -1050,7 +1506,73 @@ class SnapshotStore:
             f"SELECT * FROM changes{where} ORDER BY observed_at DESC, change_id",  # noqa: S608 — clauses are literals, values are bound
             params,
         ).fetchall()
-        return tuple(_row_to_change(row) for row in rows)
+        projected = tuple(self._project_change(row) for row in rows)
+        if review_status is None:
+            return projected
+        return tuple(change for change in projected if change.review_status is review_status)
+
+    def _project_change(self, row: sqlite3.Row) -> ChangeRecord:
+        """Derive current state from immutable decisions while quarantining legacy notes."""
+
+        change = _row_to_change(row)
+        first = self._conn.execute(
+            "SELECT * FROM review_decisions WHERE change_id = ? AND stage = 'first'",
+            (change.id,),
+        ).fetchone()
+        if first is not None:
+            change = replace(
+                change,
+                significance=Significance(str(first["significance"])),
+                review_status=ReviewStatus(str(first["decision"])),
+                reviewer=str(first["actor"]),
+                reviewed_at=_parse_dt(str(first["decided_at"])),
+                review_note=str(first["public_copy"]),
+                internal_rationale=str(first["internal_rationale"]),
+            )
+        elif change.review_status is not ReviewStatus.UNREVIEWED:
+            # Alpha stores exposed `review_note` directly.  Preserve it only as private
+            # rationale and withhold the record until an operator creates an audited V1
+            # decision with constrained public copy.
+            change = replace(
+                change,
+                significance=Significance.UNCLASSIFIED,
+                review_status=ReviewStatus.UNREVIEWED,
+                reviewer=None,
+                reviewed_at=None,
+                review_note="",
+                internal_rationale=change.review_note,
+            )
+        independent = self._conn.execute(
+            "SELECT * FROM review_decisions WHERE change_id = ? AND stage = 'independent'",
+            (change.id,),
+        ).fetchone()
+        if independent is not None:
+            change = replace(
+                change,
+                independent_review_status=IndependentReviewStatus(str(independent["decision"])),
+                independent_reviewer=str(independent["actor"]),
+                independent_reviewed_at=_parse_dt(str(independent["decided_at"])),
+                independent_rationale=str(independent["internal_rationale"]),
+                independent_qualification_ref=str(independent["qualification_ref"]),
+                independent_conflict_attestation_ref=str(independent["conflict_attestation_ref"]),
+            )
+        lifecycle = self._conn.execute(
+            "SELECT * FROM change_lifecycle_events WHERE change_id = ?", (change.id,)
+        ).fetchone()
+        if lifecycle is not None:
+            change = replace(
+                change,
+                publication_status=PublicationStatus(str(lifecycle["action"])),
+                superseded_by=(
+                    str(lifecycle["superseded_by_change_id"])
+                    if lifecycle["superseded_by_change_id"] is not None
+                    else None
+                ),
+                lifecycle_reason=str(lifecycle["reason"]),
+                lifecycle_actor=str(lifecycle["actor"]),
+                lifecycle_at=_parse_dt(str(lifecycle["decided_at"])),
+            )
+        return change
 
     def __iter__(self) -> Iterator[ChangeRecord]:
         return iter(self.changes())
@@ -1092,6 +1614,12 @@ def _row_to_change(row: sqlite3.Row) -> ChangeRecord:
 
 def _parse_dt(value: str) -> datetime:
     return _as_utc(datetime.fromisoformat(value))
+
+
+def _stable_event_id(*parts: str) -> str:
+    """Content-address one immutable operator event without leaking its text."""
+
+    return sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
 
 def _as_utc(value: datetime) -> datetime:

@@ -7,6 +7,7 @@ website is down — which is exactly the day you most want to be able to run you
 
 from __future__ import annotations
 
+import time
 import urllib.error
 import urllib.request
 from email.message import Message
@@ -63,6 +64,14 @@ def route(
 
     monkeypatch.setattr(urllib.request, "urlopen", opener)
     return requested
+
+
+@pytest.fixture(autouse=True)
+def _never_really_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Per-host crawl spacing calls `time.sleep`. No test should burn wall-clock on it: the
+    spacing maths is asserted separately with an injected fake clock, and every other test
+    treats the sleep as instantaneous."""
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
 
 
 @pytest.fixture
@@ -264,3 +273,114 @@ def test_failure_results_carry_no_body() -> None:
     assert result.body == b""
     assert result.content_type is None
     assert result.error == "boom"
+
+
+class FakeClock:
+    """A deterministic monotonic clock for the crawl-spacing tests: `sleep` advances the
+    clock and records how long it slept, so spacing is asserted with no wall-clock wait."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.slept: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def test_consecutive_page_requests_to_one_host_are_spaced(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """The feature: two pages on the same government server are not fetched back-to-back.
+    The first request never waits; the second waits the full interval."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"ok"))
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert fetcher.fetch(URL).ok
+    assert fetcher.fetch(URL + "/two").ok
+
+    assert clock.slept == [2.0]
+
+
+def test_requests_to_different_hosts_are_not_spaced(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """Spacing is per host: hitting a different server does not wait, so the run is not
+    serialised into one slow queue across unrelated hosts."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"ok"))
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    fetcher.fetch("https://other.example.gov/p")
+
+    assert clock.slept == []
+
+
+def test_spacing_waits_only_the_remaining_gap(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """Time already elapsed counts against the interval — the wait is the remainder, not a
+    fresh full interval every time."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"ok"))
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    clock.advance(0.5)  # half a second passes before the next same-host crawl
+    fetcher.fetch(URL + "/two")
+
+    assert clock.slept == [1.5]
+
+
+def test_a_slow_host_is_not_penalised_by_spacing(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """The interval bounds the *rate*, not the host's answer time: a server that already
+    spent longer than the interval answering is not made to wait again."""
+    clock = FakeClock()
+
+    def slow_open(*_: object, **__: object) -> FakeResponse:
+        clock.advance(3.0)  # this host takes 3s to answer, more than the 2s interval
+        return FakeResponse(b"ok")
+
+    monkeypatch.setattr(urllib.request, "urlopen", slow_open)
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    fetcher.fetch(URL + "/two")
+
+    assert clock.slept == []
+
+
+def test_a_refused_request_never_sleeps(monkeypatch: pytest.MonkeyPatch, no_robots: None) -> None:
+    """Spacing sits after the guards: a non-https URL is refused without a request, so it
+    must not consume a spacing wait either."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"ok"))
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)  # first real request to the host
+    assert not fetcher.fetch("http://insecure.example.gov/p").ok
+
+    assert clock.slept == []
+
+
+def test_spacing_can_be_disabled(monkeypatch: pytest.MonkeyPatch, no_robots: None) -> None:
+    """A zero interval turns spacing off — for a self-hosted target or a test that wants the
+    old back-to-back behaviour."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"ok"))
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    fetcher.fetch(URL + "/two")
+
+    assert clock.slept == []

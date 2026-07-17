@@ -504,3 +504,54 @@ def test_baseline_write_then_check_round_trips_without_a_store(
     assert f"MOVED   {source.id}" in out_text
     assert "1 MOVED" in out_text
     assert "cannot show you the passage that changed" in out_text  # the honest limit
+
+
+def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
+    cli_registry: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The portable hash diagnostic is still a network path, so it must not become a
+    backdoor around human verification or the dated fetch-policy decision.
+    """
+    raw = json.loads(cli_registry.read_text(encoding="utf-8"))
+    for entry in raw["sources"]:
+        entry["verified"] = False
+        entry["verification"] = {
+            "status": "unverified",
+            "verifier": "",
+            "at": "",
+            "evidence": "",
+            "expires_at": "",
+        }
+        entry["fetch_policy"] = {
+            "outcome": "unreviewed",
+            "reviewer": "",
+            "at": "",
+            "expires_at": "",
+            "evidence": "",
+            "reason": "",
+        }
+    ineligible_registry = tmp_path / "ineligible-registry.json"
+    ineligible_registry.write_text(json.dumps(raw), encoding="utf-8")
+    baselines = tmp_path / "baseline-hashes.json"
+    baselines.write_text(json.dumps({"baseline_version": "1.0", "baselines": {}}), encoding="utf-8")
+    stub = StubFetcher()
+
+    exit_code = main(
+        [
+            *base_args(ineligible_registry, tmp_path / "unused.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(baselines),
+        ],
+        fetcher=stub,
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert stub.calls == []
+    assert "0/2 selected source(s) attempt-eligible" in output
+    assert "fetch-policy-unreviewed: 2" in output
+    assert "unverified: 2" in output

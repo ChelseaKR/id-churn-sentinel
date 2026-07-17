@@ -1,7 +1,7 @@
 # The weekly watch — the operational job, NOT a build step.
 #
-# It fetches every source in the registry once, compares against the committed baseline
-# hashes, and opens (or updates) a single human-review issue when something moved. It does
+# It fetches every attempt-eligible source in the registry once, compares against the committed
+# baseline hashes, and opens (or updates) a single human-review issue when something moved. It does
 # NOT publish. It CANNOT publish. Publication requires a named human to have reviewed and
 # confirmed a change (`sentinel review --reviewer …`), and there is no path from this
 # workflow to that command — deliberately, and that is the whole design:
@@ -78,7 +78,9 @@ jobs:
       - name: Install
         run: make install
 
-      # Compare every live source against the COMMITTED baseline hashes. This needs no
+      # Compare every attempt-eligible live source against the COMMITTED baseline hashes. The
+      # command uses the same dated verification/fetch-policy predicate as `sentinel watch`; an
+      # ephemeral diagnostic is never permission to bypass a source-policy decision. This needs no
       # snapshot store, which is what makes it work on an ephemeral runner: the runner has
       # no memory, and `sources/baseline-hashes.json` is the memory we checked in.
       #

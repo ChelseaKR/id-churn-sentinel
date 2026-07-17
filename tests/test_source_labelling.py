@@ -146,13 +146,23 @@ def test_every_source_in_sources_json_carries_a_machine_readable_status(publishe
     in it says, in a field, whether a human has confirmed it."""
     payload = json.loads((published / "sources.json").read_text())
 
+    assert payload["schema_version"] == "2.0"
     assert payload["coverage"]["human_verified"] == 0  # derived, not typed
-    assert payload["coverage"]["unverified"] == payload["coverage"]["sources"]
+    assert payload["coverage"]["unverified"] == payload["coverage"]["registered_candidates"]
+    assert payload["coverage"]["attempt_eligible"] == 0
+    assert payload["coverage"]["ineligible"] == payload["coverage"]["registered_candidates"]
+    assert payload["coverage"]["ineligibility_reasons"] == {
+        "fetch-policy-unreviewed": payload["coverage"]["registered_candidates"],
+        "unverified": payload["coverage"]["registered_candidates"],
+    }
     assert "NOT HUMAN-VERIFIED" in payload["disclaimer"]
 
     for source in payload["sources"]:
         assert source["verification_status"] in {UNVERIFIED, VERIFIED, REJECTED}
         assert source["human_verified"] is False
+        assert source["attempt_eligible"] is False
+        assert source["fetch_policy_outcome"] == "unreviewed"
+        assert source["ineligibility_reasons"] == ["unverified", "fetch-policy-unreviewed"]
         assert (
             "UNVERIFIED — machine-checked, not human-confirmed"
             in (source["verification_statement"])
@@ -213,7 +223,7 @@ def test_the_site_says_it_above_the_fold_and_before_the_numbers(published: Path)
         "Do not rely on this list as authoritative guidance",
         "What this tool does claim",
         "What this tool never claims",
-        "<strong>This URL changed</strong>",
+        "<strong>For a published observation: this URL changed</strong>",
         "<strong>What the law is</strong>",
     ):
         assert sentence in page, f"the front door must say: {sentence!r}"

@@ -24,7 +24,7 @@ Do not hand-edit the generated files. `make publish` overwrites them, and a hand
 | `index.html` — the site, and the Pages entry point | `README.md` — this file |
 | `feed.xml` — RSS 2.0, all jurisdictions | `CONSUMERS.md` — **the integrator guide. Start here.** |
 | `changes.json` — the versioned JSON feed | `ROADMAP.md` — the build plan, M0–M5 |
-| `sources.json` — the inventory: every watched source *and every named gap* | `RESPONSIBLE-TECH-AUDITS.md` — the risks, named and addressed |
+| `sources.json` — the v2 inventory: every registered candidate, exact attempt eligibility, and every named gap | `RESPONSIBLE-TECH-AUDITS.md` — the risks, named and addressed |
 | `status.json` — persisted watch health; generation time is not success | `schema/status-v1.schema.json` — the normative status contract |
 | `feed-us-xx.xml` / `changes-us-xx.json` — one pair per jurisdiction | `VERIFYING.md` — the human verification runbook |
 | `.nojekyll` — see below | `schema/changes-v2.schema.json` — the normative shape of `changes.json` |

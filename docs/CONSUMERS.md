@@ -39,7 +39,7 @@ curl -s "$BASE/changes.json"          # the versioned JSON feed — integrate ag
 curl -s "$BASE/feed.xml"              # RSS 2.0, every jurisdiction
 curl -s "$BASE/changes-us-tx.json"    # just Texas
 curl -s "$BASE/feed-us-tx.xml"        # just Texas, as RSS
-curl -s "$BASE/sources.json"          # the inventory: what we watch, and every named gap
+curl -s "$BASE/sources.json"          # registered candidates, eligibility, and named gaps
 curl -s "$BASE/status.json"           # persisted watch health; not the page-build time
 curl -s "$BASE/schema/changes-v2.schema.json"   # the normative shape of changes.json
 curl -s "$BASE/schema/status-v1.schema.json"    # the normative shape of status.json
@@ -51,11 +51,11 @@ Everything below is published to a static URL and consumable with **no account, 
 
 | Artifact | Path | What it is |
 |---|---|---|
-| **The site** | `index.html` | The human front door: what is watched, **what is not and why**, and the reviewed-change log. No JavaScript and no third-party request of any kind are tested properties; full WCAG 2.2 AA audit and remediation remain a V1 gate, not a current conformance claim. |
+| **The site** | `index.html` | The human front door: registered candidates, exact attempt eligibility, run health, gaps, and the reviewed-change log. No JavaScript and no third-party request of any kind are tested properties; full WCAG 2.2 AA audit and remediation remain a V1 gate, not a current conformance claim. |
 | **The JSON feed** | `changes.json` | The versioned JSON feed. **This is the one you integrate.** Formal schema: [`docs/schema/changes-v2.schema.json`](./schema/changes-v2.schema.json). |
 | **The RSS feed** | `feed.xml` | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
 | **One feed per jurisdiction** | `changes-us-tx.json` · `feed-us-tx.xml` | An org that serves one state is not made to consume all 52. `us-tx` for Texas, `us-dc` for DC, plain `us` for the federal bucket (passport, SSA, Selective Service). |
-| **The inventory** | `sources.json` | Every watched source **and every named gap**. This is what you map your own pages against. |
+| **The inventory** | `sources.json` | Version 2 exposes every registered candidate, its dated `attempt_eligible` decision and reasons, fetch-policy outcome, and every named gap. Registration is not represented as monitoring. |
 | **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
 | **The schema** | `schema/changes-v2.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
 | **The health schema** | `schema/status-v1.schema.json` | Closed JSON Schema 2020-12 contract for `status.json`. |
@@ -77,6 +77,12 @@ Every item is a machine-observed change **a named human reviewed and confirmed**
 ```sh
 # every source we have NOT had a human confirm — today, that is all of them
 curl -s $BASE/sources.json | jq '.sources[] | select(.verification_status != "verified")'
+
+# every source the service may actually attempt — today, this returns none
+curl -s $BASE/sources.json | jq '.sources[] | select(.attempt_eligible)'
+
+# the exact current denominator and why entries are excluded
+curl -s $BASE/sources.json | jq '.coverage | {eligibility_as_of, attempt_eligible, ineligibility_reasons}'
 
 # the counts, straight from the feed you are already polling
 curl -s $BASE/changes.json | jq '.registry_verification'

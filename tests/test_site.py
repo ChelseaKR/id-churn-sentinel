@@ -276,6 +276,13 @@ def test_landmarks_a_skip_link_and_a_focus_style_exist(site_registry: Registry) 
     assert "outline:" in page.replace("outline: ", "outline:")
 
 
+def test_stale_health_label_is_not_repeated(site_registry: Registry) -> None:
+    page = render(site_registry)
+
+    assert "Run health: STALE" in page
+    assert "STALE · STALE" not in page
+
+
 def test_every_table_has_a_caption_and_scoped_headers(site_registry: Registry) -> None:
     """A table with no `<caption>` and no `<th scope>` is an unlabelled grid of strings to a
     screen reader — which is what the coverage table would become, for exactly the caseworker
@@ -296,15 +303,34 @@ def test_status_is_never_signalled_by_colour_alone(site_registry: Registry) -> N
     """
     page = render(site_registry)
 
-    assert "Watched in name only — our crawler cannot fetch it" in page
+    assert "Crawler-unreachable when last machine-checked" in page
+    assert "Not monitored — excluded by eligibility" in page
     # And the fact is stated in prose too, not only in a table cell.
-    assert "registered sources cannot currently be fetched" in page
+    assert "registered candidates could not be fetched" in page
 
     # No CSS class in this page encodes a status by colour name, which is how the red dot
     # gets in: someone adds `.status-red` and the information stops existing for a screen
     # reader while still "looking right" to the person who added it.
     for colour_class in (".status-red", ".status-green", ".ok {", ".bad {", ".error {"):
         assert colour_class not in page
+
+
+def test_long_inline_code_can_wrap_without_forcing_horizontal_page_scroll(
+    site_registry: Registry,
+) -> None:
+    page = render(site_registry)
+
+    assert "code {" in page
+    assert "overflow-wrap: anywhere" in page
+
+
+def test_page_section_navigation_reaches_the_primary_tasks(site_registry: Registry) -> None:
+    page = render(site_registry)
+
+    assert '<nav class="section-nav" aria-label="Page sections">' in page
+    for target in ("verification", "run-health", "changes", "endpoints", "sources", "gaps"):
+        assert f'href="#{target}"' in page
+        assert f'id="{target}"' in page
 
 
 def test_the_page_says_what_is_not_watched_and_who_refused_us(site_registry: Registry) -> None:

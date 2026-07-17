@@ -1,12 +1,19 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-07-17T01:03:31.496605+00:00",
+  "schema_version": "2.0",
+  "generated_at": "2026-07-17T01:43:48.553047+00:00",
   "coverage": {
-    "sources": 152,
+    "registered_candidates": 152,
+    "attempt_eligible": 0,
+    "ineligible": 152,
+    "eligibility_as_of": "2026-07-17",
+    "ineligibility_reasons": {
+      "fetch-policy-unreviewed": 152,
+      "unverified": 152
+    },
     "jurisdictions_covered": 52,
     "jurisdictions_total": 52,
     "named_gaps": 12,
-    "watched_in_name_only": 6,
+    "registered_but_crawler_unreachable": 6,
     "human_verified": 0,
     "unverified": 152,
     "rejected_by_a_human": 0
@@ -25,7 +32,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ak-havrs-vital-records",
@@ -39,7 +53,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "al-adph-vital-records",
@@ -53,7 +74,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "al-alea-driver-license",
@@ -67,7 +95,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "al-judicial-system",
@@ -81,7 +116,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ar-adh-certificates-records",
@@ -95,7 +137,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "az-adhs-vital-records",
@@ -109,7 +158,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "az-adot-mvd",
@@ -123,7 +179,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "az-courts-self-service",
@@ -137,7 +200,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ca-cdph-vital-records",
@@ -151,7 +221,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ca-court-gender-recognition",
@@ -165,7 +242,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ca-court-name-change",
@@ -179,7 +263,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ca-dmv-update-dl-id",
@@ -193,7 +284,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "co-judicial-name-change-adult",
@@ -207,7 +305,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ct-dmv",
@@ -221,7 +326,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ct-dph-vital-records",
@@ -235,7 +347,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "dc-dmv",
@@ -249,7 +368,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "dc-vital-records",
@@ -263,7 +389,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "de-code-16-31-vital-statistics",
@@ -277,7 +410,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "de-courts",
@@ -291,7 +431,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "de-dmv",
@@ -305,7 +452,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "fl-doh-birth-certificates",
@@ -319,7 +473,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "fl-hsmv-driver-licenses",
@@ -333,7 +494,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ga-courts",
@@ -347,7 +515,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ga-dds",
@@ -361,7 +536,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ga-dph-vital-records",
@@ -375,7 +557,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "hi-courts",
@@ -389,7 +578,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "hi-doh-vital-records",
@@ -403,7 +599,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "hi-hrs-286-102-licensing",
@@ -417,7 +620,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ia-courts-representing-yourself",
@@ -431,7 +641,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ia-dot-dmv-services",
@@ -445,7 +662,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ia-hhs-vital-records",
@@ -459,7 +683,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "id-code-49-306-license-application",
@@ -473,7 +704,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "id-court-self-help",
@@ -487,7 +725,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "id-dhw-change-birth-certificate",
@@ -501,7 +746,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "il-courts-self-help",
@@ -515,7 +767,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "il-idph-vital-records",
@@ -529,7 +788,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "il-sos-drivers-license",
@@ -543,7 +809,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "in-bmv",
@@ -557,7 +830,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "in-courts-self-service",
@@ -571,7 +851,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "in-doh-vital-records",
@@ -585,7 +872,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ks-dov-drivers",
@@ -599,7 +893,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ks-kdhe-amend-birth-certificate",
@@ -613,7 +914,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ks-kdhe-vital-statistics",
@@ -627,7 +935,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ks-statute-60-1401-change-of-name",
@@ -641,7 +956,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ky-chfs-vital-statistics",
@@ -655,7 +977,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ky-courts",
@@ -669,7 +998,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ky-drive",
@@ -683,7 +1019,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "la-ldh-vital-record-amendments",
@@ -697,7 +1040,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "la-ldh-vital-records",
@@ -711,7 +1061,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "la-rs-13-4751-petition-for-name-change",
@@ -725,7 +1082,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ma-courts-name-changes",
@@ -739,7 +1103,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ma-rmv",
@@ -753,7 +1124,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ma-rvrs-vital-records",
@@ -767,7 +1145,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "md-courts",
@@ -781,7 +1166,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "md-mva",
@@ -795,7 +1187,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "md-vsa",
@@ -809,7 +1208,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "me-bmv",
@@ -823,7 +1229,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "me-cdc-vital-records",
@@ -837,7 +1250,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "me-courts",
@@ -851,7 +1271,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mi-mcl-257-307-license-application",
@@ -865,7 +1292,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mi-mcl-333-2831-new-birth-certificate",
@@ -879,7 +1313,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mi-scao-pc51-name-change-petition",
@@ -893,7 +1334,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mn-doh-vital-records",
@@ -907,7 +1355,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mn-dvs",
@@ -921,7 +1376,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mn-statute-259-10-change-of-name",
@@ -935,7 +1397,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mo-courts",
@@ -949,7 +1418,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mo-dhss-vital-records",
@@ -963,7 +1439,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mo-dor-driver-license",
@@ -977,7 +1460,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ms-courts",
@@ -991,7 +1481,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ms-dps-driver-service-bureau",
@@ -1005,7 +1502,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ms-msdh-vital-records",
@@ -1019,7 +1523,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mt-courts-forms",
@@ -1033,7 +1544,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mt-dphhs-vital-records",
@@ -1047,7 +1565,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "mt-mca-61-5-111-drivers-license",
@@ -1061,7 +1586,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nc-dmv",
@@ -1075,7 +1607,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nc-gs-101-name-change",
@@ -1089,7 +1628,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nc-vital-records",
@@ -1103,7 +1649,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nd-courts",
@@ -1117,7 +1670,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nd-dot-driver",
@@ -1131,7 +1691,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nd-hhs-vital-records",
@@ -1145,7 +1712,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ne-dhhs-vital-records",
@@ -1159,7 +1733,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ne-dmv",
@@ -1173,7 +1754,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ne-judicial",
@@ -1187,7 +1775,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nh-rsa-547-3-i-change-of-name",
@@ -1201,7 +1796,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nh-rsa-5c-87-birth-record-amendment",
@@ -1215,7 +1817,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nh-saf-c-1000-driver-licensing-rules",
@@ -1229,7 +1838,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nj-courts",
@@ -1243,7 +1859,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nj-doh-vital-statistics",
@@ -1257,7 +1880,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nj-mvc",
@@ -1271,7 +1901,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nm-courts",
@@ -1285,7 +1922,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nm-doh-vital-records",
@@ -1299,7 +1943,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nm-mvd",
@@ -1313,7 +1964,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nv-courts",
@@ -1327,7 +1985,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nv-nac-483-drivers-licenses",
@@ -1341,7 +2006,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "nv-nrs-440-vital-statistics",
@@ -1355,7 +2027,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ny-courts-name-change",
@@ -1369,7 +2048,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ny-dmv-change-information",
@@ -1383,7 +2069,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ny-doh-vital-records",
@@ -1397,7 +2090,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "oh-bmv",
@@ -1411,7 +2111,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "oh-oac-3701-5-vital-statistics",
@@ -1425,7 +2132,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "oh-supreme-court",
@@ -1439,7 +2153,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ok-service-oklahoma",
@@ -1453,7 +2174,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ok-vital-records",
@@ -1467,7 +2195,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ok-vital-records-forms",
@@ -1481,7 +2216,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "or-courts-name-sex-change",
@@ -1495,7 +2237,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "or-dmv-gender-marker",
@@ -1509,7 +2258,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "or-dmv-name-change",
@@ -1523,7 +2279,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "or-oha-vital-records",
@@ -1537,7 +2300,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "pa-courts",
@@ -1551,7 +2321,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "pa-dmv",
@@ -1565,7 +2342,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "pa-doh-vital-records",
@@ -1579,7 +2363,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ri-dmv-licenses",
@@ -1593,7 +2384,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ri-doh-vital-records",
@@ -1607,7 +2405,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ri-gl-33-22-28-name-change",
@@ -1621,7 +2426,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "sc-code-15-49-change-of-name",
@@ -1635,7 +2447,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "sc-dmv",
@@ -1649,7 +2468,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "sc-dph-vital-records",
@@ -1663,7 +2489,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "sd-doh-vital-records",
@@ -1677,7 +2510,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "sd-ujs",
@@ -1691,7 +2531,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tn-courts",
@@ -1705,7 +2552,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tn-doh-vital-records",
@@ -1719,7 +2573,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tn-driver-services",
@@ -1733,7 +2594,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tx-dps-change-dl-id",
@@ -1747,7 +2615,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tx-dshs-vital-statistics",
@@ -1761,7 +2636,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "tx-family-code-45-change-of-name",
@@ -1775,7 +2657,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-federal-register-sex-marker",
@@ -1789,7 +2678,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-passport-change-correct",
@@ -1803,7 +2699,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-passport-sex-markers",
@@ -1817,7 +2720,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-selective-service-register",
@@ -1831,7 +2741,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-ssa-number-card",
@@ -1845,7 +2762,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "us-ssa-ss5-form",
@@ -1859,7 +2783,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": false,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ut-courts-name-change",
@@ -1873,7 +2804,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ut-dld",
@@ -1887,7 +2825,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "ut-vital-records",
@@ -1901,7 +2846,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "va-courts",
@@ -1915,7 +2867,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "va-dmv",
@@ -1929,7 +2888,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "va-vdh-vital-records",
@@ -1943,7 +2909,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "vt-judiciary",
@@ -1957,7 +2930,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "vt-vital-records",
@@ -1971,7 +2951,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wa-courts-name-change-form",
@@ -1985,7 +2972,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wa-doh-vital-records",
@@ -1999,7 +2993,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wa-dol-gender-designation",
@@ -2013,7 +3014,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wi-courts",
@@ -2027,7 +3035,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wi-dhs-vital-records",
@@ -2041,7 +3056,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wi-dmv",
@@ -2055,7 +3077,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wv-courts",
@@ -2069,7 +3098,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wv-dmv",
@@ -2083,7 +3119,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wv-vital-registration",
@@ -2097,7 +3140,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wy-courts",
@@ -2111,7 +3161,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wy-driver-services",
@@ -2125,7 +3182,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     },
     {
       "source_id": "wy-health-vital-records",
@@ -2139,7 +3203,14 @@
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
       "reachable_by_our_crawler": true,
-      "notes": ""
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-07-17",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
     }
   ],
   "gaps": [

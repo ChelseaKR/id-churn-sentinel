@@ -1,4 +1,4 @@
-"""The published site — an accessible, static, tracker-free index of what is watched.
+"""The published site — an accessible, static, tracker-free index of registered candidates.
 
 **Why a site at all, when the product is a feed.** `docs/CONSUMERS.md` argues that the
 customers are the incumbents — A4TE, Trans Lifeline, Namesake, legal-aid clinics — and that
@@ -58,6 +58,11 @@ from datetime import date, datetime
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import CoverageReport, coverage
+from id_churn_sentinel.core.eligibility import (
+    EligibilityReport,
+    SourceEligibility,
+    eligibility_report,
+)
 from id_churn_sentinel.core.registry import REJECTED, Registry, Source
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status
 from id_churn_sentinel.errors import PublishError
@@ -147,10 +152,12 @@ def render_site(
     # behind the exact same publication gate as JSON and RSS.
     from id_churn_sentinel.core.publish import _guard
 
+    eligibility_date = eligibility_as_of or generated_at.date()
+    eligibility = eligibility_report(registry, as_of=eligibility_date)
     records = _guard(
         records,
         registry=registry,
-        as_of=eligibility_as_of or generated_at.date(),
+        as_of=eligibility_date,
     )
     expected_report = coverage(registry)
     if report != expected_report:
@@ -163,9 +170,9 @@ def render_site(
             "<head>",
             '<meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{_esc(SITE_TITLE)} — watched sources, gaps, and the reviewed-change feed</title>",
-            '<meta name="description" content="Human-reviewed changes at official US state and '
-            "federal pages governing name and gender-marker changes on identity documents. "
+            f"<title>{_esc(SITE_TITLE)} — registered candidates, gaps, and service status</title>",
+            '<meta name="description" content="Technical-alpha registry and human-review '
+            "pipeline for candidate US government pages about name and gender-marker changes. "
             'No account, no tracking.">',
             # Feed autodiscovery: a reader who points any RSS client at this page gets the feed
             # without hunting for the URL. Relative, like every other link here — see the module
@@ -178,13 +185,14 @@ def render_site(
             '<a class="skip" href="#main">Skip to main content</a>',
             _header(generated_at),
             '<main id="main">',
-            _verification_notice(report),
+            _section_nav(),
+            _verification_notice(report, eligibility),
             _run_status_section(status),
             _what_this_is(),
-            _coverage_section(report),
+            _coverage_section(report, eligibility),
             _changes_section(records, registry),
             _endpoints_section(registry),
-            _sources_section(registry),
+            _sources_section(registry, eligibility),
             _gaps_section(report),
             "</main>",
             _footer(),
@@ -201,14 +209,33 @@ def _header(generated_at: datetime) -> str:
         [
             "<header>",
             f"<h1>{_esc(SITE_TITLE)}</h1>",
-            '<p class="lede">Change detection over the <strong>official</strong> US pages '
-            "that govern name and gender-marker changes on identity documents. It reports "
-            "that a source page changed, and shows the passage that changed. "
+            '<p class="lede"><strong>Technical alpha:</strong> a candidate-source registry '
+            "and human-review pipeline for US government pages about name and gender-marker "
+            "changes on identity documents. When operational, it reports that an eligible "
+            "source page changed and shows the passage that changed. "
             "<strong>It never asserts what the law is.</strong></p>",
             f'<p class="meta">Generated {_esc(stamp)} · No account · No tracking · '
             "Every published item reviewed by a named human · "
             "Page generation is not watch success; see run health below</p>",
             "</header>",
+        ]
+    )
+
+
+def _section_nav() -> str:
+    return "\n".join(
+        [
+            '<nav class="section-nav" aria-label="Page sections">',
+            "<strong>On this page</strong>",
+            "<ul>",
+            '<li><a href="#verification">Readiness warning</a></li>',
+            '<li><a href="#run-health">Run health</a></li>',
+            '<li><a href="#changes">Reviewed changes</a></li>',
+            '<li><a href="#endpoints">Endpoints</a></li>',
+            '<li><a href="#sources">Registered candidates</a></li>',
+            '<li><a href="#gaps">Named gaps</a></li>',
+            "</ul>",
+            "</nav>",
         ]
     )
 
@@ -240,10 +267,12 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"{_esc(successful.completed_at.isoformat())}."
         )
     stale_word = "STALE" if status.stale else "CURRENT"
+    state_word = status.state.upper()
+    health_label = state_word if state_word == stale_word else f"{state_word} · {stale_word}"
     return "\n".join(
         [
             '<section class="notice" aria-labelledby="run-health">',
-            f'<h2 id="run-health">Run health: {_esc(status.state.upper())} · {stale_word}</h2>',
+            f'<h2 id="run-health">Run health: {_esc(health_label)}</h2>',
             "<p><strong>The feed's generated time is not evidence that the watcher ran.</strong> "
             "Health below comes only from persisted run and source-attempt receipts. A failed, "
             "partial, running, or stale state means feed silence must not be read as no change.</p>",
@@ -256,7 +285,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
     )
 
 
-def _verification_notice(report: CoverageReport) -> str:
+def _verification_notice(report: CoverageReport, eligibility: EligibilityReport) -> str:
     """The first thing on the page, and the reason this page can be published at all.
 
     A visitor lands here, scrolls to a table headed *"OH — Birth certificate — Ohio Department
@@ -279,10 +308,19 @@ def _verification_notice(report: CoverageReport) -> str:
         headline = f"no human has confirmed any of these {total} sources"
     else:
         headline = f"only {verified} of {total} sources are human-verified"
+    readiness = (
+        "<strong>This public deployment is not currently an operating monitor.</strong>"
+        if not eligibility.eligible
+        else "<strong>Registration is not monitoring.</strong>"
+    )
     return "\n".join(
         [
             '<section class="notice" aria-labelledby="verification">',
             f'<h2 id="verification">Read this first: {_esc(headline)}</h2>',
+            f"<p>{readiness} "
+            f"As of {_esc(eligibility.as_of.isoformat())}, <strong>{len(eligibility.eligible)} "
+            f"of {len(eligibility.decisions)} registered candidates are attempt-eligible</strong>. "
+            "The run-health section below says whether any eligible watch actually completed.</p>",
             f"<p><strong>Every source listed on this page is a <em>candidate</em> official "
             f"URL.</strong> Our crawler fetched it and read its title. That is all that has "
             f"happened to {report.unverified_total} of the {total} entries below: "
@@ -298,10 +336,10 @@ def _verification_notice(report: CoverageReport) -> str:
             "is.</p>",
             "<h3>What this tool does claim</h3>",
             "<ul>",
-            "<li><strong>This URL changed</strong> — the text at this address is not the text "
-            "that was here last week.</li>",
-            "<li><strong>This is what changed in it</strong> — the passage, with a reproducible "
-            "hash before and after.</li>",
+            "<li><strong>For a published observation: this URL changed</strong> — a successful "
+            "eligible watch found text different from its retained baseline.</li>",
+            "<li><strong>For a published text observation: this is what changed in it</strong> "
+            "— the passage, with a reproducible hash before and after.</li>",
             "</ul>",
             "<h3>What this tool never claims</h3>",
             "<ul>",
@@ -329,11 +367,12 @@ def _what_this_is() -> str:
             '<h2 id="what">What this tool will and will not tell you</h2>',
             "<h3>It will tell you</h3>",
             "<ul>",
-            "<li>That an official page changed, with the <strong>passage that changed</strong>, "
-            "the official URL, and a reproducible hash of the page text before and after.</li>",
-            "<li>That a page we were watching <strong>stopped answering</strong> for long "
+            "<li>For a published observation, that an eligible registered page changed, with "
+            "the <strong>passage that changed</strong>, its URL, and a reproducible hash of the "
+            "page text before and after.</li>",
+            "<li>That an eligible page <strong>stopped answering</strong> for long "
             "enough that an outage is no longer the likeliest explanation.</li>",
-            "<li>Exactly what we do <strong>not</strong> watch, and which host refused us.</li>",
+            "<li>Exactly which candidates are <strong>not monitored</strong>, and why.</li>",
             "</ul>",
             "<h3>It will never tell you</h3>",
             "<ul>",
@@ -354,7 +393,7 @@ def _what_this_is() -> str:
     )
 
 
-def _coverage_section(report: CoverageReport) -> str:
+def _coverage_section(report: CoverageReport, eligibility: EligibilityReport) -> str:
     rows = "\n".join(
         f'<tr><th scope="row">{_esc(_CLASS_LABELS.get(cls, cls))}</th><td>{count}</td></tr>'
         for cls, count in report.by_document_class
@@ -364,11 +403,14 @@ def _coverage_section(report: CoverageReport) -> str:
             '<section aria-labelledby="coverage">',
             '<h2 id="coverage">Coverage</h2>',
             '<dl class="stats">',
-            f"<div><dt>Sources watched</dt><dd>{report.sources_total}</dd></div>",
+            f"<div><dt>Registered candidates</dt><dd>{report.sources_total}</dd></div>",
+            f"<div><dt>Attempt-eligible</dt><dd>{len(eligibility.eligible)} of "
+            f"{len(eligibility.decisions)}</dd></div>",
             f"<div><dt>Jurisdictions</dt><dd>{report.jurisdictions_covered} of "
             f"{report.jurisdictions_total}</dd></div>",
             f"<div><dt>Named gaps</dt><dd>{report.gaps_total}</dd></div>",
-            f"<div><dt>Watched in name only</dt><dd>{report.unreachable_total}</dd></div>",
+            f"<div><dt>Registered but crawler-unreachable</dt>"
+            f"<dd>{report.unreachable_total}</dd></div>",
             f"<div><dt>Human-verified</dt>"
             f"<dd>{report.verified_total} of {report.sources_total}</dd></div>",
             f"<div><dt>Rejected by a human</dt><dd>{report.rejected_total}</dd></div>",
@@ -380,8 +422,8 @@ def _coverage_section(report: CoverageReport) -> str:
             "different claims, and this project keeps them in different fields, on every "
             "source, in every artifact.</p>",
             f"<p><strong>{report.unreachable_total} of the {report.sources_total} registered "
-            "sources cannot currently be fetched</strong> by our own crawler and are "
-            "therefore <em>watched in name only</em>. They are listed as such in the "
+            "candidates could not be fetched</strong> by our own crawler during registry "
+            "checking. They remain listed as unreachable candidates in the "
             "inventory below rather than deleted, because deleting them would erase the fact "
             "that we cannot watch them.</p>",
             "<table>",
@@ -400,9 +442,10 @@ def _changes_section(records: Sequence[ChangeRecord], registry: Registry) -> str
         body = [
             '<p class="empty"><strong>No reviewed changes yet. This log is empty, not '
             "broken.</strong></p>",
-            "<p>Every change the watcher detects is held until a named human reviews it, and "
+            "<p>Every observation an eligible watch detects is held until a named human reviews "
+            "it, and "
             "none has been confirmed so far. <strong>An empty log does not mean nothing "
-            "changed at any watched source</strong> — those are different sentences, and "
+            "changed at any registered candidate</strong> — those are different sentences, and "
             "conflating them is the exact failure this project treats as its primary safety "
             "risk. No change has been manufactured to make this page look alive.</p>",
         ]
@@ -466,7 +509,7 @@ def _change_article(record: ChangeRecord, registry: Registry) -> str:
             f"<div><dt>Source verification</dt><dd><strong>"
             f"{_esc(verification.label)}</strong><br>"
             f"{_esc(verification.public_statement)}</dd></div>",
-            f'<div><dt>Official source</dt><dd><a href="{_esc(record.url)}">'
+            f'<div><dt>Registered source candidate</dt><dd><a href="{_esc(record.url)}">'
             f"{_esc(record.url)}</a></dd></div>",
             f"<div><dt>Change id</dt><dd><code>{_esc(record.id)}</code></dd></div>",
             "</dl>",
@@ -498,8 +541,8 @@ def _endpoints_section(registry: Registry) -> str:
             '<li><a href="feed.xml">feed.xml</a> — RSS 2.0, every jurisdiction.</li>',
             '<li><a href="changes.json">changes.json</a> — the versioned JSON feed. This is '
             "the one you integrate against.</li>",
-            '<li><a href="sources.json">sources.json</a> — the full inventory of what is '
-            "watched and what is not, so you can map your own pages to our "
+            '<li><a href="sources.json">sources.json</a> — the full inventory of registered '
+            "candidates, exact attempt eligibility, and gaps, so you can map your own pages to our "
             "<code>source_id</code>s.</li>",
             '<li><a href="status.json">status.json</a> — persisted watcher health, exact '
             "attempt denominator, and last successful run. Its time is independent of page "
@@ -530,24 +573,25 @@ def _endpoints_section(registry: Registry) -> str:
     )
 
 
-def _sources_section(registry: Registry) -> str:
+def _sources_section(registry: Registry, eligibility: EligibilityReport) -> str:
+    decisions = {decision.source_id: decision for decision in eligibility.decisions}
     blocks = []
     for jurisdiction in sorted(registry.jurisdictions):
         sources = sorted(
             (s for s in registry.sources if s.jurisdiction == jurisdiction),
             key=lambda s: (s.document_class, s.id),
         )
-        rows = "\n".join(_source_row(source) for source in sources)
+        rows = "\n".join(_source_row(source, decisions[source.id]) for source in sources)
         blocks.append(
             "\n".join(
                 [
                     "<table>",
-                    f"<caption>{_esc(jurisdiction)} — {len(sources)} watched "
-                    f"source{'s' if len(sources) != 1 else ''}</caption>",
+                    f"<caption>{_esc(jurisdiction)} — {len(sources)} registered source "
+                    f"candidate{'s' if len(sources) != 1 else ''}</caption>",
                     '<thead><tr><th scope="col">Document class</th>'
                     '<th scope="col">Issuing authority</th>'
-                    '<th scope="col">Watched page</th>'
-                    '<th scope="col">Human verification · watch status</th></tr></thead>',
+                    '<th scope="col">Candidate page</th>'
+                    '<th scope="col">Verification · monitoring eligibility</th></tr></thead>',
                     f"<tbody>\n{rows}\n</tbody>",
                     "</table>",
                 ]
@@ -556,7 +600,7 @@ def _sources_section(registry: Registry) -> str:
     return "\n".join(
         [
             '<section aria-labelledby="sources">',
-            '<h2 id="sources">What is watched</h2>',
+            '<h2 id="sources">Registered source candidates</h2>',
             "<p>Every URL below was fetched by this tool's own crawler, with its own TLS "
             "stack and its own descriptive User-Agent, and its title read, before it was "
             "added. <strong>The verification column says whether a named human has since "
@@ -569,7 +613,7 @@ def _sources_section(registry: Registry) -> str:
     )
 
 
-def _source_row(source: Source) -> str:
+def _source_row(source: Source, eligibility: SourceEligibility) -> str:
     """One source, and its status **as a word**.
 
     Two independent statuses, deliberately never merged into one green tick:
@@ -583,7 +627,16 @@ def _source_row(source: Source) -> str:
     screen-reader user this table is most likely to be read by, and "the red ones are the bad
     ones" is not information a screen reader can convey (WCAG 2.2 AA, 1.4.1).
     """
-    reach = "Watched" if source.reachable else "Watched in name only — our crawler cannot fetch it"
+    reach = (
+        "Reachable when last machine-checked"
+        if source.reachable
+        else "Crawler-unreachable when last machine-checked"
+    )
+    monitoring = (
+        f"Attempt-eligible as of {eligibility.as_of.isoformat()}"
+        if eligibility.eligible
+        else "Not monitored — excluded by eligibility: " + ", ".join(eligibility.reasons)
+    )
     # A REJECTED row is the most dangerous row on this page: a human has established that the
     # URL is wrong, and it is still listed (deleting it would take the finding with it, and
     # would say nothing to whoever picked it up last week). So it carries controlled status
@@ -600,7 +653,7 @@ def _source_row(source: Source) -> str:
         f'<td><a href="{_esc(source.url)}">{_esc(source.url)}</a><br>'
         f"<code>{_esc(source.id)}</code></td>"
         f"<td><strong>{_esc(source.verification.label)}</strong>{detail}<br>"
-        f"<span>{_esc(reach)}</span></td></tr>"
+        f"<span>{_esc(monitoring)}</span><br><span>{_esc(reach)}</span></td></tr>"
     )
 
 
@@ -648,8 +701,9 @@ def _footer() -> str:
     return "\n".join(
         [
             "<footer>",
-            "<p>ID Churn Sentinel is free software (MIT). It reports that an official source "
-            "page changed; it does not assert what the law is, and it is not legal advice.</p>",
+            "<p>ID Churn Sentinel is free software (MIT). A published observation reports that "
+            "a registered source candidate changed; it does not assert what the law is, and it "
+            "is not legal advice.</p>",
             f'<p><a href="{_esc(REPO_URL)}">Source code, the '
             "registry, and the audit that explains every refusal above</a>.</p>",
             "</footer>",
@@ -684,7 +738,8 @@ a { color: var(--accent); }
 a:focus-visible, .skip:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
 .skip { position:absolute; left:-9999px; }
 .skip:focus { position:static; display:inline-block; padding:.5rem; background:var(--panel); }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+       overflow-wrap: anywhere; }
 pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem;
       overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0 2rem; display: block;
@@ -710,6 +765,10 @@ thead th { background: var(--panel); }
 .change dt { color: var(--muted); }
 .change dd { margin: 0; }
 .empty { background: var(--panel); border: 1px solid var(--line); padding: 1rem; }
+.section-nav { margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--line);
+               background: var(--panel); }
+.section-nav ul { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .5rem 0 0;
+                  padding-left: 1.25rem; }
 .feeds { columns: 14rem; }
 .feeds li { break-inside: avoid; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);

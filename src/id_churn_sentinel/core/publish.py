@@ -74,7 +74,7 @@ from typing import Any
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, PublicationStatus
 from id_churn_sentinel.core.coverage import coverage
-from id_churn_sentinel.core.eligibility import evaluate_source
+from id_churn_sentinel.core.eligibility import eligibility_report, evaluate_source
 from id_churn_sentinel.core.registry import (
     UNVERIFIED,
     Registry,
@@ -110,14 +110,14 @@ FEED_SCHEMA_VERSION = "2.0"
 
 # The inventory feed's own version, independent of the change feed's: what we watch and what
 # we changed about *how* we publish are different questions on different clocks.
-SOURCES_SCHEMA_VERSION = "1.0"
+SOURCES_SCHEMA_VERSION = "2.0"
 
 FEED_TITLE = "ID Churn Sentinel — reviewed changes to US transgender ID-document sources"
 FEED_DESCRIPTION = (
-    "Human-reviewed changes detected at official US state and federal pages governing "
-    "name and gender-marker changes on identity documents. Each item cites the official "
-    "source URL and the passage that changed. This feed reports that a source changed; "
-    "it does not assert what the law is."
+    "Human-reviewed observations from eligible candidate US government pages about name and "
+    "gender-marker changes on identity documents. Each item cites the registered source URL "
+    "and the passage that changed. This feed reports that a source changed; it does not assert "
+    "what the law is."
 )
 
 # Said in every artifact, next to the sources themselves, because the registry's status is not
@@ -379,7 +379,11 @@ def publish(
         feed_names.append(feed_name)
 
     report = coverage(registry)
-    rendered["sources.json"] = sources_json(registry, generated_at=generated_at)
+    rendered["sources.json"] = sources_json(
+        registry,
+        generated_at=generated_at,
+        eligibility_as_of=publication_as_of,
+    )
     rendered["status.json"] = status_json(public_status, generated_at=generated_at)
     rendered["index.html"] = render_site(
         registry,
@@ -502,11 +506,11 @@ def changes_json(
     if jurisdiction is not None:
         payload["jurisdiction"] = jurisdiction
     payload["disclaimer"] = (
-        "This feed reports that an official source page changed, with the passage that "
-        "changed. It does not assert what the law is, and it is not legal advice. Every "
-        "item was reviewed by a named human before publication. An empty `changes` array "
-        "means no human has confirmed a change yet — it is NOT a claim that nothing changed "
-        "at any watched source."
+        "This feed reports a human-reviewed observation that an eligible registered source "
+        "candidate changed, with the passage that changed. It does not assert what the law is, "
+        "and it is not legal advice. Every item was reviewed by a named human before publication. "
+        "An empty `changes` array means no human has confirmed a change yet — it is NOT a claim "
+        "that nothing changed at any registered candidate."
     )
     payload["registry_verification"] = _verification_summary(
         scoped_sources, scope=jurisdiction or "all jurisdictions"
@@ -532,8 +536,13 @@ def _change_payload(record: ChangeRecord, verification: Verification) -> dict[st
     return {**record.to_dict(), "source_verification": verification.to_dict()}
 
 
-def sources_json(registry: Registry, *, generated_at: datetime) -> str:
-    """The inventory: every watched source, and every named gap, as data.
+def sources_json(
+    registry: Registry,
+    *,
+    generated_at: datetime,
+    eligibility_as_of: date | None = None,
+) -> str:
+    """The inventory: every registered candidate, its eligibility, and every named gap.
 
     This is the document that answers an integrator's *first* question — not "what changed?"
     but "what do you watch, and what don't you?" — and it is the one that makes the mapping
@@ -548,15 +557,24 @@ def sources_json(registry: Registry, *, generated_at: datetime) -> str:
     an integrator will read exactly one of them and we do not get to choose which.
     """
     report = coverage(registry)
+    eligibility = eligibility_report(
+        registry,
+        as_of=eligibility_as_of or generated_at.date(),
+    )
+    decisions = {decision.source_id: decision for decision in eligibility.decisions}
     payload = {
         "schema_version": SOURCES_SCHEMA_VERSION,
         "generated_at": generated_at.isoformat(),
         "coverage": {
-            "sources": report.sources_total,
+            "registered_candidates": report.sources_total,
+            "attempt_eligible": len(eligibility.eligible),
+            "ineligible": len(eligibility.ineligible),
+            "eligibility_as_of": eligibility.as_of.isoformat(),
+            "ineligibility_reasons": dict(eligibility.reason_counts),
             "jurisdictions_covered": report.jurisdictions_covered,
             "jurisdictions_total": report.jurisdictions_total,
             "named_gaps": report.gaps_total,
-            "watched_in_name_only": report.unreachable_total,
+            "registered_but_crawler_unreachable": report.unreachable_total,
             # Derived, not hard-coded. It was literally `0` in the source of this file — true
             # on the day it was written, and a number that would have silently stayed 0 while
             # a human burned down the whole queue. A count nobody recomputes is a claim that
@@ -567,7 +585,13 @@ def sources_json(registry: Registry, *, generated_at: datetime) -> str:
         },
         "disclaimer": REGISTRY_DISCLAIMER,
         "sources": [
-            source_payload(source)
+            {
+                **source_payload(source),
+                "attempt_eligible": decisions[source.id].eligible,
+                "eligibility_as_of": decisions[source.id].as_of.isoformat(),
+                "ineligibility_reasons": list(decisions[source.id].reasons),
+                "fetch_policy_outcome": source.fetch_policy.outcome,
+            }
             for source in sorted(registry.sources, key=lambda s: (s.jurisdiction, s.id))
         ],
         "gaps": [
@@ -632,9 +656,9 @@ def feed_xml(
         scope = f" for {jurisdiction}" if jurisdiction else ""
         items = (
             f"    <!-- No reviewed changes{scope} yet. This feed is EMPTY, not broken: every\n"
-            "         change the watcher detects is held until a named human reviews and\n"
-            "         confirms it, and none has been confirmed so far. An empty feed is\n"
-            "         not a claim that nothing changed at any watched source — see the\n"
+            "         observation an eligible watch detects is held until a named human reviews\n"
+            "         and confirms it, and none has been confirmed so far. An empty feed is\n"
+            "         not a claim that nothing changed at any registered candidate — see the\n"
             "         disclaimer in changes.json and docs/CONSUMERS.md. -->"
         )
     title = FEED_TITLE if jurisdiction is None else f"{FEED_TITLE} — {jurisdiction}"

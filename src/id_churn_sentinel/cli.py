@@ -235,8 +235,8 @@ def build_parser() -> argparse.ArgumentParser:
     baseline_check = baseline_sub.add_parser(
         "check",
         help=(
-            "fetch every source and compare against the COMMITTED baseline (network). Works "
-            "from a clean checkout with no snapshot store."
+            "fetch every attempt-eligible source and compare against the COMMITTED baseline "
+            "(network). Works from a clean checkout with no snapshot store."
         ),
     )
     baseline_check.add_argument("--baselines", type=Path, default=None)
@@ -710,16 +710,34 @@ def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
 def _cmd_baseline_check(
     args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None
 ) -> int:
-    """Compare every live source against the COMMITTED baseline. Network; never a gate.
+    """Compare eligible live sources against the COMMITTED baseline. Network; never a gate.
 
     This is the command that makes a clean checkout useful. It answers "which of these pages
     is not what it was when the baseline was taken?" without the snapshot store — and it is
     honest about what it cannot do: it has the previous *hash*, not the previous *text*, so
-    it cannot show the passage that changed. `sentinel watch` does that.
+    it cannot show the passage that changed. `sentinel watch` does that. It deliberately uses
+    the same dated eligibility predicate as `sentinel watch`: a portable diagnostic is not
+    permission to fetch a source whose verification or fetch-policy review is incomplete.
     """
     baselines = load_baselines(args.baselines)
-    sources = (
+    selected = (
         registry.for_jurisdiction(args.jurisdiction) if args.jurisdiction else registry.sources
+    )
+    as_of = datetime.now(UTC).date()
+    eligibility = eligibility_report(registry, as_of=as_of)
+    selected_ids = {source.id for source in selected}
+    selected_decisions = tuple(
+        decision for decision in eligibility.decisions if decision.source_id in selected_ids
+    )
+    eligible_ids = {decision.source_id for decision in selected_decisions if decision.eligible}
+    sources = tuple(source for source in selected if source.id in eligible_ids)
+
+    print(
+        f"baseline eligibility as of {as_of.isoformat()}: "
+        f"{len(sources)}/{len(selected)} selected source(s) attempt-eligible"
+    )
+    _print_ineligible_sources(
+        tuple(decision for decision in selected_decisions if not decision.eligible)
     )
     active = fetcher or HttpFetcher()
     report = check_baselines(sources, active, baselines)

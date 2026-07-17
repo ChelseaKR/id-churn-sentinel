@@ -33,6 +33,11 @@ If a fetched page unexpectedly contains personal data, quarantine the snapshot, 
 
 The chain also records normalizer/extractor version, schema version, review decision IDs, and any superseding correction. Public manifests expose enough hashes and IDs to verify released artifacts without exposing private raw evidence.
 
+The current alpha persists explicit normalizer/extractor contract versions on new snapshots
+and successful fetch attempts. Its migration preserves older snapshots as `legacy-unknown`
+instead of retroactively guessing a version. Snapshot-to-publication links and signed release
+manifests remain V1 work, so this landed provenance segment is not yet the complete chain above.
+
 ## Source states
 
 - `candidate`: proposed, ineligible for monitoring claims;

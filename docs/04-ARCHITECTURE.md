@@ -46,8 +46,8 @@ flowchart LR
 |---|---|---|
 | `core/registry.py` | canonical Git-tracked source definitions, gaps, and verification | evidence reference, verification expiry, dated robots/terms/fetch-policy decision, and the shared attempt/publication-eligibility predicate |
 | `core/fetch.py` | bounded, honest retrieval | persist redirect chain, status, distinct raw/normalized hashes, truncation/TLS/robots/extraction outcome, and stable error class |
-| `core/normalize.py` | text representation | explicit normalizer version and PDF extraction interface |
-| `core/store.py` | SQLite operational evidence and decisions | migrations, time-based/pinned retention, dual-review/correction tables, backup metadata |
+| `core/normalize.py` | versioned text representation | PDF extraction interface and release-trace propagation |
+| `core/store.py` | SQLite operational evidence, representation-version provenance, and decisions | time-based/pinned retention, publication/backup metadata |
 | `core/detect.py` | compare eligible snapshots | run ID, health linkage, deterministic observation contract, and watcher enforcement of the shared registry eligibility predicate |
 | `core/changes.py` | review state machine | independent approval and supersession state |
 | `core/publish.py` / `site.py` | consumer artifacts | constrained public observation copy, atomic release, run health, correction chain, signed release manifest, and rejection of unverified/recheck-due/policy-ineligible sources |

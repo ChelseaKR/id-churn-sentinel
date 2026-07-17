@@ -28,6 +28,8 @@ import html
 import re
 
 __all__ = [
+    "EXTRACTOR_VERSION",
+    "NORMALIZER_VERSION",
     "ContentKind",
     "content_hash",
     "excerpt",
@@ -37,6 +39,16 @@ __all__ = [
     "page_title",
     "passages",
 ]
+
+# These values are persisted with every new snapshot. Changing normalization without
+# changing the version would make two identical-looking hashes mean different things, so
+# version bumps are part of the evidence contract rather than package-release bookkeeping.
+NORMALIZER_VERSION = "passage-text-v1"
+
+# Binary extraction is intentionally not implemented in the alpha. Persisting that fact is
+# still provenance: a future PDF extractor must never make an old raw-byte hash look as if it
+# came from extracted text.
+EXTRACTOR_VERSION = "none-v1"
 
 # Block-level elements whose boundaries are real passage boundaries in the rendered page.
 # Everything else (span, a, em, b, ...) is inline and collapses to a space, exactly as in

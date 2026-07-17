@@ -19,21 +19,21 @@ Building a 52nd guidance website would be the obvious move and the wrong one. Th
 
 ## Where the feed actually lives — copy-pasteable, working today
 
-**There are two hosts, both free, both requiring nothing of you. The first one works right now, with nothing switched on.**
+**There are two live hosts, both free and both requiring nothing of you.**
 
 | Base URL | Status | Use it when |
 |---|---|---|
-| **`https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs/`** | **Works today. Zero setup.** | Always. This is not a fallback or a hack — the published bytes are **committed to the repository**, so raw.githubusercontent.com serves every artifact straight off the `main` branch. No build, no CI, no Pages, no account. |
-| **`https://chelseakr.github.io/id-churn-sentinel/`** | Works once GitHub Pages is switched on for this repo (Settings → Pages → *Deploy from a branch* → `main` / `/docs`). | You want a human-readable site to send someone to, or nicer content types. |
+| **`https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs/`** | **Live mirror.** | You want the repository's committed bytes directly. No build, CI, Pages, or account is involved. |
+| **`https://chelseakr.github.io/id-churn-sentinel/`** | **Live canonical host.** | You want the human-readable site, canonical feed URLs, or browser-friendly content types. Pages serves `main` / `docs` directly. |
 
 **Why the published output is committed, and why there is no CI deploy.** This repository's owner has an **account-wide GitHub Actions spending limit**, so an Actions-driven Pages build would simply never run — and a feed that only exists once somebody else's billing system agrees to run a job is a feed that does not exist. So the artifacts are committed and served **from the branch**, which is also why they live in `docs/` (branch-based Pages serves `/` or `/docs`, and nothing else). See [`docs/README.md`](./README.md).
 
 **The endpoint paths are identical under both bases**, so switching from one to the other is a change to a base URL and nothing else:
 
 ```sh
-BASE=https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs
-# or, once Pages is on:
-# BASE=https://chelseakr.github.io/id-churn-sentinel
+BASE=https://chelseakr.github.io/id-churn-sentinel
+# or use the raw mirror:
+# BASE=https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs
 
 curl -s "$BASE/changes.json"          # the versioned JSON feed — integrate against this
 curl -s "$BASE/feed.xml"              # RSS 2.0, every jurisdiction
@@ -368,7 +368,7 @@ There is no SDK, no auth, no rate limit, no account, and no signup form. That is
 - **There is nothing to subscribe *to*.** Both consumption paths are you fetching a static file. No webhook, no mailing list, no push, no registration — and therefore no list of who reads this.
 - **Consequently we cannot report readership.** We do not know who consumes the artifacts or how many readers there are. The artifact does not require or request that a reader identify itself; nothing in the repository observes a reader who does not do so.
 
-**The one honest limit, stated concretely rather than vaguely: the files are hosted on GitHub** (raw.githubusercontent.com, and github.io once Pages is on). **GitHub's access logs exist, and they contain the IP address of anyone who fetches a file** — including which per-jurisdiction feed they fetched, which is more revealing than the unscoped one, not less. We do not control those logs, we do not receive them, we cannot delete them, and no amount of care in this repository changes that.
+**The one honest limit, stated concretely rather than vaguely: the files are hosted on GitHub** (`chelseakr.github.io` canonically and `raw.githubusercontent.com` as a mirror). **GitHub's access logs exist, and they contain the IP address of anyone who fetches a file** — including which per-jurisdiction feed they fetched, which is more revealing than the unscoped one, not less. We do not control those logs, we do not receive them, we cannot delete them, and no amount of care in this repository changes that.
 
 What we *do* control, and do: the logs are **not ours**, are **not enriched with any identity**, and are **not required** in order to consume anything. There is no account to tie an IP to. If that residual risk matters for your threat model, fetch over Tor or a VPN, or mirror the artifacts once and serve them internally — nothing about the feed makes any of that harder, and mirroring is explicitly fine (MIT).
 

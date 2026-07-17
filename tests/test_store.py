@@ -12,6 +12,7 @@ import pytest
 
 import id_churn_sentinel.core.store as store_module
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
 from id_churn_sentinel.core.store import (
     RUN_FAILED,
     RUN_QUIET,
@@ -32,6 +33,8 @@ def record(store: SnapshotStore, source_id: str, digest: str, text: str = "t") -
         content_sha256=digest,
         raw_bytes=b"<p>t</p>",
         normalized_text=text,
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
     )
 
 
@@ -45,6 +48,74 @@ def test_snapshot_round_trips(store: SnapshotStore) -> None:
     assert latest.normalized_text == "t"
     assert latest.http_status == 200
     assert latest.fetched_at == NOW
+    assert latest.normalizer_version == NORMALIZER_VERSION
+    assert latest.extractor_version == EXTRACTOR_VERSION
+
+
+def test_legacy_snapshot_versions_are_backfilled_without_rewriting_history(tmp_path: Path) -> None:
+    """An old retained hash has real evidentiary value, but we must not pretend to know
+    which code produced it. The migration labels that uncertainty and requires every later
+    snapshot to carry an explicit contract version."""
+    db = tmp_path / "legacy-snapshot.db"
+    legacy = sqlite3.connect(db)
+    legacy.executescript(
+        "CREATE TABLE snapshots ("
+        " snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT, source_id TEXT NOT NULL,"
+        " url TEXT NOT NULL, fetched_at TEXT NOT NULL, http_status INTEGER,"
+        " content_sha256 TEXT NOT NULL, raw_bytes BLOB NOT NULL,"
+        " normalized_text TEXT NOT NULL);"
+        "INSERT INTO snapshots"
+        " (source_id, url, fetched_at, http_status, content_sha256, raw_bytes, normalized_text)"
+        " VALUES ('old', 'https://ex.gov/old', '2026-01-01T00:00:00+00:00', 200,"
+        " 'old-hash', X'00', 'old text');"
+    )
+    legacy.commit()
+    legacy.close()
+
+    with SnapshotStore(db) as migrated:
+        old = migrated.latest_snapshot("old")
+        assert old is not None
+        assert old.normalizer_version == "legacy-unknown"
+        assert old.extractor_version == "legacy-unknown"
+
+        record(migrated, "new", "new-hash")
+        new = migrated.latest_snapshot("new")
+        assert new is not None
+        assert new.normalizer_version == NORMALIZER_VERSION
+        assert new.extractor_version == EXTRACTOR_VERSION
+
+
+def test_database_rejects_a_new_snapshot_without_explicit_versions(store: SnapshotStore) -> None:
+    """The app signature is one guard; the database trigger protects direct SQL writers."""
+    with pytest.raises(sqlite3.IntegrityError, match="explicit representation versions"):
+        store._conn.execute(
+            "INSERT INTO snapshots "
+            "(source_id, url, fetched_at, http_status, content_sha256, raw_bytes, "
+            "normalized_text) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("s1", "https://ex.gov/p", NOW.isoformat(), 200, "hash", b"body", "text"),
+        )
+
+
+def test_current_representation_contract_is_registered_and_unknown_ones_fail(
+    store: SnapshotStore,
+) -> None:
+    contracts = store._conn.execute(
+        "SELECT normalizer_version, extractor_version FROM representation_contracts"
+    ).fetchall()
+    assert [tuple(row) for row in contracts] == [(NORMALIZER_VERSION, EXTRACTOR_VERSION)]
+
+    with pytest.raises(sqlite3.IntegrityError, match="explicit representation versions"):
+        store.record_snapshot(
+            source_id="s1",
+            url="https://ex.gov/p",
+            fetched_at=NOW,
+            http_status=200,
+            content_sha256="hash",
+            raw_bytes=b"body",
+            normalized_text="text",
+            normalizer_version="invented-v99",
+            extractor_version="invented-v99",
+        )
 
 
 def test_latest_snapshot_of_an_unseen_source_is_none(store: SnapshotStore) -> None:
@@ -253,6 +324,8 @@ def test_naive_timestamps_are_read_back_as_utc(store: SnapshotStore) -> None:
         content_sha256="abc",
         raw_bytes=b"",
         normalized_text="",
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
     )
     latest = store.latest_snapshot("s1")
     assert latest is not None
@@ -304,6 +377,8 @@ def _finish_eligible_attempt(store: SnapshotStore, run_id: str, *, ok: bool) -> 
         ok=ok,
         http_status=200 if ok else 503,
         content_type="text/html",
+        normalizer_version=NORMALIZER_VERSION if ok else "",
+        extractor_version=EXTRACTOR_VERSION if ok else "",
         error="" if ok else "synthetic outage",
         completed_at=NOW,
     )
@@ -325,6 +400,8 @@ def test_run_receipt_round_trips_exact_numerator_and_denominator(store: Snapshot
         ok=True,
         http_status=200,
         content_type="text/html",
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
         error="",
         completed_at=NOW,
     )
@@ -337,6 +414,27 @@ def test_run_receipt_round_trips_exact_numerator_and_denominator(store: Snapshot
     assert receipt.attempt_completeness == 1.0
     assert receipt.state == RUN_QUIET
     assert receipt.registry_revision == "a" * 64
+    attempt = store._conn.execute(
+        "SELECT normalizer_version, extractor_version FROM fetch_attempts "
+        "WHERE run_id = ? AND source_id = 'eligible'",
+        (run_id,),
+    ).fetchone()
+    assert attempt is not None
+    assert tuple(attempt) == (NORMALIZER_VERSION, EXTRACTOR_VERSION)
+
+
+def test_database_rejects_successful_attempt_without_representation_versions(
+    store: SnapshotStore,
+) -> None:
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+
+    with pytest.raises(sqlite3.IntegrityError, match="successful attempts require explicit"):
+        store._conn.execute(
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ? "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), run_id),
+        )
 
 
 def test_an_ineligible_source_cannot_be_inserted_into_the_attempt_numerator(
@@ -378,6 +476,8 @@ def test_latest_successful_run_does_not_treat_a_failure_as_success(store: Snapsh
         ok=True,
         http_status=200,
         content_type="text/html",
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
         error="",
         completed_at=NOW,
     )
@@ -597,6 +697,8 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
         ok=True,
         http_status=200,
         content_type="text/html",
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
         error="",
     )
     with pytest.raises(StoreError, match="already-terminal fetch attempt"):
@@ -606,6 +708,8 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
             ok=False,
             http_status=503,
             content_type="text/html",
+            normalizer_version="",
+            extractor_version="",
             error="late overwrite",
         )
     with pytest.raises(StoreError, match="unknown or already-terminal fetch attempt"):
@@ -615,6 +719,8 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
             ok=False,
             http_status=None,
             content_type="",
+            normalizer_version="",
+            extractor_version="",
             error="missing",
         )
     with pytest.raises(StoreError, match="unknown watch run"):
@@ -655,6 +761,8 @@ def test_attempts_cannot_mutate_a_terminal_run_or_change_frozen_url(
             ok=True,
             http_status=200,
             content_type="text/html",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
             error="",
         )
 
@@ -704,6 +812,8 @@ def test_terminalization_holds_writer_lock_across_count_and_state_update(tmp_pat
                     ok=True,
                     http_status=200,
                     content_type="text/html",
+                    normalizer_version=NORMALIZER_VERSION,
+                    extractor_version=EXTRACTOR_VERSION,
                     error="",
                     completed_at=NOW,
                 )

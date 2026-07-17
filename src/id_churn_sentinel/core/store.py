@@ -444,6 +444,76 @@ BEGIN
 END;
 """,
     ),
+    (
+        4,
+        "v1-version-snapshot-representations",
+        """
+ALTER TABLE snapshots
+    ADD COLUMN normalizer_version TEXT NOT NULL DEFAULT 'legacy-unknown';
+ALTER TABLE snapshots
+    ADD COLUMN extractor_version TEXT NOT NULL DEFAULT 'legacy-unknown';
+ALTER TABLE fetch_attempts
+    ADD COLUMN normalizer_version TEXT NOT NULL DEFAULT '';
+ALTER TABLE fetch_attempts
+    ADD COLUMN extractor_version TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE representation_contracts (
+    normalizer_version TEXT NOT NULL CHECK (trim(normalizer_version) <> ''),
+    extractor_version  TEXT NOT NULL CHECK (trim(extractor_version) <> ''),
+    PRIMARY KEY (normalizer_version, extractor_version)
+);
+
+INSERT INTO representation_contracts (normalizer_version, extractor_version)
+VALUES ('passage-text-v1', 'none-v1');
+
+CREATE TRIGGER IF NOT EXISTS trg_snapshots_require_representation_versions
+BEFORE INSERT ON snapshots
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'new snapshots require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_representation_versions
+BEFORE UPDATE OF ok, normalizer_version, extractor_version ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_representation_versions
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_representation_contracts_no_update
+BEFORE UPDATE ON representation_contracts
+BEGIN
+    SELECT RAISE(ABORT, 'representation contracts are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_representation_contracts_no_delete
+BEFORE DELETE ON representation_contracts
+BEGIN
+    SELECT RAISE(ABORT, 'representation contracts are append-only');
+END;
+""",
+    ),
 )
 
 _V1_REQUIRED_COLUMNS = {
@@ -490,7 +560,29 @@ _V1_REQUIRED_COLUMNS = {
             "ok",
             "http_status",
             "content_type",
+            "normalizer_version",
+            "extractor_version",
             "error",
+        }
+    ),
+    "snapshots": frozenset(
+        {
+            "snapshot_id",
+            "source_id",
+            "url",
+            "fetched_at",
+            "http_status",
+            "content_sha256",
+            "raw_bytes",
+            "normalized_text",
+            "normalizer_version",
+            "extractor_version",
+        }
+    ),
+    "representation_contracts": frozenset(
+        {
+            "normalizer_version",
+            "extractor_version",
         }
     ),
     "run_observations": frozenset({"run_id", "change_id", "observed_at"}),
@@ -703,9 +795,11 @@ class Snapshot:
 
     __slots__ = (
         "content_sha256",
+        "extractor_version",
         "fetched_at",
         "http_status",
         "normalized_text",
+        "normalizer_version",
         "raw_bytes",
         "snapshot_id",
         "source_id",
@@ -723,6 +817,8 @@ class Snapshot:
         content_sha256: str,
         raw_bytes: bytes,
         normalized_text: str,
+        normalizer_version: str,
+        extractor_version: str,
     ) -> None:
         self.snapshot_id = snapshot_id
         self.source_id = source_id
@@ -732,6 +828,8 @@ class Snapshot:
         self.content_sha256 = content_sha256
         self.raw_bytes = raw_bytes
         self.normalized_text = normalized_text
+        self.normalizer_version = normalizer_version
+        self.extractor_version = extractor_version
 
 
 class SnapshotStore:
@@ -807,11 +905,13 @@ class SnapshotStore:
         content_sha256: str,
         raw_bytes: bytes,
         normalized_text: str,
+        normalizer_version: str,
+        extractor_version: str,
     ) -> int:
         cursor = self._conn.execute(
             "INSERT INTO snapshots "
-            "(source_id, url, fetched_at, http_status, content_sha256, raw_bytes, normalized_text)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(source_id, url, fetched_at, http_status, content_sha256, raw_bytes, normalized_text, "
+            "normalizer_version, extractor_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 source_id,
                 url,
@@ -820,6 +920,8 @@ class SnapshotStore:
                 content_sha256,
                 raw_bytes,
                 normalized_text,
+                normalizer_version,
+                extractor_version,
             ),
         )
         self._prune(source_id)
@@ -1031,6 +1133,8 @@ class SnapshotStore:
         ok: bool,
         http_status: int | None,
         content_type: str,
+        normalizer_version: str,
+        extractor_version: str,
         error: str,
         completed_at: datetime | None = None,
     ) -> None:
@@ -1040,11 +1144,23 @@ class SnapshotStore:
             self._conn.execute("BEGIN IMMEDIATE")
             cursor = self._conn.execute(
                 "UPDATE fetch_attempts SET completed_at = ?, ok = ?, http_status = ?, "
-                "content_type = ?, error = ? WHERE run_id = ? AND source_id = ? "
+                "content_type = ?, normalizer_version = ?, extractor_version = ?, error = ? "
+                "WHERE run_id = ? AND source_id = ? "
                 "AND completed_at IS NULL "
                 "AND EXISTS (SELECT 1 FROM watch_runs "
                 "            WHERE run_id = ? AND state = 'running')",
-                (stamp, int(ok), http_status, content_type, error, run_id, source_id, run_id),
+                (
+                    stamp,
+                    int(ok),
+                    http_status,
+                    content_type,
+                    normalizer_version,
+                    extractor_version,
+                    error,
+                    run_id,
+                    source_id,
+                    run_id,
+                ),
             )
             if cursor.rowcount != 1:
                 self._conn.rollback()
@@ -1588,6 +1704,8 @@ def _row_to_snapshot(row: sqlite3.Row) -> Snapshot:
         content_sha256=row["content_sha256"],
         raw_bytes=row["raw_bytes"],
         normalized_text=row["normalized_text"],
+        normalizer_version=row["normalizer_version"],
+        extractor_version=row["extractor_version"],
     )
 
 

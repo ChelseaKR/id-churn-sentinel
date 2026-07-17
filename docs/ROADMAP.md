@@ -116,7 +116,7 @@ The registry also refuses, structurally, to be *told* it is verified: an entry w
 - **The scheduled path.** `.github/workflows/watch.yml` runs weekly, opens/updates one human-review issue on drift, and **cannot publish** (no path from CI to `sentinel review --reviewer`). Because this account has an Actions spending limit and scheduled workflows are the first thing it stops, the *primary* path is `make watch-weekly` on a cron box, and the workflow is the convenience. A monitor whose only trigger is someone else's billing system is not a monitor.
 
 **Still open:** a reviewer working a real queue over four consecutive weeks; the measured per-week review cost and dismissal rate; re-deriving `REMOVAL_THRESHOLD` from observed outage lengths.
-**Closed since:** *a real feed URL*. The published bytes are committed, so `https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs/changes.json` serves today with nothing switched on, and the Pages URL is one repository setting away (see M4). It was blocked on an Actions-based Pages deploy that this account's billing limit would never have run.
+**Closed since:** *a real feed URL*. The published bytes are committed and served directly from `main` / `docs` at `https://chelseakr.github.io/id-churn-sentinel/changes.json`, with `raw.githubusercontent.com` remaining a byte-identical mirror. There is no Actions-based Pages deploy for the account spending limit to block.
 **Exit:** four consecutive weeks of watch → review → publish, with a real feed URL, and a documented per-week review cost.
 
 ### M3 — Reduce noise, widen coverage

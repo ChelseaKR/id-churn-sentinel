@@ -9,13 +9,17 @@
 
 Estimates are ideal engineering/operations days and exclude elapsed specialist or partner review. `P0` blocks V1.0; `P1` is cut before a P0 slips. Owners are roles from the master plan.
 
-## Implementation ledger (2026-07-14)
+## Implementation ledger (2026-07-16)
 
 This ledger records landed software scope without marking external evidence complete:
 
 - `SRC-03/04/05`: registry evidence/expiry/fetch-policy fields, derived anti-fabrication tests,
   and the shared fail-closed predicate are implemented. The 152 real verification and policy
   decisions remain human work under `SRC-01/02`.
+- `DATA-01`: immutable normalizer/extractor contract versions are persisted on every new
+  snapshot and successful fetch attempt; a checksummed migration labels older snapshots
+  `legacy-unknown`, and database triggers reject invented or missing provenance. Release-trace
+  propagation remains open, so the backlog item is not complete.
 - `ENG-01`: the ordered, checksummed, per-migration atomic framework plus run, attempt, and
   run-observation entities are implemented. Remaining V1 review, correction, publication,
   retention, and backup entities plus a production backup/rollback rehearsal keep the item open.

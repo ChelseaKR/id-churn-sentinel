@@ -17,15 +17,21 @@ there is no code path in which an outage can produce a change record.
 
 **Politeness is structural, not aspirational.** `HttpFetcher` reads robots.txt before it
 reads a page, declines to fetch what robots disallows, sends a descriptive User-Agent that
-names the project and its contact URL, and is driven at a weekly cadence. These are
-government servers funded by the people this tool serves; a watcher that hammers them is
-taking from the commons it claims to protect.
+names the project and its contact URL, spaces consecutive requests to the same host so a
+run over many pages on one server arrives as a trickle rather than a burst, and is driven
+at a weekly cadence. These are government servers funded by the people this tool serves; a
+watcher that hammers them is taking from the commons it claims to protect. The spacing
+lives in the fetcher, not the caller, so no code path that reaches the network can skip it
+— the same reasoning that puts robots and the User-Agent here (threat model 06 names
+"per-host limits" as the denial-of-service mitigation).
 """
 
 from __future__ import annotations
 
+import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -62,6 +68,17 @@ USER_AGENT = (
 _TIMEOUT_SECONDS = 45.0
 _MAX_BODY_BYTES = 8 * 1024 * 1024
 _MAX_ROBOTS_BYTES = 512 * 1024
+
+# Minimum gap between two page requests to the *same* host. The registry clusters onto a
+# handful of servers (travel.state.gov, ssa.gov, a few state DMV domains carry many of the
+# sources each), so an unspaced weekly run would fire a burst at one host and look exactly
+# like the denial-of-service pattern the threat model warns against. 2s is generous for a
+# job that runs once a week over a few hundred pages — the whole run gains only seconds —
+# while keeping this tool a well-behaved guest on infrastructure the people it serves pay
+# for. It bounds the *rate*, not the total, so a slow host is never penalised: the gap is
+# measured from when each request goes out, and a server that took 3s to answer has already
+# satisfied the interval, so the next request to it is not delayed further.
+_MIN_HOST_INTERVAL_SECONDS = 2.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,12 +134,21 @@ class HttpFetcher:
         timeout: float = _TIMEOUT_SECONDS,
         respect_robots: bool = True,
         max_bytes: int = _MAX_BODY_BYTES,
+        min_host_interval: float = _MIN_HOST_INTERVAL_SECONDS,
+        sleep: Callable[[float], None] | None = None,
+        monotonic: Callable[[], float] | None = None,
     ) -> None:
         self._user_agent = user_agent
         self._timeout = timeout
         self._respect_robots = respect_robots
         self._max_bytes = max_bytes
         self._robots: dict[str, RobotFileParser | None] = {}
+        # Per-host crawl spacing. The clock and sleep are injectable so the whole seam stays
+        # offline-testable — a fake clock asserts the spacing maths with no wall-clock wait.
+        self._min_host_interval = min_host_interval
+        self._sleep = sleep if sleep is not None else time.sleep
+        self._monotonic = monotonic if monotonic is not None else time.monotonic
+        self._last_request_at: dict[str, float] = {}
 
     def fetch(self, url: str) -> FetchResult:
         parsed = urlparse(url)
@@ -133,6 +159,12 @@ class HttpFetcher:
 
         if self._respect_robots and not self._robots_allow(url):
             return FetchResult.failure(url, "robots.txt disallows this path for our user-agent")
+
+        # Space page requests to this host. Placed after the guards above so a refusal
+        # (non-https, robots-disallowed) never sleeps — we only pace requests that will
+        # actually go out. The robots.txt fetch is not paced: it is cached once per host and
+        # is part of the same initial visit as the first page, not a second crawl of it.
+        self._space_before_request(parsed.netloc)
 
         request = urllib.request.Request(  # noqa: S310 — scheme checked https above
             url,
@@ -166,6 +198,23 @@ class HttpFetcher:
                 return FetchResult.failure(url, f"HTTP {exc.code}", status=exc.code)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             return FetchResult.failure(url, f"unreachable: {exc}")
+
+    def _space_before_request(self, host: str) -> None:
+        """Sleep so consecutive page requests to ``host`` are at least
+        ``min_host_interval`` apart. The gap is measured between request *starts*, so a slow
+        response shrinks the added wait rather than stacking on top of it — the interval
+        bounds the rate we hit a host, never the time a host takes to answer. The first
+        request to a host never waits; only the second and later ones do."""
+        if self._min_host_interval <= 0:
+            return
+        now = self._monotonic()
+        last = self._last_request_at.get(host)
+        if last is not None:
+            remaining = self._min_host_interval - (now - last)
+            if remaining > 0:
+                self._sleep(remaining)
+                now = self._monotonic()
+        self._last_request_at[host] = now
 
     def _robots_allow(self, url: str) -> bool:
         """Check (and cache) robots.txt per host. A robots.txt we cannot read is treated as

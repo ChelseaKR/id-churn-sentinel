@@ -9,7 +9,7 @@
 
 Estimates are ideal engineering/operations days and exclude elapsed specialist or partner review. `P0` blocks V1.0; `P1` is cut before a P0 slips. Owners are roles from the master plan.
 
-## Implementation ledger (2026-07-16)
+## Implementation ledger (2026-07-17)
 
 This ledger records landed software scope without marking external evidence complete:
 
@@ -20,6 +20,14 @@ This ledger records landed software scope without marking external evidence comp
   snapshot and successful fetch attempt; a checksummed migration labels older snapshots
   `legacy-unknown`, and database triggers reject invented or missing provenance. Release-trace
   propagation remains open, so the backlog item is not complete.
+- `DATA-04`: every terminal fetch attempt persists its complete evidence — final URL and
+  per-hop redirect chain, distinct raw-byte/normalized-text hashes, byte count, byte bound
+  and truncation, MIME, extraction outcome, and a stable error class — with insert/update
+  triggers that make incomplete or fabricated evidence unstorable, `legacy-unknown`
+  labelling (never invented values) for pre-migration rows, and a restore-boundary test
+  that reads the evidence back from a copied database file. A distinct TLS-failure error
+  class is not implemented (TLS failures record as `unreachable` with the literal error
+  string), and the production encrypted backup/restore rehearsal remains `OPS-02`.
 - `ENG-01`: the ordered, checksummed, per-migration atomic framework plus run, attempt, and
   run-observation entities are implemented. Remaining V1 review, correction, publication,
   retention, and backup entities plus a production backup/rollback rehearsal keep the item open.

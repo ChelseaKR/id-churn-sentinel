@@ -8,8 +8,13 @@ tool is dead — not because it missed a change, but because nobody reads it any
 
 from __future__ import annotations
 
+import hashlib
+
 from id_churn_sentinel.core.normalize import (
+    EXTRACTION_OUTCOME_BINARY_OPAQUE,
+    EXTRACTION_OUTCOME_TEXT,
     ContentKind,
+    content_evidence,
     content_hash,
     kind_for_content_type,
     normalize_html,
@@ -109,3 +114,33 @@ def test_undecodable_bytes_do_not_crash_html_normalization() -> None:
     digest, text = content_hash(b"<p>caf\xe9</p>", "text/html")
     assert len(digest) == 64
     assert "caf" in text
+
+
+def test_content_evidence_for_html_distinguishes_raw_and_normalized_hashes() -> None:
+    """DATA-04/DET-01 wants *distinct* raw-byte and normalized-text hashes — and the
+    detection hash must be byte-for-byte the one `content_hash` computes, so evidence and
+    detection can never quietly diverge."""
+    body = b"<html><body><p>Bring a court order.</p></body></html>"
+    evidence = content_evidence(body, "text/html")
+    detection_hash, normalized_text = content_hash(body, "text/html")
+
+    assert evidence.raw_sha256 == hashlib.sha256(body).hexdigest()
+    assert evidence.normalized_sha256 == detection_hash
+    assert evidence.detection_sha256 == detection_hash
+    assert evidence.raw_sha256 != evidence.normalized_sha256
+    assert evidence.normalized_text == normalized_text
+    assert evidence.extraction_outcome == EXTRACTION_OUTCOME_TEXT
+
+
+def test_content_evidence_for_binary_claims_no_normalized_hash() -> None:
+    """A PDF produced no text, so its evidence says so: the raw hash is the detection
+    hash, and the normalized hash is empty rather than a hash of emptiness — claiming a
+    normalized-text hash for bytes that yielded no text would be fabricated provenance."""
+    body = b"%PDF-1.7 binary\x00\xff"
+    evidence = content_evidence(body, "application/pdf")
+
+    assert evidence.raw_sha256 == hashlib.sha256(body).hexdigest()
+    assert evidence.detection_sha256 == evidence.raw_sha256
+    assert evidence.normalized_sha256 == ""
+    assert evidence.normalized_text == ""
+    assert evidence.extraction_outcome == EXTRACTION_OUTCOME_BINARY_OPAQUE

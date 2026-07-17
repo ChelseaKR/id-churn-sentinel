@@ -12,10 +12,12 @@ import pytest
 
 import id_churn_sentinel.core.store as store_module
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
+from id_churn_sentinel.core.fetch import RedirectHop
 from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
 from id_churn_sentinel.core.store import (
     RUN_FAILED,
     RUN_QUIET,
+    AttemptEvidence,
     RunSourceInput,
     SnapshotStore,
 )
@@ -369,6 +371,37 @@ def _start_run(store: SnapshotStore, *, sources: tuple[RunSourceInput, ...] | No
     )
 
 
+def _ok_evidence() -> AttemptEvidence:
+    """Complete synthetic evidence for a successful attempt — the store's triggers refuse
+    a success recorded without it, so every test success states the full receipt."""
+    return AttemptEvidence(
+        final_url="https://example.gov/eligible",
+        redirect_chain=(),
+        raw_sha256="a" * 64,
+        normalized_sha256="b" * 64,
+        bytes_received=8,
+        byte_limit=8 * 1024 * 1024,
+        truncated=False,
+        extraction_outcome="text-normalized",
+        error_class="",
+    )
+
+
+def _failed_evidence(error_class: str = "unreachable") -> AttemptEvidence:
+    """A failure's evidence: a stable class, no fabricated hashes, no invented bytes."""
+    return AttemptEvidence(
+        final_url="https://example.gov/eligible",
+        redirect_chain=(),
+        raw_sha256="",
+        normalized_sha256="",
+        bytes_received=0,
+        byte_limit=None,
+        truncated=False,
+        extraction_outcome="",
+        error_class=error_class,
+    )
+
+
 def _finish_eligible_attempt(store: SnapshotStore, run_id: str, *, ok: bool) -> None:
     store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
     store.finish_fetch_attempt(
@@ -380,6 +413,7 @@ def _finish_eligible_attempt(store: SnapshotStore, run_id: str, *, ok: bool) -> 
         normalizer_version=NORMALIZER_VERSION if ok else "",
         extractor_version=EXTRACTOR_VERSION if ok else "",
         error="" if ok else "synthetic outage",
+        evidence=_ok_evidence() if ok else _failed_evidence("http-error"),
         completed_at=NOW,
     )
 
@@ -403,6 +437,7 @@ def test_run_receipt_round_trips_exact_numerator_and_denominator(store: Snapshot
         normalizer_version=NORMALIZER_VERSION,
         extractor_version=EXTRACTOR_VERSION,
         error="",
+        evidence=_ok_evidence(),
         completed_at=NOW,
     )
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
@@ -429,11 +464,15 @@ def test_database_rejects_successful_attempt_without_representation_versions(
     run_id = _start_run(store)
     store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
 
+    # Complete fetch evidence is supplied so the *representation-version* trigger is the
+    # one this write can only fail on — the evidence trigger has its own tests below.
     with pytest.raises(sqlite3.IntegrityError, match="successful attempts require explicit"):
         store._conn.execute(
-            "UPDATE fetch_attempts SET ok = 1, completed_at = ? "
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ?, final_url = url, "
+            "raw_sha256 = ?, normalized_sha256 = ?, bytes_received = 8, truncated = 0, "
+            "extraction_outcome = 'text-normalized' "
             "WHERE run_id = ? AND source_id = 'eligible'",
-            (NOW.isoformat(), run_id),
+            (NOW.isoformat(), "a" * 64, "b" * 64, run_id),
         )
 
 
@@ -479,6 +518,7 @@ def test_latest_successful_run_does_not_treat_a_failure_as_success(store: Snapsh
         normalizer_version=NORMALIZER_VERSION,
         extractor_version=EXTRACTOR_VERSION,
         error="",
+        evidence=_ok_evidence(),
         completed_at=NOW,
     )
     store.finish_watch_run(quiet_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
@@ -700,6 +740,7 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
         normalizer_version=NORMALIZER_VERSION,
         extractor_version=EXTRACTOR_VERSION,
         error="",
+        evidence=_ok_evidence(),
     )
     with pytest.raises(StoreError, match="already-terminal fetch attempt"):
         store.finish_fetch_attempt(
@@ -711,6 +752,7 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
             normalizer_version="",
             extractor_version="",
             error="late overwrite",
+            evidence=_failed_evidence("http-error"),
         )
     with pytest.raises(StoreError, match="unknown or already-terminal fetch attempt"):
         store.finish_fetch_attempt(
@@ -722,6 +764,7 @@ def test_duplicate_or_unknown_attempts_and_runs_are_refused(store: SnapshotStore
             normalizer_version="",
             extractor_version="",
             error="missing",
+            evidence=_failed_evidence(),
         )
     with pytest.raises(StoreError, match="unknown watch run"):
         store.watch_run("missing")
@@ -764,6 +807,7 @@ def test_attempts_cannot_mutate_a_terminal_run_or_change_frozen_url(
             normalizer_version=NORMALIZER_VERSION,
             extractor_version=EXTRACTOR_VERSION,
             error="",
+            evidence=_ok_evidence(),
         )
 
 
@@ -815,6 +859,7 @@ def test_terminalization_holds_writer_lock_across_count_and_state_update(tmp_pat
                     normalizer_version=NORMALIZER_VERSION,
                     extractor_version=EXTRACTOR_VERSION,
                     error="",
+                    evidence=_ok_evidence(),
                     completed_at=NOW,
                 )
         except BaseException as exc:  # expected terminal-run rejection
@@ -859,3 +904,202 @@ def test_redundant_run_counts_detect_tampering(tmp_path: Path) -> None:
 
     with SnapshotStore(db) as store, pytest.raises(StoreError, match="count/set mismatch"):
         store.watch_run(run_id)
+
+
+# -- DATA-04: complete fetch-attempt evidence -------------------------------------
+
+
+def test_fetch_attempt_evidence_round_trips_and_survives_restore(tmp_path: Path) -> None:
+    """The DATA-04 acceptance, exercised end to end: redirect chain, status, distinct
+    raw/normalized hashes, byte bound/truncation, MIME and extraction outcome are written
+    with the attempt and read back identically from a restored copy of the database file —
+    not from the writing process's memory."""
+    chain = (
+        RedirectHop(status=301, url="https://example.gov/moved"),
+        RedirectHop(status=302, url="https://example.gov/final"),
+    )
+    evidence = AttemptEvidence(
+        final_url="https://example.gov/final",
+        redirect_chain=chain,
+        raw_sha256="c" * 64,
+        normalized_sha256="d" * 64,
+        bytes_received=2048,
+        byte_limit=8 * 1024 * 1024,
+        truncated=False,
+        extraction_outcome="text-normalized",
+        error_class="",
+    )
+    db = tmp_path / "evidence.db"
+    with SnapshotStore(db) as writer:
+        run_id = _start_run(writer)
+        writer.begin_fetch_attempt(
+            run_id, source_id="eligible", url="https://example.gov/eligible", attempted_at=NOW
+        )
+        writer.finish_fetch_attempt(
+            run_id,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="text/html; charset=utf-8",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
+            error="",
+            evidence=evidence,
+            completed_at=NOW,
+        )
+        writer.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+
+    restored = tmp_path / "restored-from-backup.db"
+    restored.write_bytes(db.read_bytes())
+
+    with SnapshotStore(restored) as reader:
+        attempts = reader.fetch_attempts(run_id)
+
+    assert len(attempts) == 1
+    attempt = attempts[0]
+    assert attempt.source_id == "eligible"
+    assert attempt.url == "https://example.gov/eligible"
+    assert attempt.ok is True
+    assert attempt.http_status == 200
+    assert attempt.content_type == "text/html; charset=utf-8"
+    assert attempt.final_url == evidence.final_url
+    assert attempt.redirect_chain == chain
+    assert attempt.raw_sha256 == evidence.raw_sha256
+    assert attempt.normalized_sha256 == evidence.normalized_sha256
+    assert attempt.bytes_received == evidence.bytes_received
+    assert attempt.byte_limit == evidence.byte_limit
+    assert attempt.truncated is False
+    assert attempt.extraction_outcome == "text-normalized"
+    assert attempt.error_class == ""
+    assert attempt.attempted_at == NOW
+    assert attempt.completed_at == NOW
+
+
+def test_failure_evidence_round_trips_with_its_stable_class(store: SnapshotStore) -> None:
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        run_id,
+        source_id="eligible",
+        ok=False,
+        http_status=503,
+        content_type="",
+        normalizer_version="",
+        extractor_version="",
+        error="HTTP 503",
+        evidence=_failed_evidence("http-error"),
+        completed_at=NOW,
+    )
+
+    attempt = store.fetch_attempts(run_id)[0]
+    assert attempt.ok is False
+    assert attempt.error_class == "http-error"
+    assert attempt.raw_sha256 == ""
+    assert attempt.normalized_sha256 == ""
+    assert attempt.extraction_outcome == ""
+    assert attempt.byte_limit is None
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("final_url", "''"),
+        ("raw_sha256", "''"),
+        ("normalized_sha256", "''"),  # text-normalized without a normalized hash
+        ("bytes_received", "NULL"),
+        ("truncated", "1"),
+        ("extraction_outcome", "''"),
+        ("extraction_outcome", "'legacy-unknown'"),  # the label is not writable as new fact
+        ("error_class", "'unreachable'"),  # a success cannot also carry a failure class
+    ],
+)
+def test_database_rejects_a_successful_attempt_with_incomplete_evidence(
+    store: SnapshotStore, column: str, value: str
+) -> None:
+    """The trigger half of the contract, for writers that bypass `AttemptEvidence`: every
+    field of a success's evidence is required, and each omission fails individually."""
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+
+    with pytest.raises(sqlite3.IntegrityError, match="complete fetch evidence"):
+        store._conn.execute(
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ?, final_url = url, "  # noqa: S608 — parametrized test SQL over module literals
+            "raw_sha256 = ?, normalized_sha256 = ?, bytes_received = 8, truncated = 0, "
+            "extraction_outcome = 'text-normalized', "
+            f"normalizer_version = ?, extractor_version = ?, {column} = {value} "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), "a" * 64, "b" * 64, NORMALIZER_VERSION, EXTRACTOR_VERSION, run_id),
+        )
+
+
+def test_database_rejects_a_failed_attempt_with_fabricated_or_unclassified_evidence(
+    store: SnapshotStore,
+) -> None:
+    """A failure may not fabricate hashes it has no bytes for, and may not skip its stable
+    error class — 'we don't know what went wrong' is spelled `unreachable` plus the literal
+    error string, never an empty class."""
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+
+    with pytest.raises(sqlite3.IntegrityError, match="stable error class"):
+        store._conn.execute(
+            "UPDATE fetch_attempts SET ok = 0, completed_at = ?, final_url = url "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), run_id),
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="stable error class"):
+        store._conn.execute(
+            "UPDATE fetch_attempts SET ok = 0, completed_at = ?, final_url = url, "
+            "error_class = 'unreachable', raw_sha256 = ?, truncated = 0 "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), "a" * 64, run_id),
+        )
+
+
+def test_legacy_attempts_are_labelled_not_backfilled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Attempts recorded before the evidence migration are labelled `legacy-unknown`,
+    mirroring the legacy representation versions: we must not invent a redirect chain or a
+    hash for a fetch nobody recorded them for — and no *new* write may claim the label."""
+    db = tmp_path / "legacy-attempts.db"
+    pre_evidence = tuple(migration for migration in store_module._MIGRATIONS if migration[0] <= 4)
+    evidence_columns = {
+        "final_url",
+        "redirect_chain",
+        "raw_sha256",
+        "normalized_sha256",
+        "bytes_received",
+        "byte_limit",
+        "truncated",
+        "extraction_outcome",
+        "error_class",
+    }
+    pre_evidence_required = dict(store_module._V1_REQUIRED_COLUMNS)
+    pre_evidence_required["fetch_attempts"] = frozenset(
+        pre_evidence_required["fetch_attempts"] - evidence_columns
+    )
+    monkeypatch.setattr(store_module, "_MIGRATIONS", pre_evidence)
+    monkeypatch.setattr(store_module, "_V1_REQUIRED_COLUMNS", pre_evidence_required)
+    with SnapshotStore(db) as old:
+        run_id = _start_run(old)
+        old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+        # Terminalize the attempt the way the pre-migration code did: without evidence.
+        old._conn.execute(
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ?, http_status = 200, "
+            "content_type = 'text/html', normalizer_version = ?, extractor_version = ? "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), NORMALIZER_VERSION, EXTRACTOR_VERSION, run_id),
+        )
+    monkeypatch.undo()
+
+    with SnapshotStore(db) as migrated:
+        attempt = migrated.fetch_attempts(run_id)[0]
+
+    assert attempt.ok is True
+    assert attempt.extraction_outcome == "legacy-unknown"
+    assert attempt.error_class == ""
+    assert attempt.redirect_chain == ()
+    assert attempt.raw_sha256 == ""
+    assert attempt.bytes_received is None
+    assert attempt.truncated is None

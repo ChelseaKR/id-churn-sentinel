@@ -50,6 +50,7 @@ from id_churn_sentinel.core.changes import (
     private_text_is_safe,
     public_copy_is_safe,
 )
+from id_churn_sentinel.core.fetch import RedirectHop
 from id_churn_sentinel.errors import StoreError
 
 __all__ = [
@@ -59,6 +60,8 @@ __all__ = [
     "RUN_PARTIAL",
     "RUN_QUIET",
     "RUN_RUNNING",
+    "AttemptEvidence",
+    "FetchAttempt",
     "RunSourceInput",
     "Snapshot",
     "SnapshotStore",
@@ -514,6 +517,126 @@ BEGIN
 END;
 """,
     ),
+    (
+        5,
+        "v1-complete-fetch-attempt-evidence",
+        # DATA-04: the attempt row becomes the complete, restorable record of what the
+        # network actually did — redirect chain, final URL, distinct raw/normalized hashes,
+        # byte bound and truncation, MIME (already present as content_type), extraction
+        # outcome, and a stable error class. Pre-migration attempts are labelled
+        # 'legacy-unknown' rather than back-filled with invented values, mirroring the
+        # 'legacy-unknown' representation versions of migration 4: an old receipt keeps its
+        # evidentiary value precisely because we refuse to pretend it recorded things it
+        # did not. The triggers make incomplete evidence unstorable for every NEW terminal
+        # attempt, so no code path — and no stray SQL — can quietly stop recording.
+        """
+ALTER TABLE fetch_attempts
+    ADD COLUMN final_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE fetch_attempts
+    ADD COLUMN redirect_chain TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE fetch_attempts
+    ADD COLUMN raw_sha256 TEXT NOT NULL DEFAULT '';
+ALTER TABLE fetch_attempts
+    ADD COLUMN normalized_sha256 TEXT NOT NULL DEFAULT '';
+ALTER TABLE fetch_attempts
+    ADD COLUMN bytes_received INTEGER
+        CHECK (bytes_received IS NULL OR bytes_received >= 0);
+ALTER TABLE fetch_attempts
+    ADD COLUMN byte_limit INTEGER
+        CHECK (byte_limit IS NULL OR byte_limit > 0);
+ALTER TABLE fetch_attempts
+    ADD COLUMN truncated INTEGER
+        CHECK (truncated IN (0, 1));
+ALTER TABLE fetch_attempts
+    ADD COLUMN extraction_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (extraction_outcome IN
+               ('', 'text-normalized', 'binary-no-extractor', 'legacy-unknown'));
+ALTER TABLE fetch_attempts
+    ADD COLUMN error_class TEXT NOT NULL DEFAULT ''
+        CHECK (error_class IN
+               ('', 'non-https-scheme', 'robots-disallowed', 'body-too-large',
+                'http-error', 'unreachable', 'legacy-unknown'));
+
+UPDATE fetch_attempts SET extraction_outcome = 'legacy-unknown' WHERE ok = 1;
+UPDATE fetch_attempts SET error_class = 'legacy-unknown' WHERE ok = 0;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome = 'text-normalized' AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome = 'binary-no-extractor'
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome = 'text-normalized' AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome = 'binary-no-extractor'
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+""",
+    ),
 )
 
 _V1_REQUIRED_COLUMNS = {
@@ -563,6 +686,15 @@ _V1_REQUIRED_COLUMNS = {
             "normalizer_version",
             "extractor_version",
             "error",
+            "final_url",
+            "redirect_chain",
+            "raw_sha256",
+            "normalized_sha256",
+            "bytes_received",
+            "byte_limit",
+            "truncated",
+            "extraction_outcome",
+            "error_class",
         }
     ),
     "snapshots": frozenset(
@@ -626,6 +758,61 @@ class RunSourceInput:
     authority: str
     eligible: bool
     eligibility_reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptEvidence:
+    """The complete evidence one terminal fetch attempt persists (`DATA-04`/`DET-01`).
+
+    A required argument to :meth:`SnapshotStore.finish_fetch_attempt`, not an optional
+    enrichment: an attempt receipt that says "success" without saying which URL finally
+    answered, through which redirects, under what byte bound, and with which hashes, is a
+    receipt a later reader has to take on faith — and this store exists so nothing about a
+    fetch has to be taken on faith. The database triggers restate the same requirement in
+    SQL for writers that bypass this class.
+    """
+
+    final_url: str
+    redirect_chain: tuple[RedirectHop, ...]
+    raw_sha256: str
+    normalized_sha256: str
+    bytes_received: int
+    byte_limit: int | None
+    truncated: bool
+    extraction_outcome: str
+    error_class: str
+
+
+@dataclass(frozen=True, slots=True)
+class FetchAttempt:
+    """One persisted fetch attempt, read back with its complete evidence.
+
+    ``ok`` and ``truncated`` are ``None`` for an attempt that never completed (the process
+    died mid-fetch); evidence fields read ``'legacy-unknown'`` for attempts recorded before
+    the evidence migration, which is a labelled uncertainty and never a value a new write
+    may claim.
+    """
+
+    run_id: str
+    source_id: str
+    url: str
+    attempted_at: datetime
+    completed_at: datetime | None
+    ok: bool | None
+    http_status: int | None
+    content_type: str
+    normalizer_version: str
+    extractor_version: str
+    error: str
+    final_url: str
+    redirect_chain: tuple[RedirectHop, ...]
+    raw_sha256: str
+    normalized_sha256: str
+    bytes_received: int | None
+    byte_limit: int | None
+    truncated: bool | None
+    extraction_outcome: str
+    error_class: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -1136,15 +1323,23 @@ class SnapshotStore:
         normalizer_version: str,
         extractor_version: str,
         error: str,
+        evidence: AttemptEvidence,
         completed_at: datetime | None = None,
     ) -> None:
         stamp = _as_utc(completed_at or datetime.now(UTC)).isoformat()
         outcome = "success" if ok else "failure"
+        chain = json.dumps(
+            [{"status": hop.status, "url": hop.url} for hop in evidence.redirect_chain],
+            separators=(",", ":"),
+        )
         try:
             self._conn.execute("BEGIN IMMEDIATE")
             cursor = self._conn.execute(
                 "UPDATE fetch_attempts SET completed_at = ?, ok = ?, http_status = ?, "
-                "content_type = ?, normalizer_version = ?, extractor_version = ?, error = ? "
+                "content_type = ?, normalizer_version = ?, extractor_version = ?, error = ?, "
+                "final_url = ?, redirect_chain = ?, raw_sha256 = ?, normalized_sha256 = ?, "
+                "bytes_received = ?, byte_limit = ?, truncated = ?, extraction_outcome = ?, "
+                "error_class = ? "
                 "WHERE run_id = ? AND source_id = ? "
                 "AND completed_at IS NULL "
                 "AND EXISTS (SELECT 1 FROM watch_runs "
@@ -1157,6 +1352,15 @@ class SnapshotStore:
                     normalizer_version,
                     extractor_version,
                     error,
+                    evidence.final_url,
+                    chain,
+                    evidence.raw_sha256,
+                    evidence.normalized_sha256,
+                    evidence.bytes_received,
+                    evidence.byte_limit,
+                    int(evidence.truncated),
+                    evidence.extraction_outcome,
+                    evidence.error_class,
                     run_id,
                     source_id,
                     run_id,
@@ -1180,6 +1384,16 @@ class SnapshotStore:
             self._conn.rollback()
             raise StoreError(f"could not finish fetch attempt: {exc}") from exc
         self._conn.commit()
+
+    def fetch_attempts(self, run_id: str) -> tuple[FetchAttempt, ...]:
+        """Every persisted attempt of one run, with its complete evidence, ordered by
+        source id. This is the read side of the `DATA-04` contract: what `watch` recorded
+        is exactly what a later auditor — or a restored backup — gets back."""
+        rows = self._conn.execute(
+            "SELECT * FROM fetch_attempts WHERE run_id = ? ORDER BY source_id",
+            (run_id,),
+        ).fetchall()
+        return tuple(_row_to_fetch_attempt(row) for row in rows)
 
     def finish_watch_run(
         self,
@@ -1706,6 +1920,43 @@ def _row_to_snapshot(row: sqlite3.Row) -> Snapshot:
         normalized_text=row["normalized_text"],
         normalizer_version=row["normalizer_version"],
         extractor_version=row["extractor_version"],
+    )
+
+
+def _row_to_fetch_attempt(row: sqlite3.Row) -> FetchAttempt:
+    completed_at = row["completed_at"]
+    ok = row["ok"]
+    truncated = row["truncated"]
+    try:
+        hops = json.loads(str(row["redirect_chain"]))
+    except json.JSONDecodeError as exc:
+        raise StoreError(
+            f"fetch attempt {row['run_id']}/{row['source_id']} holds an unreadable "
+            f"redirect chain: {exc}"
+        ) from exc
+    return FetchAttempt(
+        run_id=row["run_id"],
+        source_id=row["source_id"],
+        url=row["url"],
+        attempted_at=_parse_dt(row["attempted_at"]),
+        completed_at=_parse_dt(completed_at) if completed_at else None,
+        ok=bool(ok) if ok is not None else None,
+        http_status=row["http_status"],
+        content_type=row["content_type"],
+        normalizer_version=row["normalizer_version"],
+        extractor_version=row["extractor_version"],
+        error=row["error"],
+        final_url=row["final_url"],
+        redirect_chain=tuple(
+            RedirectHop(status=int(hop["status"]), url=str(hop["url"])) for hop in hops
+        ),
+        raw_sha256=row["raw_sha256"],
+        normalized_sha256=row["normalized_sha256"],
+        bytes_received=row["bytes_received"],
+        byte_limit=row["byte_limit"],
+        truncated=bool(truncated) if truncated is not None else None,
+        extraction_outcome=row["extraction_outcome"],
+        error_class=row["error_class"],
     )
 
 

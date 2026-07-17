@@ -26,11 +26,17 @@ from __future__ import annotations
 import hashlib
 import html
 import re
+from dataclasses import dataclass
 
 __all__ = [
+    "EXTRACTION_OUTCOMES",
+    "EXTRACTION_OUTCOME_BINARY_OPAQUE",
+    "EXTRACTION_OUTCOME_TEXT",
     "EXTRACTOR_VERSION",
     "NORMALIZER_VERSION",
+    "ContentEvidence",
     "ContentKind",
+    "content_evidence",
     "content_hash",
     "excerpt",
     "kind_for_content_type",
@@ -181,3 +187,54 @@ def content_hash(body: bytes, content_type: str | None) -> tuple[str, str]:
     decoded = body.decode("utf-8", errors="replace")
     normalized = normalize_html(decoded) if kind == ContentKind.HTML else normalize_text(decoded)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest(), normalized
+
+
+# What extraction actually happened to a body, as a closed vocabulary (`DATA-04`). Two
+# values because the alpha has exactly two behaviours: text/HTML is normalized to passages;
+# everything else is hashed as opaque bytes because no extractor exists (`EXTRACTOR_VERSION
+# = "none-v1"`). A future PDF extractor (`PDF-01`) adds outcomes here — it must never
+# reuse these two, for the same reason it must never reuse a normalizer version: an
+# outcome's meaning is frozen the first time it is persisted.
+EXTRACTION_OUTCOME_TEXT = "text-normalized"
+EXTRACTION_OUTCOME_BINARY_OPAQUE = "binary-no-extractor"
+EXTRACTION_OUTCOMES = frozenset({EXTRACTION_OUTCOME_TEXT, EXTRACTION_OUTCOME_BINARY_OPAQUE})
+
+
+@dataclass(frozen=True, slots=True)
+class ContentEvidence:
+    """The complete evidentiary description of one fetched body (`DATA-04`/`DET-01`).
+
+    ``detection_sha256`` is byte-for-byte the hash :func:`content_hash` returns — the one
+    the detector compares against baselines. It is carried here *by equality, tested*, so
+    evidence and detection can never quietly diverge: for text content it equals
+    ``normalized_sha256``; for opaque binary content it equals ``raw_sha256`` and
+    ``normalized_sha256`` is empty, because claiming a "normalized-text hash" for bytes
+    that produced no text would be fabricated provenance.
+    """
+
+    raw_sha256: str
+    normalized_sha256: str
+    detection_sha256: str
+    normalized_text: str
+    extraction_outcome: str
+
+
+def content_evidence(body: bytes, content_type: str | None) -> ContentEvidence:
+    """Distinct raw/normalized hashes plus the extraction outcome for one fetched body."""
+    raw_sha256 = hashlib.sha256(body).hexdigest()
+    detection_sha256, normalized_text = content_hash(body, content_type)
+    if kind_for_content_type(content_type) == ContentKind.BINARY:
+        return ContentEvidence(
+            raw_sha256=raw_sha256,
+            normalized_sha256="",
+            detection_sha256=detection_sha256,
+            normalized_text="",
+            extraction_outcome=EXTRACTION_OUTCOME_BINARY_OPAQUE,
+        )
+    return ContentEvidence(
+        raw_sha256=raw_sha256,
+        normalized_sha256=detection_sha256,
+        detection_sha256=detection_sha256,
+        normalized_text=normalized_text,
+        extraction_outcome=EXTRACTION_OUTCOME_TEXT,
+    )

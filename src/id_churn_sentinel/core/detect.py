@@ -58,10 +58,12 @@ from id_churn_sentinel.core.eligibility import (
     eligibility_report,
     registry_revision,
 )
-from id_churn_sentinel.core.fetch import Fetcher
+from id_churn_sentinel.core.fetch import Fetcher, FetchResult
 from id_churn_sentinel.core.normalize import (
     EXTRACTOR_VERSION,
     NORMALIZER_VERSION,
+    ContentEvidence,
+    content_evidence,
     content_hash,
     passages,
 )
@@ -71,6 +73,7 @@ from id_churn_sentinel.core.store import (
     RUN_FAILED,
     RUN_PARTIAL,
     RUN_QUIET,
+    AttemptEvidence,
     RunSourceInput,
     SnapshotStore,
 )
@@ -302,9 +305,9 @@ def _watch_authorized_sources(
         if run_id is not None:
             store.begin_fetch_attempt(run_id, source_id=source.id, url=source.url)
         result = fetcher.fetch(source.url)
-        normalized_result: tuple[str, str] | None = None
+        evidence: ContentEvidence | None = None
         if result.ok:
-            normalized_result = content_hash(result.body, result.content_type)
+            evidence = content_evidence(result.body, result.content_type)
         if run_id is not None:
             store.finish_fetch_attempt(
                 run_id,
@@ -315,6 +318,7 @@ def _watch_authorized_sources(
                 normalizer_version=NORMALIZER_VERSION if result.ok else "",
                 extractor_version=EXTRACTOR_VERSION if result.ok else "",
                 error=result.error or "",
+                evidence=_attempt_evidence(result, evidence),
                 completed_at=result.fetched_at,
             )
 
@@ -330,9 +334,9 @@ def _watch_authorized_sources(
             )
             continue
 
-        if normalized_result is None:  # pragma: no cover - guarded by result.ok above
+        if evidence is None:  # pragma: no cover - guarded by result.ok above
             raise AssertionError("successful fetch did not produce normalized content")
-        new_hash, normalized = normalized_result
+        new_hash, normalized = evidence.detection_sha256, evidence.normalized_text
         previous = store.latest_snapshot(source.id)
 
         # The source answered, so whatever was wrong is over. Reset the streak *before*
@@ -513,6 +517,40 @@ def watch(
         as_of=datetime.now(UTC).date(),
         jurisdiction=jurisdiction,
         removal_threshold=removal_threshold,
+    )
+
+
+def _attempt_evidence(result: FetchResult, content: ContentEvidence | None) -> AttemptEvidence:
+    """Map one fetch outcome onto the evidence its attempt receipt persists (`DATA-04`).
+
+    The fallbacks (`result.url` for a blank final URL, `len(result.body)` for an unset byte
+    count) restate facts already present on the result for injected fetchers that predate
+    the evidence fields — they never invent new ones. A byte *limit* in particular is not
+    inferable from a body, so it passes through as given and the store's triggers refuse a
+    successful attempt that declines to state one.
+    """
+    if content is not None:
+        return AttemptEvidence(
+            final_url=result.final_url or result.url,
+            redirect_chain=result.redirect_chain,
+            raw_sha256=content.raw_sha256,
+            normalized_sha256=content.normalized_sha256,
+            bytes_received=result.bytes_received or len(result.body),
+            byte_limit=result.byte_limit,
+            truncated=result.truncated,
+            extraction_outcome=content.extraction_outcome,
+            error_class="",
+        )
+    return AttemptEvidence(
+        final_url=result.final_url or result.url,
+        redirect_chain=result.redirect_chain,
+        raw_sha256="",
+        normalized_sha256="",
+        bytes_received=result.bytes_received,
+        byte_limit=result.byte_limit,
+        truncated=result.truncated,
+        extraction_outcome="",
+        error_class=result.error_class,
     )
 
 

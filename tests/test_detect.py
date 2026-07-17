@@ -326,3 +326,62 @@ def test_a_corrected_registry_url_re_baselines_rather_than_manufacturing_drift(
     assert "re-baselined (registry URL changed)" in report.summary()
     assert store.latest_snapshot(source.id) is not None
     assert store.latest_snapshot(source.id).url == corrected.url  # type: ignore[union-attr]
+
+
+def test_a_watched_run_persists_complete_attempt_evidence(
+    tmp_path: Path,
+    source: Source,
+    arizona_source: Source,
+    fixture_before: bytes,
+) -> None:
+    """DATA-04, end to end through the production watcher: the attempt receipt records
+    what the network did — distinct raw/normalized hashes, MIME, byte accounting, and the
+    final URL for the success; a stable error class and *no fabricated hashes* for the
+    outage. Read back through the store, not from the report in memory."""
+    from datetime import date
+
+    from id_churn_sentinel.core.detect import watch_registry
+    from id_churn_sentinel.core.normalize import content_evidence
+    from id_churn_sentinel.core.registry import Registry
+
+    from .conftest import eligible_source
+
+    registry = Registry(
+        version="1.0",
+        sources=(eligible_source(source), eligible_source(arizona_source)),
+    )
+    fetcher = StubFetcher({source.url: (fixture_before, "text/html")})  # Arizona fails
+    now = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+
+    with SnapshotStore(tmp_path / "evidence.db") as store:
+        report = watch_registry(
+            registry,
+            store,
+            fetcher,
+            as_of=date(2026, 7, 13),
+            started_at=now,
+            completed_at=now,
+        )
+        attempts = {attempt.source_id: attempt for attempt in store.fetch_attempts(report.run_id)}
+
+    expected = content_evidence(fixture_before, "text/html")
+    succeeded = attempts[source.id]
+    assert succeeded.ok is True
+    assert succeeded.raw_sha256 == expected.raw_sha256
+    assert succeeded.normalized_sha256 == expected.normalized_sha256
+    assert succeeded.raw_sha256 != succeeded.normalized_sha256
+    assert succeeded.extraction_outcome == "text-normalized"
+    assert succeeded.content_type == "text/html"
+    assert succeeded.bytes_received == len(fixture_before)
+    assert succeeded.final_url == source.url
+    assert succeeded.redirect_chain == ()
+    assert succeeded.truncated is False
+    assert succeeded.error_class == ""
+
+    failed = attempts[arizona_source.id]
+    assert failed.ok is False
+    assert failed.error_class == "unreachable"
+    assert failed.raw_sha256 == ""
+    assert failed.normalized_sha256 == ""
+    assert failed.extraction_outcome == ""
+    assert failed.bytes_received == 0

@@ -34,15 +34,23 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from http.client import HTTPMessage
+from typing import Any, Protocol
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
 __all__ = [
+    "ERROR_CLASSES",
+    "ERROR_CLASS_BODY_TOO_LARGE",
+    "ERROR_CLASS_HTTP_ERROR",
+    "ERROR_CLASS_NON_HTTPS",
+    "ERROR_CLASS_ROBOTS_DISALLOWED",
+    "ERROR_CLASS_UNREACHABLE",
     "USER_AGENT",
     "FetchResult",
     "Fetcher",
     "HttpFetcher",
+    "RedirectHop",
 ]
 
 USER_AGENT = (
@@ -80,6 +88,42 @@ _MAX_ROBOTS_BYTES = 512 * 1024
 # satisfied the interval, so the next request to it is not delayed further.
 _MIN_HOST_INTERVAL_SECONDS = 2.0
 
+# The stable error classes (docs/04-ARCHITECTURE §component obligations). The free-text
+# `error` string is for a human reading a run receipt; it embeds server messages and byte
+# counts, so it is useless as a query key. The class is the queryable, closed-vocabulary
+# fact — "how many failures last quarter were robots refusals?" must not require parsing
+# prose. `sources/registry.json` gap reasons and `source_health.last_error` remain prose;
+# this vocabulary belongs to fetch attempts.
+ERROR_CLASS_NON_HTTPS = "non-https-scheme"
+ERROR_CLASS_ROBOTS_DISALLOWED = "robots-disallowed"
+ERROR_CLASS_BODY_TOO_LARGE = "body-too-large"
+ERROR_CLASS_HTTP_ERROR = "http-error"
+ERROR_CLASS_UNREACHABLE = "unreachable"
+ERROR_CLASSES = frozenset(
+    {
+        ERROR_CLASS_NON_HTTPS,
+        ERROR_CLASS_ROBOTS_DISALLOWED,
+        ERROR_CLASS_BODY_TOO_LARGE,
+        ERROR_CLASS_HTTP_ERROR,
+        ERROR_CLASS_UNREACHABLE,
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class RedirectHop:
+    """One followed redirect: the 3xx status that redirected us and the URL it sent us to.
+
+    The chain is evidence, not decoration. A registry URL that silently 301s to a marketing
+    page is one of the named registry-rot risks, and "the page changed" versus "which page
+    we were shown changed" are different claims — the chain is what lets a later reader tell
+    them apart from the retained record rather than from a re-fetch that may no longer
+    reproduce it.
+    """
+
+    status: int
+    url: str
+
 
 @dataclass(frozen=True, slots=True)
 class FetchResult:
@@ -89,6 +133,11 @@ class FetchResult:
     body is empty and `error` says why — and the caller's only correct response is to
     carry the previous hash forward. There is no third state, and no way to construct a
     "failed but here's a body anyway" result that could be mistaken for content.
+
+    The evidence fields (`final_url`, `redirect_chain`, `bytes_received`, `byte_limit`,
+    `truncated`, `error_class`) exist so the fetch can be *persisted* completely
+    (`DATA-04`/`DET-01`): a diff you cannot reproduce is a claim, and a fetch whose
+    redirect path and byte bound were discarded is a fetch you cannot audit.
     """
 
     url: str
@@ -98,9 +147,36 @@ class FetchResult:
     body: bytes
     fetched_at: datetime
     error: str | None = None
+    # Evidence. `final_url` is the URL that actually answered (== `url` when no redirect
+    # was followed). `byte_limit` is None when no bounded request was made — a refusal
+    # that never opened a socket, or an injected fetcher that applies no bound; the real
+    # `HttpFetcher` always records the bound it read under.
+    final_url: str = ""
+    redirect_chain: tuple[RedirectHop, ...] = ()
+    bytes_received: int = 0
+    byte_limit: int | None = None
+    truncated: bool = False
+    error_class: str = ""
 
     @classmethod
-    def failure(cls, url: str, error: str, status: int | None = None) -> FetchResult:
+    def failure(
+        cls,
+        url: str,
+        error: str,
+        status: int | None = None,
+        *,
+        error_class: str = "",
+        final_url: str = "",
+        redirect_chain: tuple[RedirectHop, ...] = (),
+        bytes_received: int = 0,
+        byte_limit: int | None = None,
+        truncated: bool = False,
+    ) -> FetchResult:
+        # Derive the class when the caller did not name one, so a stub or an older caller
+        # still produces a classified failure: a failure with an HTTP status is an HTTP
+        # error; anything else is transport-level unreachability.
+        if not error_class:
+            error_class = ERROR_CLASS_HTTP_ERROR if status is not None else ERROR_CLASS_UNREACHABLE
         return cls(
             url=url,
             ok=False,
@@ -109,6 +185,12 @@ class FetchResult:
             body=b"",
             fetched_at=datetime.now(UTC),
             error=error,
+            final_url=final_url or url,
+            redirect_chain=redirect_chain,
+            bytes_received=bytes_received,
+            byte_limit=byte_limit,
+            truncated=truncated,
+            error_class=error_class,
         )
 
 
@@ -117,6 +199,48 @@ class Fetcher(Protocol):
     makes the whole tool offline-testable."""
 
     def fetch(self, url: str) -> FetchResult: ...
+
+
+class _RedirectRecorder(urllib.request.HTTPRedirectHandler):
+    """urllib's own redirect handler, with a memory.
+
+    Plain `urlopen` follows redirects invisibly: the caller sees the final body and, at
+    best, the final URL — every intermediate hop is discarded. This subclass changes no
+    redirect *behaviour* (same hop limit, same status handling, delegated to the stdlib);
+    it only writes down each hop as it is followed, so the chain can be persisted as fetch
+    evidence. One recorder serves one `fetch()` call and is never reused — a recorder
+    shared across calls would splice two pages' journeys into one lie.
+    """
+
+    def __init__(self) -> None:
+        self.hops: list[RedirectHop] = []
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        new_request = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_request is not None:
+            self.hops.append(RedirectHop(status=code, url=new_request.full_url))
+        return new_request
+
+
+def _open_page(
+    request: urllib.request.Request, *, timeout: float, recorder: _RedirectRecorder
+) -> Any:
+    """Open one page request through an opener that records redirect hops.
+
+    A module-level seam (rather than an inline `build_opener` call) so the tests can route
+    page fetches through a fake exactly as they route robots.txt fetches through a fake
+    `urlopen` — nothing in the suite resolves a hostname.
+    """
+    opener = urllib.request.build_opener(recorder)
+    return opener.open(request, timeout=timeout)
 
 
 class HttpFetcher:
@@ -155,10 +279,18 @@ class HttpFetcher:
         if parsed.scheme != "https":
             # Belt to the registry's braces. A watcher for a population that includes
             # people in hostile jurisdictions does not fetch over plaintext, ever.
-            return FetchResult.failure(url, f"refusing non-https scheme: {parsed.scheme!r}")
+            return FetchResult.failure(
+                url,
+                f"refusing non-https scheme: {parsed.scheme!r}",
+                error_class=ERROR_CLASS_NON_HTTPS,
+            )
 
         if self._respect_robots and not self._robots_allow(url):
-            return FetchResult.failure(url, "robots.txt disallows this path for our user-agent")
+            return FetchResult.failure(
+                url,
+                "robots.txt disallows this path for our user-agent",
+                error_class=ERROR_CLASS_ROBOTS_DISALLOWED,
+            )
 
         # Space page requests to this host. Placed after the guards above so a refusal
         # (non-https, robots-disallowed) never sleeps — we only pace requests that will
@@ -171,12 +303,26 @@ class HttpFetcher:
             headers={"User-Agent": self._user_agent, "Accept": "*/*"},
             method="GET",
         )
+        # One recorder per call: its hops are this fetch's redirect chain, kept even when
+        # the fetch ends in an error partway down the chain — a failure's journey is
+        # evidence too (the hop that 404s is the hop a maintainer has to look at).
+        recorder = _RedirectRecorder()
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:  # noqa: S310
+            with _open_page(request, timeout=self._timeout, recorder=recorder) as response:
+                chain = tuple(recorder.hops)
+                final_url = chain[-1].url if chain else url
                 body = response.read(self._max_bytes + 1)
                 if len(body) > self._max_bytes:
                     return FetchResult.failure(
-                        url, f"body exceeds {self._max_bytes} bytes", status=response.status
+                        url,
+                        f"body exceeds {self._max_bytes} bytes",
+                        status=response.status,
+                        error_class=ERROR_CLASS_BODY_TOO_LARGE,
+                        final_url=final_url,
+                        redirect_chain=chain,
+                        bytes_received=len(body),
+                        byte_limit=self._max_bytes,
+                        truncated=True,
                     )
                 return FetchResult(
                     url=url,
@@ -185,6 +331,11 @@ class HttpFetcher:
                     content_type=response.headers.get("Content-Type"),
                     body=body,
                     fetched_at=datetime.now(UTC),
+                    final_url=final_url,
+                    redirect_chain=chain,
+                    bytes_received=len(body),
+                    byte_limit=self._max_bytes,
+                    truncated=False,
                 )
         except urllib.error.HTTPError as exc:
             # A 404 or a 403 is a *fetch failure*, not an empty page. Hashing an error
@@ -195,9 +346,26 @@ class HttpFetcher:
             # GC gets round to it. This process is a long-lived weekly watcher against
             # servers that rate-limit, which is precisely where leaked sockets bite.
             with exc:
-                return FetchResult.failure(url, f"HTTP {exc.code}", status=exc.code)
+                chain = tuple(recorder.hops)
+                return FetchResult.failure(
+                    url,
+                    f"HTTP {exc.code}",
+                    status=exc.code,
+                    error_class=ERROR_CLASS_HTTP_ERROR,
+                    final_url=chain[-1].url if chain else url,
+                    redirect_chain=chain,
+                    byte_limit=self._max_bytes,
+                )
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            return FetchResult.failure(url, f"unreachable: {exc}")
+            chain = tuple(recorder.hops)
+            return FetchResult.failure(
+                url,
+                f"unreachable: {exc}",
+                error_class=ERROR_CLASS_UNREACHABLE,
+                final_url=chain[-1].url if chain else url,
+                redirect_chain=chain,
+                byte_limit=self._max_bytes,
+            )
 
     def _space_before_request(self, host: str) -> None:
         """Sleep so consecutive page requests to ``host`` are at least

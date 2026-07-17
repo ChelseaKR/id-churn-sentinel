@@ -230,6 +230,25 @@ The real risks are named and addressed in [`docs/RESPONSIBLE-TECH-AUDITS.md`](./
 
 Inherits the portfolio's private engineering standards (`/STANDARDS`), fetched read-only at CI time rather than vendored. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
 
+## Standards Conformance
+
+Applicability per the portfolio manifest (monitoring service plus a published
+human-facing site), with current state stated honestly:
+
+| Standard | Applies? | State |
+|---|---|---|
+| Responsible-Tech Framework | Applies | Risks named and addressed in [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md); safety gates 6–7 are merge-blocking |
+| Code Quality | Applies | ruff (incl. bandit rules, complexity ≤10) + `mypy --strict` in `make verify` |
+| Security & Supply-Chain | Applies | Zero runtime deps; pip-audit + Dependabot; CodeQL + TruffleHog workflows; gitleaks in pre-commit; SHA-pinned actions |
+| CI/CD | Applies | `ci.yml` runs the literal `make verify`; no CI-only or local-only gate (note the account-wide Actions spending limit — local `make verify` is the gate that always exists) |
+| Observability | Applies | Watch receipts + derived `status.json`; site distinguishes quiet/partial/failed/running/stale health from generation time |
+| Accessibility | Applies | Published site is plain server-less HTML; full WCAG 2.2 AA conformance is a V1 release gate, not a current claim ([`docs/08-ACCESSIBILITY-I18N.md`](./docs/08-ACCESSIBILITY-I18N.md)) |
+| Internationalization | Applies | Gap — public civic resource, conservative default per the manifest; English-only today, no locale catalogs yet; owner declaration of the i18n plan is pending ([`docs/08-ACCESSIBILITY-I18N.md`](./docs/08-ACCESSIBILITY-I18N.md)) |
+| AI Evaluation | N/A — deterministic source-change detector; no LLM/model component | N/A — hashing + difflib + a named human; nothing generative or agentic anywhere in `src/` |
+| Documentation | Applies | README + `docs/` corpus; ADR log in [`docs/adr/`](./docs/adr/); [`CHANGELOG.md`](./CHANGELOG.md); [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
+| Quality & Metrics | Applies | 90% branch-coverage floor (measured 93%); coverage numbers in docs are re-derived from the registry by a merge-blocking gate |
+| Release & Versioning | Applies | Pre-1.0, no tag yet; tag-triggered [`release.yml`](./.github/workflows/release.yml) re-runs `make verify` and enforces CHANGELOG parity when the first tag lands |
+
 ## Provenance
 
 Built AI-assisted, within a portfolio that shares a common quality standard: every project ships merge-blocking gates for its core safety properties, and audit artifacts are committed rather than claimed.

@@ -103,6 +103,10 @@ branch = true
 source = ["id_churn_sentinel"]
 
 [tool.coverage.report]
+# Same 90% floor `make cov` enforces on the CLI (--cov-fail-under=90); declared here too
+# so the floor is visible in the project's single source of tool config. Measured 93%
+# on 2026-07-16 (357 tests).
+fail_under = 90
 show_missing = true
 skip_covered = false
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

@@ -37,4 +37,6 @@ jobs:
         uses: trufflesecurity/trufflehog@00155c9dc586f34d189adc83d3ac2698c2ec551f # v3.95.8
         with:
           path: ./
-          extra_args: --only-verified --fail
+          # The action passes --fail itself; repeating it in extra_args is a
+          # startup error ("flag 'fail' cannot be repeated").
+          extra_args: --only-verified

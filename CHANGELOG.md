@@ -35,3 +35,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   TruffleHog), release gate workflow, SECURITY.md, CONTRIBUTING.md,
   CITATION.cff, pre-commit config, ADR log, this changelog, and a README
   conformance table.
+- Per-host crawl spacing in `HttpFetcher` (2026-07-17): consecutive page
+  requests to the same host are held at least a minimum interval apart
+  (default 2s), structurally, so no call path can burst a government server.
+
+### Changed
+
+- Monitoring readiness made explicit (2026-07-17): the public site and feeds
+  identify the deployment as a technical alpha, `sources.json` v2 carries the
+  exact dated attempt-eligibility decision, exclusion reasons, and fetch-policy
+  outcome per source, and `sentinel baseline check` routes through the same
+  dated eligibility predicate as `sentinel watch`.

@@ -1,0 +1,45 @@
+# CodeQL SAST. The `actions` language pack analyzes the workflow YAML itself,
+# not just the Python.
+#
+# Like every workflow in this repository: **do not assume it ever runs.** The
+# account has an Actions spending limit (see ci.yml's header). `make verify`
+# already runs ruff's bandit (S) rules locally on every gate pass; this adds a
+# second, deeper SAST engine whenever Actions does run.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "42 6 * * 2" # weekly, staggered off ci.yml's Monday cron
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, actions]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.28.19
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.28.19
+        with:
+          category: "/language:${{ matrix.language }}"

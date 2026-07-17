@@ -1,0 +1,40 @@
+# Full-history verified-secret scan. A diff-scoped scan by construction misses a
+# secret introduced and later removed inside the same PR; this sweeps the entire
+# commit history with its own detector set.
+#
+# Like every workflow in this repository: **do not assume it ever runs** — the
+# account has an Actions spending limit (see ci.yml's header). It also runs on
+# push/PR so a leak is flagged at the moment it lands whenever Actions is live.
+name: trufflehog
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 8 * * 0" # weekly, Sunday, staggered off ci.yml/codeql.yml crons
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trufflehog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: full-history secret scan (verified only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # full clone — this is a whole-history scan, not a diff
+          persist-credentials: false
+      - name: TruffleHog (verified secrets only)
+        uses: trufflesecurity/trufflehog@00155c9dc586f34d189adc83d3ac2698c2ec551f # v3.95.8
+        with:
+          path: ./
+          extra_args: --only-verified --fail

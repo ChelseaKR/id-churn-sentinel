@@ -59,7 +59,12 @@ from id_churn_sentinel.core.eligibility import (
     registry_revision,
 )
 from id_churn_sentinel.core.fetch import Fetcher
-from id_churn_sentinel.core.normalize import content_hash, passages
+from id_churn_sentinel.core.normalize import (
+    EXTRACTOR_VERSION,
+    NORMALIZER_VERSION,
+    content_hash,
+    passages,
+)
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
     RUN_COMPLETE,
@@ -297,6 +302,9 @@ def _watch_authorized_sources(
         if run_id is not None:
             store.begin_fetch_attempt(run_id, source_id=source.id, url=source.url)
         result = fetcher.fetch(source.url)
+        normalized_result: tuple[str, str] | None = None
+        if result.ok:
+            normalized_result = content_hash(result.body, result.content_type)
         if run_id is not None:
             store.finish_fetch_attempt(
                 run_id,
@@ -304,6 +312,8 @@ def _watch_authorized_sources(
                 ok=result.ok,
                 http_status=result.status,
                 content_type=result.content_type or "",
+                normalizer_version=NORMALIZER_VERSION if result.ok else "",
+                extractor_version=EXTRACTOR_VERSION if result.ok else "",
                 error=result.error or "",
                 completed_at=result.fetched_at,
             )
@@ -320,7 +330,9 @@ def _watch_authorized_sources(
             )
             continue
 
-        new_hash, normalized = content_hash(result.body, result.content_type)
+        if normalized_result is None:  # pragma: no cover - guarded by result.ok above
+            raise AssertionError("successful fetch did not produce normalized content")
+        new_hash, normalized = normalized_result
         previous = store.latest_snapshot(source.id)
 
         # The source answered, so whatever was wrong is over. Reset the streak *before*
@@ -336,6 +348,8 @@ def _watch_authorized_sources(
             content_sha256=new_hash,
             raw_bytes=result.body,
             normalized_text=normalized,
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
         )
 
         if previous is None:

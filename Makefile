@@ -156,10 +156,10 @@ watch-weekly: ## The weekly operational run: watch, then print what a human must
 # somebody else's billing system agrees to run a job is a site that does not exist. So: docs/,
 # committed, served straight from the branch with no build step and no CI. See docs/README.md.
 #
-# FEED_URL is the canonical home stamped into every artifact's `feed_url`. It defaults to the
-# repository because that URL resolves TODAY; point it at the Pages URL once Pages is switched on:
-#   make publish FEED_URL=https://chelseakr.github.io/id-churn-sentinel/
-FEED_URL ?= https://github.com/ChelseaKR/id-churn-sentinel
+# FEED_URL is the canonical home stamped into every artifact's `feed_url`. Pages serves the
+# committed `main:/docs` bytes directly; no workflow or build job sits between the commit and
+# the public artifact.
+FEED_URL ?= https://chelseakr.github.io/id-churn-sentinel/
 
 publish: ## Write the published site, the feeds, and the inventory — REVIEWED records only
 	@# docs/index.html          the accessible front door + the GitHub Pages entry point

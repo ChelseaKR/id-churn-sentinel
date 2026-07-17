@@ -25,6 +25,7 @@ from id_churn_sentinel.core.detect import (
     _watch_authorized_sources as watch,
 )
 from id_churn_sentinel.core.fetch import FetchResult
+from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore
 
@@ -178,6 +179,8 @@ def test_rewatching_the_same_drift_does_not_duplicate_or_un_review_it(
             content_sha256=change.previous_hash,
             raw_bytes=b"",
             normalized_text="",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
         )
         report = watch([source], store, fetcher)
 

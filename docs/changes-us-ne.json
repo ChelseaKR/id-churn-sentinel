@@ -1,0 +1,60 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-07-17T01:43:48.553047+00:00",
+  "feed_url": "https://chelseakr.github.io/id-churn-sentinel/",
+  "jurisdiction": "NE",
+  "disclaimer": "This feed reports a human-reviewed observation that an eligible registered source candidate changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any registered candidate.",
+  "registry_verification": {
+    "scope": "NE",
+    "sources": 3,
+    "human_verified": 0,
+    "unverified": 3,
+    "rejected": 0,
+    "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
+  },
+  "changes": [],
+  "sources": [
+    {
+      "source_id": "ne-dhhs-vital-records",
+      "jurisdiction": "NE",
+      "document_class": "birth_certificate",
+      "url": "https://dhhs.ne.gov/pages/vital-records.aspx",
+      "authority": "Nebraska Department of Health and Human Services, Vital Records",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
+      "source_id": "ne-dmv",
+      "jurisdiction": "NE",
+      "document_class": "drivers_license",
+      "url": "https://dmv.nebraska.gov/",
+      "authority": "Nebraska Department of Motor Vehicles",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
+      "source_id": "ne-judicial",
+      "jurisdiction": "NE",
+      "document_class": "court_order_name_change",
+      "url": "https://nebraskajudicial.gov/self-help",
+      "authority": "Nebraska Judicial Branch (Administrative Office of the Courts)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    }
+  ]
+}

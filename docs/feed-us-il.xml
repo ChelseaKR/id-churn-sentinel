@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>ID Churn Sentinel — reviewed changes to US transgender ID-document sources — IL</title>
+    <link>https://chelseakr.github.io/id-churn-sentinel/</link>
+    <description>Human-reviewed observations from eligible candidate US government pages about name and gender-marker changes on identity documents. Each item cites the registered source URL and the passage that changed. This feed reports that a source changed; it does not assert what the law is. This feed is scoped to IL ONLY: it says nothing about any other jurisdiction, and its silence about IL is not evidence that nothing changed there. SOURCE REGISTRY: 0 of 3 sources in IL are human-verified; the rest are UNVERIFIED — machine-checked candidate URLs that no human has confirmed are the official page for their document class. THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state&apos;s real birth-certificate page from a convincing-looking one — it cannot even tell a live page from a bot-wall served with HTTP 200 — so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is.</description>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 17 Jul 2026 01:43:48 +0000</lastBuildDate>
+    <generator>id-churn-sentinel (schema 2.0)</generator>
+    <!-- No reviewed changes for IL yet. This feed is EMPTY, not broken: every
+         observation an eligible watch detects is held until a named human reviews
+         and confirms it, and none has been confirmed so far. An empty feed is
+         not a claim that nothing changed at any registered candidate — see the
+         disclaimer in changes.json and docs/CONSUMERS.md. -->
+  </channel>
+</rss>

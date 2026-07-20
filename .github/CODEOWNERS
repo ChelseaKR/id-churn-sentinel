@@ -1,0 +1,14 @@
+# Default ownership and explicit review routing for public, high-stakes paths.
+* @ChelseaKR
+
+/.github/workflows/ @ChelseaKR
+/.github/CODEOWNERS @ChelseaKR
+/DEFINITION_OF_DONE.md @ChelseaKR
+/Makefile @ChelseaKR
+/pyproject.toml @ChelseaKR
+/uv.lock @ChelseaKR
+/sources/ @ChelseaKR
+/src/id_churn_sentinel/core/ @ChelseaKR
+/src/id_churn_sentinel/cli.py @ChelseaKR
+/tests/ @ChelseaKR
+/docs/schema/ @ChelseaKR

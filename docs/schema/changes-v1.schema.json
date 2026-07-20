@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/changes-v1.schema.json",
+  "title": "ID Churn Sentinel — changes.json (schema_version 1.x)",
+  "description": "The published change feed. Build against THIS document, not against our source code. Every item in `changes` is a machine observation that a NAMED HUMAN reviewed and confirmed. Source authority is a separate claim: treat a URL as a registry-claimed candidate unless `source_verification.status` is `verified` and that verification is in date. For HTML/text, the feed shows a passage diff; for PDF/other binary content, the current alpha reports that raw bytes changed and has no extracted-text passage diff. It does NOT assert what the law is, and it is not legal advice. An empty `changes` array means no human has confirmed a change yet — it is NOT a claim that nothing changed at any watched source. READ `registry_verification` BEFORE YOU BUILD. V1 publication policy will block unverified, stale-verification, rejected/withdrawn, and fetch-policy-ineligible sources; the alpha contract exposes status but does not yet enforce that source-eligibility publication block.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "feed_url",
+    "disclaimer",
+    "registry_verification",
+    "changes",
+    "sources"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Pin against the MAJOR version. THE PROMISE: a major bump means a BREAK (a field removed or renamed, a type changed, an enum value removed). Adding a new OPTIONAL field is not a break and bumps only the minor — so ignore unknown keys, as every sane JSON consumer already does, and you will not be broken by us. If we ever have to break you, the major goes to 2 and this URL keeps serving v1."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this document was written. NOT when anything changed — see `observed_at` on each item. A fresh `generated_at` with an empty `changes` array means we ran and had nothing confirmed to tell you."
+    },
+    "feed_url": { "type": "string", "format": "uri" },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Present ONLY on a per-jurisdiction document (changes-us-tx.json). Its presence means this document is scoped: its `changes` array is a statement about this jurisdiction and about no other. Absent on the all-jurisdictions changes.json.",
+      "enum": ["US", "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
+    },
+    "disclaimer": {
+      "type": "string",
+      "description": "Travels with the data on purpose. A disclaimer that lives only in a README nobody re-reads is decoration."
+    },
+    "registry_verification": {
+      "type": "object",
+      "description": "HOW MUCH OF THE SOURCE LIST A HUMAN HAS ACTUALLY CONFIRMED, for whatever this document is scoped to. Read this before you treat any `url` in this feed as authoritative. Every source in this registry was fetched by our crawler and had its title read — that is a fact about a socket, not a person confirming the page is the right one, and a machine cannot tell a state's real birth-certificate page from a plausible-looking one (one federal site answers our crawler with a bot-wall titled 'Request Access' and serves it with HTTP 200). `human_verified` is the count of sources a NAMED person opened and confirmed. If it is 0, nobody has confirmed any of them.",
+      "required": ["scope", "sources", "human_verified", "unverified", "rejected", "statement"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "type": "string", "description": "The jurisdiction this count covers, or 'all jurisdictions'." },
+        "sources": { "type": "integer", "description": "Sources in scope." },
+        "human_verified": { "type": "integer", "description": "Confirmed by a named human as the relevant government page for that document class and jurisdiction, subject to the recorded verification date and recheck policy." },
+        "unverified": { "type": "integer", "description": "Machine-checked only. NOBODY has confirmed these are the right pages. Do not present them as authoritative." },
+        "rejected": { "type": "integer", "description": "A named human opened it and rejected the registry's authority/scope claim. Flagged for repair; do not use." },
+        "statement": { "type": "string", "description": "The same thing in a sentence, because an integrator will read exactly one of these fields and we do not get to choose which." }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "description": "Newest first. ONLY human-confirmed records ever appear here: unreviewed drift and dismissed noise are withheld by a merge-blocking gate (`make no-unreviewed-in-feed`).",
+      "items": { "$ref": "#/$defs/change" }
+    },
+    "sources": {
+      "type": "array",
+      "description": "THE SOURCES BEHIND THIS FEED, scoped the same way the `changes` array is — each with its `verification_status`. They ship inside the feed rather than only in sources.json for one reason: the feed is currently EMPTY, so a consumer who polls only this file would otherwise learn nothing about the registry's status and would go on assuming the URLs behind it are confirmed. They are not. A source cannot appear in any published artifact of this project without its verification status alongside it; that is asserted on the published bytes by a merge-blocking gate.",
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "verification": {
+      "type": "object",
+      "description": "Whether a HUMAN has confirmed this registry-claimed source URL as the relevant government page for its document class and jurisdiction. Distinct from any HTTP status we recorded: a socket cannot confirm a page is the right page. A verified value is usable only while its dated verification remains in policy.",
+      "required": ["status", "verifier", "verified_at", "note", "statement"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unverified", "verified", "rejected", "withdrawn"],
+          "description": "`unverified`: machine-checked, NOT human-confirmed — treat the URL as a candidate, not a citation. `verified`: a named human opened it and confirmed the registry's authority/scope claim on the recorded date; a consumer must still apply the recheck policy. `rejected`: a named human rejected that claim — flagged for repair, do not use. `withdrawn`: the source this record cites has since left the registry, so its status cannot be stated here (we say so rather than omitting the field)."
+        },
+        "verifier": { "type": "string", "description": "The NAME of the human who ruled on this source. Empty when nobody has." },
+        "verified_at": { "type": "string", "description": "ISO date (YYYY-MM-DD) the human ruled on it. Empty when nobody has. A verification with no date could never go stale, which means it could never be re-checked." },
+        "note": { "type": "string", "description": "For a rejection: why the registry's authority or scope claim failed. May be empty. Eligibility evidence and expiry are registry-internal in this closed v1 feed contract." },
+        "statement": { "type": "string", "description": "The status as a SENTENCE. Status is never signalled by a colour or an icon anywhere in this project — including here, where the field a lazy integrator renders is the one that has to carry the meaning." }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "jurisdiction",
+        "document_class",
+        "url",
+        "authority",
+        "verification_status",
+        "human_verified",
+        "verified_by",
+        "verified_at",
+        "verification_statement",
+        "reachable_by_our_crawler",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "jurisdiction": { "type": "string" },
+        "document_class": {
+          "type": "string",
+          "enum": ["birth_certificate", "drivers_license", "court_order_name_change", "passport", "social_security", "selective_service"]
+        },
+        "url": { "type": "string", "pattern": "^https://", "description": "A registry-claimed government-source candidate. Treat it as authoritative for this contract only when `verification_status` is `verified` and that dated verification remains in policy." },
+        "authority": { "type": "string", "description": "The issuing authority the entry claims this page belongs to. Claimed by us; confirmed only if `verification_status` says so." },
+        "verification_status": {
+          "type": "string",
+          "enum": ["unverified", "verified", "rejected"],
+          "description": "THE FIELD TO FILTER ON. `jq '.sources[] | select(.verification_status != \"verified\")'` is the query, and today it returns everything."
+        },
+        "human_verified": { "type": "boolean", "description": "True only when a named human confirmed it. The registry will not even LOAD an entry that claims true without naming the human and the date." },
+        "verified_by": { "type": "string" },
+        "verified_at": { "type": "string" },
+        "verification_statement": { "type": "string" },
+        "reachable_by_our_crawler": { "type": "boolean", "description": "Whether OUR fetcher can reach it — a fact about our sockets, entirely separate from whether a human has confirmed the page. A source can be perfectly reachable and completely wrong." },
+        "notes": { "type": "string" }
+      }
+    },
+    "change": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_id",
+        "jurisdiction",
+        "document_class",
+        "url",
+        "observed_at",
+        "previous_hash",
+        "new_hash",
+        "diff_excerpt",
+        "kind",
+        "significance",
+        "review_status",
+        "reviewer",
+        "reviewed_at",
+        "review_note",
+        "source_verification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_verification": {
+          "$ref": "#/$defs/verification"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "A DEDUPE KEY YOU CAN TRUST FOREVER. Deterministic in (source_id, previous_hash, new_hash), so re-running the watcher over the same drift re-derives the same id, and an id cited in an email six months ago still resolves. Store it; do not re-key on our timestamps."
+        },
+        "source_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "The registry entry that moved. Map YOUR pages to these — the full inventory, including everything we do NOT watch, is published as sources.json."
+        },
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["US", "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"],
+          "description": "A two-letter state, DC, or US for federal policy (passport, Social Security, Selective Service). A closed set: 50 states + DC + the federal bucket."
+        },
+        "document_class": {
+          "type": "string",
+          "enum": ["birth_certificate", "drivers_license", "court_order_name_change", "passport", "social_security", "selective_service"],
+          "description": "A closed set. A seventh value would be a product decision, not a config change, and would bump the major version."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "description": "The registry URL whose fetched content changed. Always https, never our summary. Treat it as a candidate unless this record's `source_verification.status` is `verified` and the dated verification remains in policy. Go and read it."
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When our crawler saw the change. NOT when the agency made it — a page can sit changed for a week before our weekly pass sees it, and we will never claim otherwise."
+        },
+        "previous_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "For HTML/text, sha256 of normalized text (markup stripped where applicable, whitespace collapsed, lowercased); for PDF/other binary content, sha256 of raw bytes. The current alpha retains only the newest five snapshots per source, so this is a bounded recent evidence window. Durable months-later reproduction is a V1 gate, not a current schema claim."
+        },
+        "new_hash": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{64})?$",
+          "description": "For HTML/text, sha256 of normalized text after the change; for PDF/other binary content, sha256 of raw bytes. EMPTY STRING when `kind` is `possibly_removed` — there is no new content, because we could not fetch the page at all, and inventing a hash for bytes we never received would be a lie."
+        },
+        "diff_excerpt": {
+          "type": "string",
+          "description": "For HTML/text, a unified diff of changed passages, truncated at 4000 characters. For a PDF or other binary source in the current alpha, an explicit statement that bytes changed and no extracted-text diff is available; extracted-text PDF diffs are a V1 gate. For `possibly_removed` it carries the literal fetch error and the streak length."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["content_drift", "possibly_removed"],
+          "description": "WHAT THE MACHINE OBSERVED — a fact about our sockets, on a different axis from `significance`. `content_drift`: we fetched the page and its normalized text hashed differently. `possibly_removed`: we could not fetch it AT ALL, N times running. `possibly_removed` does NOT say the page was taken down. It says we failed N times, here is the error, a human looked and confirmed it is worth telling you. Removed / blocked / down are three different worlds and the machine is not entitled to choose between them."
+        },
+        "significance": {
+          "type": "string",
+          "enum": ["editorial", "substantive"],
+          "description": "A HUMAN'S JUDGMENT, never a machine's. `unclassified` is a valid internal state and CAN NEVER APPEAR HERE — an unclassified record is unpublishable by construction (enforced in the type system, in a SQL CHECK constraint, in the CLI, and in a merge-blocking gate). If you ever see a third value in this field, we broke a promise; open an issue."
+        },
+        "review_status": {
+          "type": "string",
+          "const": "confirmed",
+          "description": "ALWAYS `confirmed`. It is a constant rather than an enum because that is the actual contract: unreviewed drift and dismissed noise never reach this feed. It is emitted anyway so you can assert on it, and so that a future value cannot appear without breaking your validator on purpose."
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The NAME OF THE HUMAN who stands behind this item. Never null in a published record, never a machine, never 'automated'. This is the whole value of the feed: an anonymous classification is indistinguishable from an automated one to the org consuming it."
+        },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "review_note": {
+          "type": "string",
+          "description": "Why the reviewer decided what they decided. May be empty."
+        }
+      }
+    }
+  }
+}

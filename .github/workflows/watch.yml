@@ -1,0 +1,180 @@
+# The weekly watch — the operational job, NOT a build step.
+#
+# It fetches every attempt-eligible source in the registry once, compares against the committed
+# baseline hashes, and opens (or updates) a single human-review issue when something moved. It does
+# NOT publish. It CANNOT publish. Publication requires a named human to have reviewed and
+# confirmed a change (`sentinel review --reviewer …`), and there is no path from this
+# workflow to that command — deliberately, and that is the whole design:
+#
+#   * A machine that could publish an unreviewed change would eventually publish one.
+#   * The people downstream of this feed act on it. A wrong item costs someone a filing fee,
+#     a day of work, and — in the wrong state on the wrong day — considerably more.
+#
+# So the most this job is allowed to do is TELL A HUMAN TO LOOK. See
+# docs/RESPONSIBLE-TECH-AUDITS.md §B.
+#
+# ── ON HOSTED CI, AND WHY THIS FILE IS NOT THE ONLY ANSWER ───────────────────────────────
+# This repository's owner has an account-wide GitHub Actions spending limit, and scheduled
+# workflows are the first thing it stops. **Do not assume this file ever runs.** Everything
+# it does is reproducible in one command on any machine — `make watch-weekly` — and the
+# runbook is in docs/ROADMAP.md §M2. A monitoring service whose only trigger is someone
+# else's billing system is not a monitoring service.
+#
+# ── POLITENESS (docs/RESPONSIBLE-TECH-AUDITS.md §D) ──────────────────────────────────────
+# Weekly, one fetch per source. Descriptive User-Agent naming the project and linking here.
+# robots.txt honoured without appeal. Every socket bounded. These are government servers
+# funded by the public this tool serves; a watcher that hammers them is taking from the
+# commons it claims to protect. Do not lower the cron interval "just to test" — use
+# `--jurisdiction` locally instead.
+name: watch
+
+on:
+  schedule:
+    # 07:11 UTC on Mondays. Weekly, offset off the hour so we are not part of a thundering
+    # herd of cron jobs hitting state websites at :00.
+    - cron: "11 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      jurisdiction:
+        description: "Limit to one jurisdiction (e.g. TX, US). Blank = the whole registry."
+        required: false
+        default: ""
+
+# Read the code, write an issue. That is the whole blast radius.
+#
+# `contents` is deliberately READ-only: this job never commits, never rewrites the committed
+# baseline, and never touches docs/. `issues: write` is the single capability it needs — the
+# most it is allowed to do is tell a human to look. Widening this to `contents: write` would
+# be the first step on the road to a bot that publishes its own findings, and that road is
+# closed on purpose (docs/RESPONSIBLE-TECH-AUDITS.md §B).
+permissions:
+  contents: read
+
+concurrency:
+  group: watch
+  cancel-in-progress: false # never interrupt a run mid-crawl; let it finish and be polite
+
+jobs:
+  watch:
+    name: watch
+    permissions:
+      contents: read
+      issues: write # Required only to create or update the human review-queue issue.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40 # 152 sources against slow government CDNs; travel.state.gov alone
+    # has been measured taking 44s to answer a single request.
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.28"
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install
+        run: make install
+
+      # Compare every attempt-eligible live source against the COMMITTED baseline hashes. The
+      # command uses the same dated verification/fetch-policy predicate as `sentinel watch`; an
+      # ephemeral diagnostic is never permission to bypass a source-policy decision. This needs no
+      # snapshot store, which is what makes it work on an ephemeral runner: the runner has
+      # no memory, and `sources/baseline-hashes.json` is the memory we checked in.
+      #
+      # It exits 0 whether or not anything moved. Drift is the tool WORKING. A state website
+      # being down is not a broken build, and must never look like one — if this job goes
+      # red for an outage, the humans learn to ignore it, and then they ignore it on the week
+      # that matters.
+      - name: sentinel baseline check
+        id: check
+        env:
+          JURISDICTION: ${{ inputs.jurisdiction }}
+        run: |
+          set -o pipefail
+          args=()
+          if [[ -n "$JURISDICTION" ]]; then
+            args+=(--jurisdiction "$JURISDICTION")
+          fi
+          uv run sentinel baseline check "${args[@]}" | tee watch-report.txt
+          if grep -q "MOVED" watch-report.txt; then
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload the report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: watch-report
+          path: watch-report.txt
+          retention-days: 90
+
+      # One issue, reused. A new issue every week for the same unreachable ssa.gov would
+      # train the reviewer to close them unread — which is worse than no alert at all,
+      # because it LOOKS like someone is watching.
+      - name: Open or update the human-review queue
+        if: steps.check.outputs.moved == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('watch-report.txt', 'utf8');
+            const title = 'Review queue: watched sources moved';
+            const body = [
+              '**A watched official source is no longer what the committed baseline says it was.**',
+              '',
+              'This is a machine observation about bytes at a URL. It is **not** a finding that',
+              'the law changed, and nothing here is published to the feed. A named human must run',
+              'the review before any of it reaches a consumer:',
+              '',
+              '```sh',
+              'make install',
+              'uv run sentinel watch                 # retains the bytes, so you get a passage diff',
+              'uv run sentinel diff <change-id>      # read the passage that actually changed',
+              'uv run sentinel review <change-id> --reviewer "Your Name" \\',
+              '    --significance editorial|substantive --status confirmed|dismissed',
+              'uv run sentinel publish --out docs/',
+              '```',
+              '',
+              'Note `baseline check` gives you the *hash*, not the passage — run `sentinel watch`',
+              'for the diff. And remember an `editorial` dismissal is as valuable as a confirmation:',
+              'a source that keeps producing them is a false-drift source and belongs in the GAPS',
+              'block of `sources/registry.json`, not in a reviewer\'s queue.',
+              '',
+              '<details><summary>Machine report</summary>',
+              '',
+              '```',
+              report.slice(0, 50000),
+              '```',
+              '',
+              '</details>',
+              '',
+              `_Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}_`,
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'review-queue',
+            });
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['review-queue'],
+              });
+            }

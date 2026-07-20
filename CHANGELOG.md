@@ -38,9 +38,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Removed
 
-- Commercial planning material (2026-07-19): business-model, pilot, and
-  commercial-status documents were removed ahead of the public release. The
-  project is a noncommercial, open-source, public-interest research project.
+- Internal planning notes not relevant to the public repository (2026-07-19).
 
 ### Changed
 

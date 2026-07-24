@@ -217,7 +217,7 @@ human-facing site), with current state stated honestly:
 | CI/CD | Applies | `ci.yml` runs the literal `make verify`; no CI-only or local-only gate (note the account-wide Actions spending limit — local `make verify` is the gate that always exists) |
 | Observability | Applies | Watch receipts + derived `status.json`; site distinguishes quiet/partial/failed/running/stale health from generation time |
 | Accessibility | Applies | Published site is plain server-less HTML; full WCAG 2.2 AA conformance is a V1 release gate, not a current claim ([`docs/08-ACCESSIBILITY-I18N.md`](./docs/08-ACCESSIBILITY-I18N.md)) |
-| Internationalization | Applies | Gap — public civic resource, conservative default per the manifest; English-only today, no locale catalogs yet; owner declaration of the i18n plan is pending ([`docs/08-ACCESSIBILITY-I18N.md`](./docs/08-ACCESSIBILITY-I18N.md)) |
+| Internationalization | Applies | English-only today; the owned Spanish V1 metadata scope, review workflow, fail-closed fallback, and target date are declared in [`docs/I18N.md`](./docs/I18N.md) |
 | AI Evaluation | N/A — deterministic source-change detector; no LLM/model component | N/A — hashing + difflib + a named human; nothing generative or agentic anywhere in `src/` |
 | Documentation | Applies | README + `docs/` corpus; ADR log in [`docs/adr/`](./docs/adr/); [`CHANGELOG.md`](./CHANGELOG.md); [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
 | Quality & Metrics | Applies | 90% branch-coverage floor (measured 93%); coverage numbers in docs are re-derived from the registry by a merge-blocking gate |

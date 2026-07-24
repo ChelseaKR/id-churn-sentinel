@@ -6,12 +6,12 @@
 # already runs ruff's bandit (S) rules locally on every gate pass; this adds a
 # second, deeper SAST engine whenever Actions does run.
 #
-# This repository is PRIVATE and the account has no GitHub Advanced Security,
-# so the code-scanning SARIF upload API is unavailable here ("Resource not
-# accessible by integration"). The job therefore does not upload: it writes
+# This repository does not currently have GitHub Code Security enabled, so the
+# code-scanning SARIF upload API is unavailable ("Resource not accessible by
+# integration"). The job therefore does not upload: it writes
 # SARIF locally and fails directly on any finding, which is the same gate with
-# the dashboard swapped for the job log. If the repo ever goes public (or GHAS
-# is enabled), switch `upload: never` back to the default and restore the
+# the dashboard swapped for the job log. If code scanning is enabled, switch
+# `upload: never` back to the default and restore the
 # `security-events: write` permission to get the dashboard as well.
 name: codeql
 
@@ -50,9 +50,9 @@ jobs:
       - uses: github/codeql-action/analyze@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.28.19
         with:
           category: "/language:${{ matrix.language }}"
-          upload: never # private repo without GHAS — the upload API 403s; see header
+          upload: never # Code Security is not enabled; the upload API 403s
           output: sarif-results
-      - name: Fail on findings (no code-scanning dashboard on this private repo)
+      - name: Fail on findings when SARIF upload is unavailable
         run: |
           python3 - <<'EOF'
           import glob

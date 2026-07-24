@@ -9,6 +9,9 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
+  Spanish metadata scope, independent-review workflow, fail-closed English
+  fallback, and 2026-11-13 target without claiming translations already exist.
 - Cited change detection for US transgender identity-document law and process:
   polite weekly fetch of registry-declared government sources, normalized-text
   hashing with passage diffs for HTML/text, byte-change detection for binaries.
@@ -42,6 +45,8 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Changed
 
+- CodeQL comments now describe the actual Code Security capability boundary
+  instead of the repository's obsolete visibility.
 - **Relicensed from MIT to AGPL-3.0-or-later** (sole-author relicense): keeps
   derivatives and network deployments open; prior released snapshots remain MIT.
 - Monitoring readiness made explicit (2026-07-17): the public site and feeds

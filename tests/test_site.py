@@ -342,7 +342,11 @@ def test_the_page_says_what_is_not_watched_and_who_refused_us(site_registry: Reg
     assert "What is NOT watched, and why" in page
     assert "1 named gap" in page
     assert "VT" in page
-    assert "dmv.vermont.gov" in page
+    # Assert on the rendered table cell, not the bare hostname: it is a stronger
+    # assertion, and a bare hostname-in-string check trips CodeQL's
+    # py/incomplete-url-substring-sanitization heuristic (this is a rendering
+    # assertion, not URL sanitization).
+    assert "<td>dmv.vermont.gov</td>" in page
     assert "403s our User-Agent (we do not spoof one)" in page
     assert "silence about any of them means nothing at all" in page
 

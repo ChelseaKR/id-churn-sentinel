@@ -99,7 +99,21 @@ jobs:
             args+=(--jurisdiction "$JURISDICTION")
           fi
           uv run sentinel baseline check "${args[@]}" | tee watch-report.txt
-          if grep -q "MOVED" watch-report.txt; then
+          # Branch on the machine-readable count, NOT on the prose. The human-readable summary
+          # says "... 0 MOVED, ..." even when nothing moved, so `grep -q "MOVED"` was true on
+          # every run and this job refiled the review-queue issue forever. A weekly alert that
+          # is always wrong teaches the reviewer to close it unread — which is worse than no
+          # alert at all, because it LOOKS like someone is watching.
+          moved_count="$(sed -n 's/^baseline-check-moved-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$moved_count" =~ ^[0-9]+$ ]]; then
+            # The command exited 0 but did not emit the marker, so we cannot tell whether
+            # anything moved. That is a bug in this repo, not a state website being down, and
+            # it must be loud: failing silently to `moved=false` would hide real drift.
+            echo "::error::baseline check emitted no 'baseline-check-moved-count:' line; cannot decide whether sources moved"
+            exit 1
+          fi
+          echo "moved-count=${moved_count}" >> "$GITHUB_OUTPUT"
+          if [[ "$moved_count" -gt 0 ]]; then
             echo "moved=true" >> "$GITHUB_OUTPUT"
           else
             echo "moved=false" >> "$GITHUB_OUTPUT"
@@ -118,13 +132,18 @@ jobs:
       - name: Open or update the human-review queue
         if: steps.check.outputs.moved == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MOVED_COUNT: ${{ steps.check.outputs.moved-count }}
         with:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('watch-report.txt', 'utf8');
+            const movedCount = process.env.MOVED_COUNT;
             const title = 'Review queue: watched sources moved';
             const body = [
               '**A watched official source is no longer what the committed baseline says it was.**',
+              '',
+              `Sources moved this run: **${movedCount}**.`,
               '',
               'This is a machine observation about bytes at a URL. It is **not** a finding that',
               'the law changed, and nothing here is published to the feed. A named human must run',

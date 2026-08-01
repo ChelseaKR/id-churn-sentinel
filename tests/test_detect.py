@@ -12,8 +12,6 @@ And one encodes the differentiator: `test_drift_produces_the_passage_that_change
 from __future__ import annotations
 
 import hashlib
-import html
-import re
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,14 +27,11 @@ from id_churn_sentinel.core.detect import (
 )
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.normalize import (
-    _BLOCK_RE,
-    _COMMENT_RE,
-    _TAG_RE,
     CURRENT_CONTRACT,
     EXTRACTOR_VERSION,
     NORMALIZER_VERSION,
     content_hash,
-    normalize_text,
+    normalize_html,
 )
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore
@@ -406,27 +401,30 @@ def test_a_watched_run_persists_complete_attempt_evidence(
 # untouched), a comparison across two (must not manufacture drift, and must not hide it),
 # and the live v1→v2 transition an operator is walking into this week.
 
-_V1_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script>", re.IGNORECASE)
-_V1_STYLE_RE = re.compile(r"<style[\s\S]*?</style>", re.IGNORECASE)
 _V1_CONTRACT = "passage-text-v1/none-v1"
+
+# The loosely-spelled tags `passage-text-v1` failed to match, as they appear in the fixture.
+_V1_UNMATCHED_TAGS = ("<script >", "</script >")
 
 
 def v1_normalized(body: bytes) -> str:
     """What `passage-text-v1` produced for these bytes.
 
-    Reproduced here rather than kept in the tree, because exactly one normalizer exists at
-    a time — which is precisely why the retained *bytes*, and not an old code path, are what
-    make an old baseline recoverable. v1 differed from v2 in one thing: its script/style
-    strip regexes required the tight `</script>` spelling, so a page using `</script >` had
-    its minified JavaScript hashed as page text. Everything downstream of that is unchanged,
-    which is why deferring to today's block/tag/entity handling for the rest is faithful.
+    v1 is not in the tree — exactly one normalizer exists at a time, which is precisely why
+    the retained *bytes*, and not an old code path, are what make an old baseline
+    recoverable. So its defect is reproduced *by construction* rather than by keeping a
+    second copy of the algorithm around to drift out of sync (or, worse, a second copy of
+    the bad regex, which is a real finding wherever a scanner meets it).
+
+    The construction is exact. v1's strip regex required the tight `</script>`, so on this
+    page the element never matched and its body fell through to the generic tag-stripping
+    step and became page text. Deleting only the unmatched tags and handing the rest to
+    today's normalizer reaches the same place by the same route.
     """
-    text = _V1_SCRIPT_RE.sub(" ", body.decode("utf-8", errors="replace"))
-    text = _V1_STYLE_RE.sub(" ", text)
-    text = _COMMENT_RE.sub(" ", text)
-    text = _BLOCK_RE.sub("\n", text)
-    text = _TAG_RE.sub(" ", text)
-    return normalize_text(html.unescape(text))
+    text = body.decode("utf-8", errors="replace")
+    for tag in _V1_UNMATCHED_TAGS:
+        text = text.replace(tag, " ")
+    return normalize_html(text)
 
 
 def record_v1_baseline(store: SnapshotStore, source: Source, body: bytes) -> str:

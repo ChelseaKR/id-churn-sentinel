@@ -704,3 +704,7 @@ def test_baseline_check_flags_a_hash_recorded_by_a_different_normalizer(
     assert "baseline normalizer: passage-text-v1/none-v1" in out
     assert "may be a normalization artifact, not drift" in out
     assert "sentinel watch && sentinel baseline write" in out
+    # Machine-readable, alongside #13's MOVED count: a workflow that alerts on MOVED alone
+    # would page a human for every artifact on the first pass after a version bump.
+    assert "baseline-check-moved-count: 1" in out
+    assert "baseline-check-cross-contract-count: 1" in out

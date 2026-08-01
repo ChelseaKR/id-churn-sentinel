@@ -800,6 +800,13 @@ def _cmd_baseline_check(
     # it unread on the week a state quietly rewrites its passport page. Branch on this line,
     # never on the prose.
     print(f"baseline-check-moved-count: {len(report.moved)}")
+    # The subset of that count whose committed hash came from a different normalizer, on its
+    # own machine-readable line for the same reason the line above exists. A workflow that
+    # alerts on the MOVED count alone would page a human for every one of these on the first
+    # pass after a version bump — and by the reasoning above, an alert that fires for nothing
+    # is the one that gets closed unread on the week it mattered. Subtract this from that to
+    # get the count that is unambiguously about a page.
+    print(f"baseline-check-cross-contract-count: {len(report.moved_across_contracts)}")
     if report.moved:
         print(
             "\nA MOVED source is a fact about bytes, not a finding about the law, and this\n"

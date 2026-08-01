@@ -336,6 +336,9 @@ def test_page_title_reads_the_page_rather_than_hoping(registry_file: Path) -> No
     # The trap this exists for: a status-code check blesses both of these.
     assert page_title(b"<title>404 Page Not Found</title>") == "404 Page Not Found"
     assert page_title(b"<title>Request Access</title>") == "Request Access"
+    # `</title >` is valid HTML. Failing to match it loses the single most useful string a
+    # human has for telling a real page from a bot-wall — silently, as an empty title.
+    assert page_title(b"<title>Request Access</title >") == "Request Access"
 
 
 def test_the_excerpt_is_bounded(registry_file: Path) -> None:

@@ -49,7 +49,17 @@ __all__ = [
 # These values are persisted with every new snapshot. Changing normalization without
 # changing the version would make two identical-looking hashes mean different things, so
 # version bumps are part of the evidence contract rather than package-release bookkeeping.
-NORMALIZER_VERSION = "passage-text-v1"
+#
+# v2 (2026-08-01): script/style/title end tags now match the loose spellings HTML allows —
+# trailing whitespace and even attributes before the `>` (`</script >`, `</script foo="1">`).
+# A page using any of those had its element bodies hashed as page text under v1, so the same
+# bytes hash differently under v2. That is exactly the "two identical-looking hashes mean
+# different things" case this version string exists to prevent, hence the bump rather than a
+# silent fix. Operator note: a source whose HTML uses a loose spelling will report drift once
+# on the first v2 pass, with a diff that is a normalization artifact rather than a content
+# change. Nothing auto-publishes — every change record is human-reviewed before it can reach
+# the feed — so that pass is caught in review.
+NORMALIZER_VERSION = "passage-text-v2"
 
 # Binary extraction is intentionally not implemented in the alpha. Persisting that fact is
 # still provenance: a future PDF extractor must never make an old raw-byte hash look as if it
@@ -65,8 +75,18 @@ _BLOCK_TAGS = (
     "|td|tfoot|th|thead|tr|ul"
 )
 
-_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script>", re.IGNORECASE)
-_STYLE_RE = re.compile(r"<style[\s\S]*?</style>", re.IGNORECASE)
+# The `\b[^>]*` in each end tag is load-bearing, not defensive noise. HTML's end-tag grammar
+# allows trailing whitespace and even attributes before the `>` — `</script >`, `</style\n>`,
+# `</script foo="bar">` — and while attributes on an end tag are a parse error, every browser
+# still closes the element. Real pages ship all three spellings. Matching only the tight
+# `</script>` means the element never matches, so the *body* survives into the passage text,
+# and a page's minified JavaScript — cache-busting build ids, CSRF tokens, timestamps, all of
+# which re-roll on every request — lands in the content hash. That is precisely the
+# permanent-false-alarm failure this module exists to prevent, and it fails silently: the page
+# reads fine, the hash just never settles. `\b` keeps this honest in the other direction too —
+# it stops `</scriptfoo>`, a different tag entirely, from closing a `<script>`.
+_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script\b[^>]*>", re.IGNORECASE)
+_STYLE_RE = re.compile(r"<style[\s\S]*?</style\b[^>]*>", re.IGNORECASE)
 _COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
 _BLOCK_RE = re.compile(rf"</?(?:{_BLOCK_TAGS})\b[^>]*>", re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -136,7 +156,7 @@ def passages(normalized: str) -> list[str]:
     return [line for line in normalized.split("\n") if line]
 
 
-_TITLE_RE = re.compile(r"<title[^>]*>([\s\S]*?)</title>", re.IGNORECASE)
+_TITLE_RE = re.compile(r"<title[^>]*>([\s\S]*?)</title\b[^>]*>", re.IGNORECASE)
 
 
 def page_title(body: bytes) -> str:

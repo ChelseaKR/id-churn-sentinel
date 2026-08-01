@@ -637,6 +637,21 @@ BEGIN
 END;
 """,
     ),
+    (
+        6,
+        "v1-normalizer-passage-text-v2",
+        # `passage-text-v2` fixes an end-tag match that let script/style bodies survive into
+        # the hashed passage text (see core/normalize.py). Because that changes the bytes a
+        # hash is taken over, it is a new representation contract rather than an edit to the
+        # old one — `representation_contracts` is append-only by trigger, and deliberately so:
+        # the v1 rows stay valid statements about how v1 hashes were computed. An operator's
+        # existing database keeps every v1 snapshot exactly as recorded; only new snapshots
+        # are written under v2.
+        """
+INSERT INTO representation_contracts (normalizer_version, extractor_version)
+VALUES ('passage-text-v2', 'none-v1');
+""",
+    ),
 )
 
 _V1_REQUIRED_COLUMNS = {

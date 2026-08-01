@@ -36,6 +36,28 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   requests to the same host are held at least a minimum interval apart
   (default 2s), structurally, so no call path can burst a government server.
 
+### Fixed
+
+- Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
+  `</script foo="bar">` are all valid ways to close an element and every
+  browser honours them, but the strip regexes required the tight `</script>`
+  spelling. On a page using any other spelling the element never matched, so
+  its *body* — minified JavaScript full of cache-busting build ids, CSRF
+  tokens and timestamps that re-roll on every request — was hashed as page
+  text, making the page look like it changed on every fetch. That is the
+  permanent-false-alarm failure the normalizer exists to prevent, and it
+  failed silently. `page_title` had the same defect and returned an empty
+  title for `</title >`, losing the best signal a human has for telling a real
+  page from a bot-wall. Found by CodeQL (`py/bad-tag-filter`).
+- **Normalizer version bumped to `passage-text-v2`** as a consequence, with a
+  new append-only `representation_contracts` row (migration 6). Existing
+  snapshots keep their `passage-text-v1` label and stay exactly as recorded;
+  only new snapshots are written under v2. Operator note: a source whose HTML
+  used a loose end-tag spelling will report drift once on the first v2 pass,
+  with a diff that is a normalization artifact rather than a content change.
+  Nothing auto-publishes — every change record is human-reviewed before it can
+  reach the feed — so that pass is caught in review.
+
 ### Removed
 
 - Internal planning notes not relevant to the public repository (2026-07-19).

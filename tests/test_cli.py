@@ -504,6 +504,48 @@ def test_baseline_write_then_check_round_trips_without_a_store(
     assert f"MOVED   {source.id}" in out_text
     assert "1 MOVED" in out_text
     assert "cannot show you the passage that changed" in out_text  # the honest limit
+    assert "baseline-check-moved-count: 1" in out_text
+
+
+def test_baseline_check_moved_count_is_zero_when_nothing_moved(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The count line must read 0 when nothing moved — and it is the ONLY line CI may branch on.
+
+    The prose summary contains the word "MOVED" unconditionally ("… 0 MOVED, …"), so the
+    watch workflow's original `grep -q "MOVED"` was true on every run and refiled the
+    review-queue issue forever. This test pins the distinction: on a no-drift run the report
+    still says "MOVED" somewhere, but the machine-readable count says zero.
+    """
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    main([*base_args(cli_registry, db), "watch"], fetcher=stub)
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    unchanged = StubFetcher({source.url: (fixture_before, "text/html")})
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=unchanged,
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "0 MOVED" in out_text  # the prose still carries the word — that was the trap
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "cannot show you the passage that changed" not in out_text
 
 
 def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(

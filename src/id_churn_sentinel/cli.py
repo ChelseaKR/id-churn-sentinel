@@ -750,6 +750,13 @@ def _cmd_baseline_check(
         # Same rule as everywhere else in this tool: an outage is not a content change.
         print(f"  ⚠️  unreachable (NOT drift): {source_id} — {error}", flush=True)
     print(f"baseline check: {report.summary()}")
+    # A machine-readable count, on its own line, for CI to branch on. The prose summary above
+    # always contains the word "MOVED" — including when it reads "0 MOVED" — so a workflow that
+    # greps for the bare word fires on every single run. An alert that fires every week for
+    # nothing is worse than no alert: the reviewer learns to close it unread, and then closes
+    # it unread on the week a state quietly rewrites its passport page. Branch on this line,
+    # never on the prose.
+    print(f"baseline-check-moved-count: {len(report.moved)}")
     if report.moved:
         print(
             "\nA MOVED source is a fact about bytes, not a finding about the law, and this\n"

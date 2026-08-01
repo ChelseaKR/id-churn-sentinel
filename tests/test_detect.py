@@ -11,6 +11,9 @@ And one encodes the differentiator: `test_drift_produces_the_passage_that_change
 
 from __future__ import annotations
 
+import hashlib
+import html
+import re
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +28,16 @@ from id_churn_sentinel.core.detect import (
     _watch_authorized_sources as watch,
 )
 from id_churn_sentinel.core.fetch import FetchResult
-from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
+from id_churn_sentinel.core.normalize import (
+    _BLOCK_RE,
+    _COMMENT_RE,
+    _TAG_RE,
+    CURRENT_CONTRACT,
+    EXTRACTOR_VERSION,
+    NORMALIZER_VERSION,
+    content_hash,
+    normalize_text,
+)
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore
 
@@ -385,3 +397,235 @@ def test_a_watched_run_persists_complete_attempt_evidence(
     assert failed.normalized_sha256 == ""
     assert failed.extraction_outcome == ""
     assert failed.bytes_received == 0
+
+
+# -- the representation contract ---------------------------------------------------
+#
+# A hash means nothing except relative to the normalizer that produced it. These tests
+# pin the three cases that matters for: a comparison inside one contract (must be
+# untouched), a comparison across two (must not manufacture drift, and must not hide it),
+# and the live v1→v2 transition an operator is walking into this week.
+
+_V1_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script>", re.IGNORECASE)
+_V1_STYLE_RE = re.compile(r"<style[\s\S]*?</style>", re.IGNORECASE)
+_V1_CONTRACT = "passage-text-v1/none-v1"
+
+
+def v1_normalized(body: bytes) -> str:
+    """What `passage-text-v1` produced for these bytes.
+
+    Reproduced here rather than kept in the tree, because exactly one normalizer exists at
+    a time — which is precisely why the retained *bytes*, and not an old code path, are what
+    make an old baseline recoverable. v1 differed from v2 in one thing: its script/style
+    strip regexes required the tight `</script>` spelling, so a page using `</script >` had
+    its minified JavaScript hashed as page text. Everything downstream of that is unchanged,
+    which is why deferring to today's block/tag/entity handling for the rest is faithful.
+    """
+    text = _V1_SCRIPT_RE.sub(" ", body.decode("utf-8", errors="replace"))
+    text = _V1_STYLE_RE.sub(" ", text)
+    text = _COMMENT_RE.sub(" ", text)
+    text = _BLOCK_RE.sub("\n", text)
+    text = _TAG_RE.sub(" ", text)
+    return normalize_text(html.unescape(text))
+
+
+def record_v1_baseline(store: SnapshotStore, source: Source, body: bytes) -> str:
+    """Write the snapshot row `passage-text-v1` would have written for `body`, and return
+    the hash it recorded. The retained bytes are the real ones; only the label and the
+    derived text/hash belong to the older contract, which is exactly the situation a store
+    is in the week after a version bump."""
+    text = v1_normalized(body)
+    recorded = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    store.record_snapshot(
+        source_id=source.id,
+        url=source.url,
+        fetched_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+        http_status=200,
+        content_sha256=recorded,
+        raw_bytes=body,
+        normalized_text=text,
+        normalizer_version="passage-text-v1",
+        extractor_version="none-v1",
+    )
+    return recorded
+
+
+def test_the_fixture_really_does_normalize_differently_under_v1_and_v2(
+    fixture_loose_end_tag: bytes,
+) -> None:
+    """Guard against a vacuous suite. Every cross-contract test below is only meaningful if
+    v1 and v2 genuinely disagree about these bytes; if a future normalizer change made them
+    agree, the tests would pass while testing nothing, and this is the assertion that fails
+    instead."""
+    v1_text = v1_normalized(fixture_loose_end_tag)
+    v2_hash, v2_text = content_hash(fixture_loose_end_tag, "text/html")
+
+    assert v1_text != v2_text
+    assert hashlib.sha256(v1_text.encode("utf-8")).hexdigest() != v2_hash
+    assert "__csrf__" in v1_text  # v1 hashed the script body as page text
+    assert "__csrf__" not in v2_text  # v2 strips it
+
+
+def test_a_same_contract_comparison_is_untouched_by_the_guard(
+    source: Source, store: SnapshotStore, fetcher: StubFetcher, fixture_after: bytes
+) -> None:
+    """The overwhelmingly common path must be byte-identical to what it was. Nothing is
+    re-derived, the recorded baseline hash is the one the change record carries, and the
+    reviewer is told nothing about normalizers because nothing happened to them."""
+    watch([source], store, fetcher)
+    baseline = store.latest_snapshot(source.id)
+    assert baseline is not None
+    fetcher.set(source.url, fixture_after)
+
+    report = watch([source], store, fetcher)
+
+    assert report.renormalized == []
+    assert report.unrenormalizable == []
+    assert len(report.changed) == 1
+    assert report.changed[0].previous_hash == baseline.content_sha256
+    assert "re-derived" not in report.changed[0].diff_excerpt
+
+
+def test_a_normalizer_version_bump_alone_is_never_reported_as_drift(
+    source: Source, store: SnapshotStore, fixture_loose_end_tag: bytes
+) -> None:
+    """THE case this guard exists for. The page did not move; our normalizer did. The stored
+    v1 hash does not equal today's hash for the very same bytes — which is exactly the trap:
+    a hash comparison would report drift, and the diff handed to the reviewer would be an
+    artifact the tool manufactured about itself."""
+    recorded = record_v1_baseline(store, source, fixture_loose_end_tag)
+    today, _ = content_hash(fixture_loose_end_tag, "text/html")
+    assert recorded != today  # the trap, stated
+
+    report = watch([source], store, StubFetcher({source.url: (fixture_loose_end_tag, "text/html")}))
+
+    assert report.changed == []
+    assert store.changes() == ()
+    assert report.renormalized == [(source.id, _V1_CONTRACT, CURRENT_CONTRACT)]
+    assert report.unchanged == []
+    assert "normalizer version changed, not drift" in report.summary()
+
+
+def test_the_pass_after_a_version_bump_is_an_ordinary_unchanged_pass(
+    source: Source, store: SnapshotStore, fixture_loose_end_tag: bytes
+) -> None:
+    """The transition is a one-off, not a standing condition. The v1→v2 pass re-baselines
+    onto v2, so the week after says `unchanged` with no explanation attached — an operator
+    who reads the transition report once never has to read it again."""
+    record_v1_baseline(store, source, fixture_loose_end_tag)
+    fetcher = StubFetcher({source.url: (fixture_loose_end_tag, "text/html")})
+    watch([source], store, fetcher)
+
+    report = watch([source], store, fetcher)
+
+    assert report.unchanged == [source.id]
+    assert report.renormalized == []
+
+
+def test_real_drift_during_a_version_bump_is_still_reported_and_diffed_like_for_like(
+    source: Source, store: SnapshotStore, fixture_loose_end_tag: bytes
+) -> None:
+    """The failure mode of the rejected design. Refusing a cross-contract comparison would
+    have swallowed this sentence for a whole pass — a wrong 'no change' about a government
+    page, which is the one error this repo is organised around. It is reported, and the diff
+    is a diff of *content*: the script body v1 leaked into its baseline text appears on
+    neither side, because both sides came out of the same normalizer."""
+    record_v1_baseline(store, source, fixture_loose_end_tag)
+    changed_body = fixture_loose_end_tag.replace(
+        b"<p>The fee for a corrected driver license is $11.</p>",
+        b"<p>The fee for a corrected driver license is $11.</p>\n"
+        b"<p>A court order is now required to change the name field.</p>",
+    )
+    expected_previous, _ = content_hash(fixture_loose_end_tag, "text/html")
+
+    report = watch([source], store, StubFetcher({source.url: (changed_body, "text/html")}))
+
+    assert report.renormalized == []
+    assert len(report.changed) == 1
+    change = report.changed[0]
+    assert "+a court order is now required to change the name field." in change.diff_excerpt
+    assert "__csrf__" not in change.diff_excerpt  # the v1 artifact is on neither side
+    # The hash actually compared, not the one on the row — `previous_hash` and the diff have
+    # to describe the same comparison.
+    assert change.previous_hash == expected_previous
+    assert "baseline re-derived from its retained bytes" in change.diff_excerpt
+    assert _V1_CONTRACT in change.diff_excerpt
+
+
+def test_a_whole_corpus_crosses_the_transition_in_one_pass_without_a_wall_of_alarms(
+    source: Source,
+    arizona_source: Source,
+    federal_source: Source,
+    store: SnapshotStore,
+    fixture_loose_end_tag: bytes,
+    fixture_after: bytes,
+) -> None:
+    """The v1→v2 pass over an existing corpus, which is the common case right now. Two pages
+    are untouched and one really moved; the report says so in those terms rather than in
+    three identical-looking alarms a tired reviewer has to triage one at a time."""
+    sources = [source, arizona_source, federal_source]
+    for entry in sources:
+        record_v1_baseline(store, entry, fixture_loose_end_tag)
+
+    report = watch(
+        sources,
+        store,
+        StubFetcher(
+            {
+                source.url: (fixture_loose_end_tag, "text/html"),
+                arizona_source.url: (fixture_loose_end_tag, "text/html"),
+                federal_source.url: (fixture_after, "text/html"),
+            }
+        ),
+    )
+
+    assert [entry[0] for entry in report.renormalized] == [source.id, arizona_source.id]
+    assert [change.source_id for change in report.changed] == [federal_source.id]
+    assert "1 changed" in report.summary()
+    assert "2 unchanged after re-deriving the baseline" in report.summary()
+
+
+def test_a_baseline_that_cannot_be_re_derived_claims_no_drift_in_either_direction(
+    source: Source, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """A snapshot that claims normalized text but retains no bytes to re-normalize cannot be
+    restated under today's contract, and there is no honest hash to compare. Saying
+    'unchanged' would be a wrong no-change; saying 'changed' would be drift invented out of
+    a gap in our own evidence. It says neither, re-baselines, and names the contract."""
+    store.record_snapshot(
+        source_id=source.id,
+        url=source.url,
+        fetched_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+        http_status=200,
+        content_sha256="a" * 64,
+        raw_bytes=b"",
+        normalized_text="a passage we can no longer reproduce",
+        normalizer_version="passage-text-v1",
+        extractor_version="none-v1",
+    )
+
+    report = watch([source], store, StubFetcher({source.url: (fixture_before, "text/html")}))
+
+    assert report.changed == []
+    assert store.changes() == ()
+    assert report.unchanged == []
+    assert report.unrenormalizable == [(source.id, _V1_CONTRACT)]
+    assert "no drift claimed" in report.summary()
+    refreshed = store.latest_snapshot(source.id)
+    assert refreshed is not None
+    assert refreshed.normalizer_version == NORMALIZER_VERSION
+
+
+def test_the_re_derivation_note_survives_a_truncated_diff() -> None:
+    """The provenance of the left-hand side is not a detail that may be cut to fit a
+    character budget: a reviewer who only reads the top of a long diff still learns that the
+    baseline was re-derived."""
+    excerpt = diff_excerpt(
+        "\n".join(f"old passage {index}" for index in range(2000)),
+        "\n".join(f"new passage {index}" for index in range(2000)),
+        source_url="https://example.gov/x",
+        renormalized_from=_V1_CONTRACT,
+    )
+
+    assert excerpt.startswith("(baseline re-derived from its retained bytes")
+    assert "diff truncated at" in excerpt

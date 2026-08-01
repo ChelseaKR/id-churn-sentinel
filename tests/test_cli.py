@@ -19,6 +19,7 @@ from id_churn_sentinel.core.registry import Source, default_registry_path
 from id_churn_sentinel.core.store import SnapshotStore
 
 from .conftest import StubFetcher, eligible_source_entry
+from .test_detect import record_v1_baseline
 
 
 @pytest.fixture
@@ -597,3 +598,109 @@ def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
     assert "0/2 selected source(s) attempt-eligible" in output
     assert "fetch-policy-unreviewed: 2" in output
     assert "unverified: 2" in output
+
+
+def test_watch_explains_a_normalizer_bump_once_instead_of_alarming_per_source(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_loose_end_tag: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """What the operator actually sees on the v1→v2 transition: one grouped block naming the
+    contract transition, not one drift alarm per source. `1 changed` must not appear — the
+    pages did not move, the normalizer did."""
+    db = tmp_path / "s.db"
+    with SnapshotStore(db) as store:
+        record_v1_baseline(store, source, fixture_loose_end_tag)
+    stub = StubFetcher({source.url: (fixture_loose_end_tag, "text/html")})
+
+    assert main([*base_args(cli_registry, db), "watch", "--jurisdiction", "TX"], fetcher=stub) == 0
+
+    out = capsys.readouterr().out
+    assert "1 source(s) re-baselined onto a new normalizer, NOT drift" in out
+    assert "passage-text-v1/none-v1 → passage-text-v2/none-v1" in out
+    assert "cannot report drift here, and cannot hide it either" in out
+    assert "1 changed" not in out
+    assert "✎ drift:" not in out  # the marker a reviewer scans for; no alarm was raised
+
+
+def test_watch_says_so_when_a_baseline_cannot_be_re_derived(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The gap-in-our-evidence case, said out loud rather than resolved in either direction."""
+    db = tmp_path / "s.db"
+    with SnapshotStore(db) as store:
+        store.record_snapshot(
+            source_id=source.id,
+            url=source.url,
+            fetched_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+            http_status=200,
+            content_sha256="a" * 64,
+            raw_bytes=b"",
+            normalized_text="a passage we can no longer reproduce",
+            normalizer_version="passage-text-v1",
+            extractor_version="none-v1",
+        )
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    assert main([*base_args(cli_registry, db), "watch", "--jurisdiction", "TX"], fetcher=stub) == 0
+
+    out = capsys.readouterr().out
+    assert "NO drift claimed either way" in out
+    assert "passage-text-v1/none-v1" in out
+    assert "1 changed" not in out
+
+
+def test_baseline_check_flags_a_hash_recorded_by_a_different_normalizer(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The committed `sources/baseline-hashes.json` was written under `passage-text-v1`, so
+    this is what a clean checkout running v2 sees today. The MOVED line still appears — a
+    fresh clone must not be left mute — and it appears carrying the reason it might not mean
+    what it says, on the line itself and once in full at the end."""
+    committed = tmp_path / "baseline-hashes.json"
+    committed.write_text(
+        json.dumps(
+            {
+                "baseline_version": "1.0",
+                "baselines": {
+                    source.id: {
+                        "url": source.url,
+                        "sha256": "a" * 64,
+                        "observed_at": "2026-07-13T19:58:22+00:00",
+                        "normalizer_version": "passage-text-v1",
+                        "extractor_version": "none-v1",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(committed),
+        ],
+        fetcher=stub,
+    )
+
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert "MAY be an artifact" in out
+    assert "baseline normalizer: passage-text-v1/none-v1" in out
+    assert "may be a normalization artifact, not drift" in out
+    assert "sentinel watch && sentinel baseline write" in out

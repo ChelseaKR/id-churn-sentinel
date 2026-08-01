@@ -63,6 +63,7 @@ from id_churn_sentinel.core.coverage import (
 from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
 from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
+from id_churn_sentinel.core.normalize import CURRENT_CONTRACT
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
@@ -645,6 +646,15 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
         print(f"  ↻ re-baselined (registry URL changed, NOT drift): {source_id}")
         print(f"      was: {old_url}")
         print(f"      now: {new_url}")
+    _print_renormalized_sources(report.renormalized)
+    for source_id, recorded in report.unrenormalizable:
+        # We could not restate this baseline under today's normalizer and we retain no bytes
+        # to try again with. That is a gap in our evidence, not a finding about the page, and
+        # it is said as such: no drift is claimed in either direction.
+        print(
+            f"  ↻ re-baselined (baseline recorded under {recorded} and NOT re-derivable; "
+            f"NO drift claimed either way): {source_id}"
+        )
     escalated = {change.source_id for change in report.possibly_removed}
     for source_id, error in report.unreachable:
         # Reported, never counted as drift. This is the discipline inherited from
@@ -674,6 +684,31 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             f"Nothing reaches the feed until a named human reviews it."
         )
     return 0
+
+
+def _print_renormalized_sources(renormalized: list[tuple[str, str, str]]) -> None:
+    """One grouped line per contract transition — never one alarm per source.
+
+    This is the shape the whole design is for. The first pass of a new normalizer over an
+    existing corpus touches *every* source at once, and the operator reading it at 7am needs
+    one sentence explaining why, not N lines they have to individually decide are harmless.
+    Grouping by the transition itself is what makes it one sentence: the transition is the
+    event, and the source list is its extent.
+    """
+    if not renormalized:
+        return
+    by_transition: dict[tuple[str, str], list[str]] = {}
+    for source_id, was, now in renormalized:
+        by_transition.setdefault((was, now), []).append(source_id)
+    for (was, now), source_ids in sorted(by_transition.items()):
+        print(f"  ↻ {len(source_ids)} source(s) re-baselined onto a new normalizer, NOT drift:")
+        print(f"      {was} → {now}")
+        print("      each baseline was re-normalized from its retained bytes and compared")
+        print("      under the current normalizer; none of them changed. A version bump")
+        print("      cannot report drift here, and cannot hide it either.")
+        shown = ", ".join(sorted(source_ids)[:8])
+        rest = len(source_ids) - 8
+        print(f"      {shown}{f', … and {rest} more' if rest > 0 else ''}")
 
 
 def _print_ineligible_sources(decisions: tuple[SourceEligibility, ...]) -> None:
@@ -743,7 +778,15 @@ def _cmd_baseline_check(
     report = check_baselines(sources, active, baselines)
 
     for source_id, committed, current in report.moved:
-        print(f"  ✎ MOVED   {source_id:<28} {committed[:12]} → {current[:12]}", flush=True)
+        # The qualifier rides on the line itself, not only in a footer. A reviewer who scans
+        # the MOVED lines and stops there must not come away believing a page changed when
+        # what changed may be the normalizer the committed hash was taken with.
+        recorded = report.moved_across_contracts.get(source_id)
+        caveat = f"  (baseline normalizer: {recorded}; MAY be an artifact)" if recorded else ""
+        print(
+            f"  ✎ MOVED   {source_id:<28} {committed[:12]} → {current[:12]}{caveat}",
+            flush=True,
+        )
     for source_id in report.unbaselined:
         print(f"  ?  no committed baseline: {source_id}", flush=True)
     for source_id, error in report.unreachable:
@@ -763,6 +806,20 @@ def _cmd_baseline_check(
             "command cannot show you the passage that changed — the committed baseline holds\n"
             "the hash, not the text. Run `sentinel watch` (which retains the bytes) to get a\n"
             "reviewable diff, and a human decides what it means."
+        )
+    if report.moved_across_contracts:
+        # Said once, loudly, and only when it applies. This command holds hashes and no
+        # bytes, so unlike `sentinel watch` it cannot re-derive the old baseline and settle
+        # the question — the honest move is to hand the operator the ambiguity plus the one
+        # command that resolves it, not to pick an answer on their behalf.
+        print(
+            f"\n{len(report.moved_across_contracts)} of those MOVED hashes were recorded by a\n"
+            f"DIFFERENT normalizer than the {CURRENT_CONTRACT} this build runs. A hash is only\n"
+            "comparable against a hash from the same normalizer, and this file holds no bytes\n"
+            "to re-normalize — so those lines may be measuring our normalizer, not the page.\n"
+            "`sentinel watch` re-derives its baselines from retained bytes and IS able to tell\n"
+            "the difference; it is the authority here. Refresh this file with:\n"
+            "  sentinel watch && sentinel baseline write"
         )
     return 0  # never a gate — a state website being down is not a broken build
 

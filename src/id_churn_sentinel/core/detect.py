@@ -43,6 +43,39 @@ any success, and after `removal_threshold` runs escalates the source to a distin
 it N times running, hands over the literal error string, and names the three readings —
 removed, blocked, or down — without choosing between them. A 404 and a 403 and a fortnight
 of timeouts all arrive here, and telling them apart is a person's job.
+
+**And a second one, for the same reason: its absence was a safety gap.**
+A hash only means something *relative to the normalizer that produced it*. Two hashes
+computed under different `(normalizer_version, extractor_version)` contracts are not
+comparable, and subtracting one from the other answers a question nobody asked — it
+measures a change in *us*, not a change in the world. Until this was fixed the detector
+compared them anyway, so bumping a normalizer version turned every affected page into a
+change record whose diff was a re-normalization artifact, minted by the tool and handed to
+a reviewer as drift. `passage-text-v2` (2026-08-01) made that live: v1 baselines now sit in
+operators' stores alongside a v2 normalizer.
+
+The fix is neither of the two obvious ones. **Refusing** the comparison — the response to a
+corrected registry URL, below — would be wrong here, because it fails *unsafe*: it would
+blind every source with a v1 baseline for a full pass, and a wrong "no change" about a
+government page that may have been scrubbed is the exact failure `docs/RESPONSIBLE-TECH-AUDITS.md`
+§A is written about. **Labelling** the comparison would be wrong too: it emits one flagged
+record per affected source, and a caveat attached to a wall of alarms is a caveat that gets
+scrolled past.
+
+Neither is necessary, because unlike a corrected URL — where the old evidence is about a
+*different page* and is genuinely unrecoverable — a version bump leaves the evidence intact.
+The store retains the baseline's raw bytes. So the detector **re-derives the baseline under
+today's contract** before comparing: it re-normalizes the retained bytes with the current
+normalizer and compares that against the current fetch. Both sides of every comparison are
+then products of the same normalizer, which is the only condition under which a hash
+comparison means anything.
+
+That makes a version bump *structurally incapable* of manufacturing drift, and equally
+incapable of hiding it: a page that really did change during the same pass still produces a
+change record, and its diff is a like-for-like diff rather than a normalization artifact.
+The one case where re-derivation is impossible — retained bytes that cannot reproduce the
+recorded baseline — claims no drift, re-baselines, and is reported in its own bucket, because
+"we cannot make this comparison valid" must never be dressed up as "the page changed".
 """
 
 from __future__ import annotations
@@ -60,12 +93,14 @@ from id_churn_sentinel.core.eligibility import (
 )
 from id_churn_sentinel.core.fetch import Fetcher, FetchResult
 from id_churn_sentinel.core.normalize import (
+    CURRENT_CONTRACT,
     EXTRACTOR_VERSION,
     NORMALIZER_VERSION,
     ContentEvidence,
     content_evidence,
     content_hash,
     passages,
+    representation_contract,
 )
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
@@ -75,6 +110,7 @@ from id_churn_sentinel.core.store import (
     RUN_QUIET,
     AttemptEvidence,
     RunSourceInput,
+    Snapshot,
     SnapshotStore,
 )
 
@@ -122,12 +158,20 @@ class WatchReport:
 
     `unreachable` and `possibly_removed` are the one deliberate exception: a source that
     escalates appears in *both*, because it is still unreachable (that is the fact) and it
-    is now also an escalation (that is the consequence). `total` counts it once."""
+    is now also an escalation (that is the consequence). `total` counts it once.
+
+    `renormalized` and `unrenormalizable` are *not* drift buckets and are counted alongside
+    `unchanged`: a source whose baseline was recorded under an older representation contract
+    lands in one of them only when the re-derived comparison found no content change. A
+    source whose content really did change lands in `changed`, whatever contract its baseline
+    was recorded under."""
 
     changed: list[ChangeRecord] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
     new: list[str] = field(default_factory=list)
     rebaselined: list[tuple[str, str, str]] = field(default_factory=list)
+    renormalized: list[tuple[str, str, str]] = field(default_factory=list)
+    unrenormalizable: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
     possibly_removed: list[ChangeRecord] = field(default_factory=list)
     run_id: str = ""
@@ -142,6 +186,8 @@ class WatchReport:
             + len(self.unchanged)
             + len(self.new)
             + len(self.rebaselined)
+            + len(self.renormalized)
+            + len(self.unrenormalizable)
             + len(self.unreachable)
         )
 
@@ -156,10 +202,23 @@ class WatchReport:
             if self.rebaselined
             else ""
         )
+        renormalized = (
+            f", {len(self.renormalized)} unchanged after re-deriving the baseline under "
+            f"{CURRENT_CONTRACT} (normalizer version changed, not drift)"
+            if self.renormalized
+            else ""
+        )
+        unrenormalizable = (
+            f", {len(self.unrenormalizable)} re-baselined (baseline not re-derivable under "
+            f"{CURRENT_CONTRACT}, no drift claimed)"
+            if self.unrenormalizable
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.changed)} changed, "
             f"{len(self.unchanged)} unchanged, {len(self.new)} new baseline, "
-            f"{len(self.unreachable)} unreachable (not drift){rebaselined}{escalated}"
+            f"{len(self.unreachable)} unreachable (not drift)"
+            f"{rebaselined}{renormalized}{unrenormalizable}{escalated}"
         )
 
 
@@ -241,15 +300,28 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
     return report
 
 
-def diff_excerpt(previous_text: str, current_text: str, *, source_url: str) -> str:
+def diff_excerpt(
+    previous_text: str,
+    current_text: str,
+    *,
+    source_url: str,
+    renormalized_from: str | None = None,
+) -> str:
     """A unified diff of the normalized passages, truncated to a reviewable size.
 
     Binary sources (PDFs) normalize to empty text and cannot be diffed. Rather than emit a
     misleading empty diff, say so plainly — the reviewer needs to know that the honest next
     step is to open both documents themselves.
+
+    `renormalized_from` names the contract the baseline was *recorded* under when it had to
+    be re-derived from retained bytes to be comparable. It is stated to the reviewer rather
+    than assumed harmless: the passages below are content drift precisely because both sides
+    came out of the same normalizer, and a reviewer is entitled to know that the left-hand
+    side is a re-derivation rather than the text as stored.
     """
+    note = _renormalization_note(renormalized_from)
     if not previous_text and not current_text:
-        return (
+        return note + (
             "(no text diff available — this source is a binary document, e.g. a PDF; its "
             f"bytes changed. Open {source_url} and compare against the retained snapshot.)"
         )
@@ -267,7 +339,7 @@ def diff_excerpt(previous_text: str, current_text: str, *, source_url: str) -> s
         # Reachable when the hash changed but normalized text did not — i.e. a binary
         # source, or a change confined to bytes the normalizer strips. Both mean: a human
         # has to look at the artifact, not at our summary of it.
-        return (
+        return note + (
             "(the content hash changed but the normalized text did not differ — the change "
             f"is in markup or in non-text bytes. Open {source_url} to inspect.)"
         )
@@ -277,7 +349,59 @@ def diff_excerpt(previous_text: str, current_text: str, *, source_url: str) -> s
             + f"\n… (diff truncated at {MAX_DIFF_EXCERPT_CHARS} chars; "
             + "run `sentinel diff <change-id>` for the full text)"
         )
-    return text
+    # Prepended *after* truncation, deliberately: the provenance of the left-hand side is
+    # not a detail that may be cut to fit a character budget.
+    return note + text
+
+
+def _renormalization_note(renormalized_from: str | None) -> str:
+    if renormalized_from is None:
+        return ""
+    return (
+        f"(baseline re-derived from its retained bytes: it was recorded under "
+        f"{renormalized_from} and has been re-normalized under {CURRENT_CONTRACT} so that "
+        f"both sides of this diff come from the same normalizer. The passages below are "
+        f"therefore content drift, not a normalization artifact.)\n\n"
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _ComparableBaseline:
+    """A baseline restated under today's representation contract, ready to compare.
+
+    `renormalized_from` is `None` when nothing had to be restated — the overwhelmingly
+    common case, and the one that must stay byte-identical to the old behaviour.
+    """
+
+    content_sha256: str
+    normalized_text: str
+    renormalized_from: str | None
+
+
+def _comparable_baseline(
+    previous: Snapshot, content_type: str | None
+) -> _ComparableBaseline | None:
+    """Restate a stored baseline under the current contract, or return `None` if it cannot be.
+
+    The re-derivation deliberately routes the retained bytes through the *current* fetch's
+    `Content-Type`, not a remembered one, because the comparison being set up is "what would
+    the baseline bytes hash to if we saw them today, exactly as we are treating today's
+    bytes". Routing both sides identically is the whole property. A source that switched from
+    HTML to PDF therefore re-derives as bytes on both sides and reports honest drift, rather
+    than diffing extracted text against opaque bytes.
+
+    `None` means the recorded baseline cannot be reproduced: the snapshot claims normalized
+    text but retains no bytes to re-normalize. There is no correct hash to compare in that
+    case, and inventing one would be exactly the fabricated-evidence failure the store's
+    triggers exist to prevent.
+    """
+    recorded = representation_contract(previous.normalizer_version, previous.extractor_version)
+    if recorded == CURRENT_CONTRACT:
+        return _ComparableBaseline(previous.content_sha256, previous.normalized_text, None)
+    if not previous.raw_bytes and previous.normalized_text:
+        return None
+    evidence = content_evidence(previous.raw_bytes, content_type)
+    return _ComparableBaseline(evidence.detection_sha256, evidence.normalized_text, recorded)
 
 
 def _watch_authorized_sources(
@@ -356,42 +480,111 @@ def _watch_authorized_sources(
             extractor_version=EXTRACTOR_VERSION,
         )
 
-        if previous is None:
-            report.new.append(source.id)
-            continue
-
-        if previous.url != source.url:
-            # The registry now points this source id at a DIFFERENT page than the one the
-            # baseline was taken from — a maintainer corrected a URL, or swapped a landing
-            # page for a deep link. Diffing page A against page B is not drift detection;
-            # it is two unrelated documents subtracted from each other, and the change
-            # record it produces would say "this source changed" when what actually changed
-            # is *which page we watch*. That record is unreviewable (its diff is noise) and
-            # it is a lie about the world.
-            #
-            # A first observation of a watch target is a baseline, and a new URL is a new
-            # watch target. So: re-baseline, report it loudly, claim no drift.
-            report.rebaselined.append((source.id, previous.url, source.url))
-            continue
-
-        if previous.content_sha256 == new_hash:
-            report.unchanged.append(source.id)
-            continue
-
-        change = ChangeRecord.observed(
-            source_id=source.id,
-            jurisdiction=source.jurisdiction,
-            document_class=source.document_class,
-            url=source.url,
-            previous_hash=previous.content_sha256,
+        _compare_against_baseline(
+            source,
+            store,
+            report,
+            previous,
             new_hash=new_hash,
-            diff_excerpt=diff_excerpt(previous.normalized_text, normalized, source_url=source.url),
+            normalized=normalized,
+            content_type=result.content_type,
             observed_at=result.fetched_at,
+            run_id=run_id,
         )
-        store.record_change(change, run_id=run_id)
-        report.changed.append(change)
 
     return report
+
+
+def _compare_against_baseline(
+    source: Source,
+    store: SnapshotStore,
+    report: WatchReport,
+    previous: Snapshot | None,
+    *,
+    new_hash: str,
+    normalized: str,
+    content_type: str | None,
+    observed_at: datetime,
+    run_id: str | None,
+) -> None:
+    """One successful fetch against its baseline: the only place drift is ever concluded.
+
+    Every early return here is a refusal to conclude drift, and each one is a different
+    reason the comparison in front of us would not mean what a change record claims it
+    means. The sibling of :func:`_handle_failure`, which refuses for the one remaining
+    reason (there were no bytes at all).
+    """
+    if previous is None:
+        report.new.append(source.id)
+        return
+
+    if previous.url != source.url:
+        # The registry now points this source id at a DIFFERENT page than the one the
+        # baseline was taken from — a maintainer corrected a URL, or swapped a landing
+        # page for a deep link. Diffing page A against page B is not drift detection;
+        # it is two unrelated documents subtracted from each other, and the change
+        # record it produces would say "this source changed" when what actually changed
+        # is *which page we watch*. That record is unreviewable (its diff is noise) and
+        # it is a lie about the world.
+        #
+        # A first observation of a watch target is a baseline, and a new URL is a new
+        # watch target. So: re-baseline, report it loudly, claim no drift.
+        report.rebaselined.append((source.id, previous.url, source.url))
+        return
+
+    # The baseline may have been recorded under a normalizer this build no longer runs.
+    # A hash means nothing except relative to the normalizer that produced it, so restate
+    # the baseline under today's contract BEFORE comparing. Unlike a corrected URL, the
+    # old evidence here is recoverable — the store retains the bytes — so the answer is
+    # to make the comparison valid rather than to refuse it or to caveat it.
+    baseline = _comparable_baseline(previous, content_type)
+
+    if baseline is None:
+        # The one unrecoverable case. We cannot say the page is unchanged (we have no
+        # comparable baseline) and we must not say it changed (we have no comparable
+        # baseline). So we say exactly that, re-baseline on today's fetch — which the
+        # caller already recorded — and claim nothing about drift.
+        report.unrenormalizable.append(
+            (
+                source.id,
+                representation_contract(previous.normalizer_version, previous.extractor_version),
+            )
+        )
+        return
+
+    if baseline.content_sha256 == new_hash:
+        if baseline.renormalized_from is None:
+            report.unchanged.append(source.id)
+        else:
+            # A version bump and nothing else. Reported in its own bucket rather than
+            # silently folded into `unchanged`, because "your normalizer changed and this
+            # page did not" is a fact the operator wants stated once — and because the
+            # baseline row now carries a different contract from the one it was compared
+            # under, which is provenance, not noise.
+            report.renormalized.append((source.id, baseline.renormalized_from, CURRENT_CONTRACT))
+        return
+
+    change = ChangeRecord.observed(
+        source_id=source.id,
+        jurisdiction=source.jurisdiction,
+        document_class=source.document_class,
+        url=source.url,
+        # The re-derived hash, not the stored one — `previous_hash` and `diff_excerpt`
+        # have to describe the same comparison. normalize.py's invariant is that the hash
+        # and the diff can never disagree about what the content was, and recording a hash
+        # computed under a contract the diff did not use would break it.
+        previous_hash=baseline.content_sha256,
+        new_hash=new_hash,
+        diff_excerpt=diff_excerpt(
+            baseline.normalized_text,
+            normalized,
+            source_url=source.url,
+            renormalized_from=baseline.renormalized_from,
+        ),
+        observed_at=observed_at,
+    )
+    store.record_change(change, run_id=run_id)
+    report.changed.append(change)
 
 
 def watch_registry(

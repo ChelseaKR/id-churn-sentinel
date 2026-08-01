@@ -647,6 +647,11 @@ END;
         # the v1 rows stay valid statements about how v1 hashes were computed. An operator's
         # existing database keeps every v1 snapshot exactly as recorded; only new snapshots
         # are written under v2.
+        #
+        # Retaining the old rows is what makes the transition safe rather than merely
+        # documented: because a v1 snapshot keeps its `raw_bytes` alongside its label, the
+        # detector can re-derive that baseline under v2 and compare like for like, instead of
+        # subtracting a v1 hash from a v2 one and calling the difference drift.
         """
 INSERT INTO representation_contracts (normalizer_version, extractor_version)
 VALUES ('passage-text-v2', 'none-v1');

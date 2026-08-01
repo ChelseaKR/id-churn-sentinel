@@ -101,10 +101,17 @@ def test_database_rejects_a_new_snapshot_without_explicit_versions(store: Snapsh
 def test_current_representation_contract_is_registered_and_unknown_ones_fail(
     store: SnapshotStore,
 ) -> None:
-    contracts = store._conn.execute(
-        "SELECT normalizer_version, extractor_version FROM representation_contracts"
-    ).fetchall()
-    assert [tuple(row) for row in contracts] == [(NORMALIZER_VERSION, EXTRACTOR_VERSION)]
+    contracts = {
+        tuple(row)
+        for row in store._conn.execute(
+            "SELECT normalizer_version, extractor_version FROM representation_contracts"
+        ).fetchall()
+    }
+    assert (NORMALIZER_VERSION, EXTRACTOR_VERSION) in contracts
+    # Every contract this project has ever shipped, and nothing invented. Superseded rows are
+    # kept rather than replaced — the table is append-only by trigger — because a retired
+    # contract stays a true statement about how the hashes recorded under it were computed.
+    assert contracts == {("passage-text-v1", "none-v1"), ("passage-text-v2", "none-v1")}
 
     with pytest.raises(sqlite3.IntegrityError, match="explicit representation versions"):
         store.record_snapshot(
@@ -1084,12 +1091,16 @@ def test_legacy_attempts_are_labelled_not_backfilled(
     with SnapshotStore(db) as old:
         run_id = _start_run(old)
         old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
-        # Terminalize the attempt the way the pre-migration code did: without evidence.
+        # Terminalize the attempt the way the pre-migration code did: without evidence, and
+        # under the representation contract that was current at the time. That is the literal
+        # `passage-text-v1`, not today's NORMALIZER_VERSION — the contract registering the
+        # current normalizer may postdate the migration prefix this test rolls back to, and
+        # an old row could not have been labelled with a version that did not yet exist.
         old._conn.execute(
             "UPDATE fetch_attempts SET ok = 1, completed_at = ?, http_status = 200, "
             "content_type = 'text/html', normalizer_version = ?, extractor_version = ? "
             "WHERE run_id = ? AND source_id = 'eligible'",
-            (NOW.isoformat(), NORMALIZER_VERSION, EXTRACTOR_VERSION, run_id),
+            (NOW.isoformat(), "passage-text-v1", EXTRACTOR_VERSION, run_id),
         )
     monkeypatch.undo()
 

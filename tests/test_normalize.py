@@ -49,6 +49,47 @@ def test_script_and_style_bodies_are_stripped() -> None:
     assert "text" in normalized
 
 
+def test_script_and_style_bodies_are_stripped_when_the_end_tag_is_loosely_spelled() -> None:
+    """`</script >` and even `</script foo="bar">` close a script in every browser. The
+    end-tag regex used to require `</script>` exactly, so the element never matched and its
+    *body* survived as page text — which is how a cache-busting build id or a CSRF token
+    inside minified JavaScript gets into the content hash and makes a page look like it
+    changes on every single fetch. This is the permanent-false-alarm failure the normalizer
+    exists to prevent, and it failed silently."""
+    normalized = normalize_html(
+        "<p>text</p><script>var token = 'SECRET';</script >"
+        "<script>var other = 'ATTRSECRET';</script data-x=\"1\">"
+        "<style>p{color:red}</style\t>"
+        "<style>p{content:'STYLESECRET'}</style\n>"
+    )
+
+    assert "secret" not in normalized
+    assert "attrsecret" not in normalized
+    assert "stylesecret" not in normalized
+    assert "color" not in normalized
+    assert normalized == "text"
+
+
+def test_a_lookalike_end_tag_does_not_close_a_script() -> None:
+    """Loosening the end tag must not loosen it into `</scriptfoo>`, which is a different tag
+    and does not close a script in any browser — the tokenizer leaves script-data state only
+    on `</script` followed by whitespace, `/`, or `>`. Matching it would end the element early
+    and leak the rest of the real script body into the hashed page text."""
+    normalized = normalize_html("<script>var x = 1;</scriptfoo>SECRET</script><p>REAL TEXT</p>")
+
+    assert "secret" not in normalized
+    assert "real text" in normalized
+
+
+def test_a_whitespace_end_tag_hashes_the_same_as_the_tight_spelling() -> None:
+    """The property that matters downstream: two pages whose only difference is how they
+    spell the closing tag are the same *content*, so they must produce the same hash."""
+    tight, _ = content_hash(b"<p>hello</p><script>var x = 1;</script>", "text/html")
+    spaced, _ = content_hash(b"<p>hello</p><script>var x = 1;</script >", "text/html")
+
+    assert tight == spaced
+
+
 def test_comments_are_stripped() -> None:
     assert "build" not in normalize_html("<!-- build 12345 --><p>hello</p>")
 

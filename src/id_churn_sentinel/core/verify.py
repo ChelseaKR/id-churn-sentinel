@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from id_churn_sentinel.core.fetch import Fetcher, FetchResult
 from id_churn_sentinel.core.normalize import content_hash, excerpt, page_title
@@ -313,6 +314,12 @@ def _move_to_gap(raw: dict[str, Any], entry: dict[str, Any], verification: Verif
             f"Reject it for repair instead (drop --gap), or fix its URL."
         )
 
+    host = urlsplit(str(entry["url"])).hostname
+    if host is None:
+        raise VerificationError(
+            f"refusing to move {entry['url']!r} to a gap because it has no parseable host"
+        )
+
     raw["sources"] = [s for s in raw.get("sources", []) if s is not entry]
     gaps = raw.setdefault("gaps", [])
     gaps.append(
@@ -320,7 +327,7 @@ def _move_to_gap(raw: dict[str, Any], entry: dict[str, Any], verification: Verif
             "jurisdiction": jurisdiction,
             "document_class": document_class,
             "reason": WRONG_PAGE,
-            "hosts": [str(entry["url"]).split("/")[2]],
+            "hosts": [host],
             "checked": verification.at,
             "detail": (
                 f"Rejected by {verification.verifier} on {verification.at} during human "

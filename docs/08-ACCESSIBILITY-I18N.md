@@ -1,5 +1,11 @@
 # Accessibility and internationalization plan
 
+**Owner:** Accessibility and language lead
+
+**Language target:** reviewed Spanish V1 metadata by 2026-11-13
+
+**Canonical declaration:** [`I18N.md`](./I18N.md)
+
 ## Standard and users
 
 V1 targets WCAG 2.2 AA for the public site and any browser-based review bundle. The CLI follows equivalent keyboard, text, error-identification, and non-color principles. Design for screen-reader users, low-vision users, cognitive and motor disabilities, low bandwidth, older hardware, and people working under stress.

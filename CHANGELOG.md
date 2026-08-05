@@ -9,6 +9,9 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
+  Spanish metadata scope, independent-review workflow, fail-closed English
+  fallback, and 2026-11-13 target without claiming translations already exist.
 - Cited change detection for US transgender identity-document law and process:
   polite weekly fetch of registry-declared government sources, normalized-text
   hashing with passage diffs for HTML/text, byte-change detection for binaries.

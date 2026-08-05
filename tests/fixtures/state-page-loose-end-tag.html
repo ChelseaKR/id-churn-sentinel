@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Same page as state-page-before.html, closing its <script> with the loose spelling
+  `</script >` that HTML permits and every browser honours. Under `passage-text-v1` the
+  strip regex required the tight `</script>`, so the element never matched and the minified
+  JavaScript below — build id, CSRF token, render timestamp, all of which re-roll on every
+  request — was hashed as page text. Under `passage-text-v2` it is stripped, which is why
+  the same bytes hash differently under the two contracts. This fixture exists so the v1→v2
+  transition can be tested against a page that really does normalize differently.
+-->
+<html lang="en">
+<head>
+  <title>Change Information on Your Driver License or ID Card | Texas DPS</title>
+  <script >window.__BUILD__="8f3a91c7";window.__CSRF__="d41d8cd98f00b204";window.__RENDERED_AT__="2026-07-13T19:58:22Z";</script >
+</head>
+<body>
+  <h1>Change Information on Your Driver License or ID Card</h1>
+  <p>To change the name on your driver license or ID card, you must apply in person at a driver license office.</p>
+  <p>Bring proof of identity and documentation supporting the change.</p>
+  <p>The fee for a corrected driver license is $11.</p>
+</body>
+</html>

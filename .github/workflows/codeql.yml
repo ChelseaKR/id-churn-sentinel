@@ -6,13 +6,9 @@
 # already runs ruff's bandit (S) rules locally on every gate pass; this adds a
 # second, deeper SAST engine whenever Actions does run.
 #
-# This repository does not currently have GitHub Code Security enabled, so the
-# code-scanning SARIF upload API is unavailable ("Resource not accessible by
-# integration"). The job therefore does not upload: it writes
-# SARIF locally and fails directly on any finding, which is the same gate with
-# the dashboard swapped for the job log. If code scanning is enabled, switch
-# `upload: never` back to the default and restore the
-# `security-events: write` permission to get the dashboard as well.
+# This repository is public, so the job uploads SARIF to the code-scanning
+# dashboard and also checks the same output in-run. A finding therefore fails
+# the gate even if branch protection is reconfigured later.
 name: codeql
 
 on:
@@ -40,19 +36,19 @@ jobs:
         language: [python, actions]
     permissions:
       contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: github/codeql-action/init@a2983b8bed1923f44751c5c43237f479442827b3 # v3.37.4
+      - uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/analyze@a2983b8bed1923f44751c5c43237f479442827b3 # v3.37.4
+      - uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           category: "/language:${{ matrix.language }}"
-          upload: never # Code Security is not enabled; the upload API 403s
           output: sarif-results
-      - name: Fail on findings when SARIF upload is unavailable
+      - name: Fail on findings
         run: |
           python3 - <<'EOF'
           import glob

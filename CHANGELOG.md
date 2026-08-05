@@ -39,14 +39,58 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   requests to the same host are held at least a minimum interval apart
   (default 2s), structurally, so no call path can burst a government server.
 
+### Fixed
+
+- Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
+  `</script foo="bar">` are all valid ways to close an element and every
+  browser honours them, but the strip regexes required the tight `</script>`
+  spelling. On a page using any other spelling the element never matched, so
+  its *body* — minified JavaScript full of cache-busting build ids, CSRF
+  tokens and timestamps that re-roll on every request — was hashed as page
+  text, making the page look like it changed on every fetch. That is the
+  permanent-false-alarm failure the normalizer exists to prevent, and it
+  failed silently. `page_title` had the same defect and returned an empty
+  title for `</title >`, losing the best signal a human has for telling a real
+  page from a bot-wall. Found by CodeQL (`py/bad-tag-filter`).
+- **Normalizer version bumped to `passage-text-v2`** as a consequence, with a
+  new append-only `representation_contracts` row (migration 6). Existing
+  snapshots keep their `passage-text-v1` label and stay exactly as recorded;
+  only new snapshots are written under v2.
+- **The detector no longer compares hashes across normalizer versions**
+  (2026-08-01). A hash means nothing except relative to the normalizer that
+  produced it, and `detect.py` compared them regardless — so any version bump
+  turned every affected page into a change record whose diff was a
+  re-normalization artifact the tool had manufactured about itself, handed to
+  a reviewer as drift. `passage-text-v2` made that live. The detector now
+  **re-derives the baseline under the current contract** from the snapshot's
+  retained bytes before comparing, so both sides of every comparison come out
+  of the same normalizer. A version bump therefore cannot report drift — and,
+  equally important, cannot hide it: a page that really changed during the
+  same pass still produces a change record, with a like-for-like diff and a
+  stated note that its baseline was re-derived. The first v2 pass over a v1
+  corpus reports one grouped `re-baselined onto a new normalizer, NOT drift`
+  block naming the transition, rather than one alarm per source. A baseline
+  that cannot be re-derived claims no drift in either direction and is
+  reported in its own bucket, because "we cannot make this comparison valid"
+  must never be dressed up as "the page changed".
+- **`sentinel baseline check` labels a cross-version comparison instead of
+  presenting it as drift** (2026-08-01). The committed
+  `sources/baseline-hashes.json` holds hashes and no bytes, so unlike
+  `sentinel watch` it structurally cannot re-derive an old baseline. Refusing
+  every pre-v2 hash would leave a clean checkout unable to say anything, which
+  is the hole that file exists to fill — so a MOVED hash recorded under a
+  different normalizer is still reported, and reported *as* a comparison that
+  may be measuring our normalizer rather than the page, on the affected
+  sources only. Baseline entries now record `normalizer_version` /
+  `extractor_version`; an entry written before that field loads as
+  `unrecorded` rather than being assumed to be v1.
+
 ### Removed
 
 - Internal planning notes not relevant to the public repository (2026-07-19).
 
 ### Changed
 
-- CodeQL comments now describe the actual Code Security capability boundary
-  instead of the repository's obsolete visibility.
 - **Relicensed from MIT to AGPL-3.0-or-later** (sole-author relicense): keeps
   derivatives and network deployments open; prior released snapshots remain MIT.
 - Monitoring readiness made explicit (2026-07-17): the public site and feeds

@@ -220,3 +220,10 @@ def confirmed_change(observed_change: ChangeRecord) -> ChangeRecord:
         qualification_ref="tests/evidence/synthetic-independent-qualification.json",
         conflict_attestation_ref="tests/evidence/synthetic-independent-conflict.json",
     )
+
+
+@pytest.fixture
+def fixture_loose_end_tag() -> bytes:
+    """A page closing its `<script>` with `</script >` — the spelling `passage-text-v1`
+    failed to strip, so the same bytes normalize differently under v1 and v2."""
+    return (FIXTURES / "state-page-loose-end-tag.html").read_bytes()

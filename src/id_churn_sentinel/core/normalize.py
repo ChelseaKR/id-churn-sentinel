@@ -29,11 +29,13 @@ import re
 from dataclasses import dataclass
 
 __all__ = [
+    "CURRENT_CONTRACT",
     "EXTRACTION_OUTCOMES",
     "EXTRACTION_OUTCOME_BINARY_OPAQUE",
     "EXTRACTION_OUTCOME_TEXT",
     "EXTRACTOR_VERSION",
     "NORMALIZER_VERSION",
+    "UNRECORDED_CONTRACT",
     "ContentEvidence",
     "ContentKind",
     "content_evidence",
@@ -44,17 +46,53 @@ __all__ = [
     "normalize_text",
     "page_title",
     "passages",
+    "representation_contract",
 ]
 
 # These values are persisted with every new snapshot. Changing normalization without
 # changing the version would make two identical-looking hashes mean different things, so
 # version bumps are part of the evidence contract rather than package-release bookkeeping.
-NORMALIZER_VERSION = "passage-text-v1"
+#
+# v2 (2026-08-01): script/style/title end tags now match the loose spellings HTML allows —
+# trailing whitespace and even attributes before the `>` (`</script >`, `</script foo="1">`).
+# A page using any of those had its element bodies hashed as page text under v1, so the same
+# bytes hash differently under v2. That is exactly the "two identical-looking hashes mean
+# different things" case this version string exists to prevent, hence the bump rather than a
+# silent fix. Operator note: the first v2 pass over a v1 corpus does NOT report drift. The
+# detector re-derives each v1 baseline from its retained bytes before comparing (see
+# `core/detect.py`), so both sides of every comparison come from this normalizer — a version
+# bump cannot manufacture a change record, and cannot suppress one either. `sentinel baseline
+# check`, which holds hashes and no bytes, cannot re-derive and instead labels the affected
+# comparisons; refresh it with `sentinel watch && sentinel baseline write`.
+NORMALIZER_VERSION = "passage-text-v2"
 
 # Binary extraction is intentionally not implemented in the alpha. Persisting that fact is
 # still provenance: a future PDF extractor must never make an old raw-byte hash look as if it
 # came from extracted text.
 EXTRACTOR_VERSION = "none-v1"
+
+
+def representation_contract(normalizer_version: str, extractor_version: str) -> str:
+    """The `(normalizer, extractor)` pair as one operator-readable token.
+
+    The pair travels together everywhere because it *is* one fact: what a stored hash was
+    computed over. The store's `representation_contracts` table keys on both columns, and a
+    change to either one changes the bytes hashed, so neither half means anything alone.
+    """
+    return f"{normalizer_version}/{extractor_version}"
+
+
+# What every hash this build computes is computed under, and the only contract it *can*
+# compute one under: exactly one normalizer exists in the tree at a time, by design. Old
+# normalizers are not kept around and re-runnable, which is why retained *bytes* — not an
+# old code path — are what make an old baseline recoverable.
+CURRENT_CONTRACT = representation_contract(NORMALIZER_VERSION, EXTRACTOR_VERSION)
+
+# A hash whose contract was never written down. Not the same as a known-old contract: with a
+# named contract we know the comparison is invalid, and with this one we only know we cannot
+# tell. Both are refusals to assume, and the second is the weaker claim, so it is named
+# separately rather than folded in.
+UNRECORDED_CONTRACT = "unrecorded"
 
 # Block-level elements whose boundaries are real passage boundaries in the rendered page.
 # Everything else (span, a, em, b, ...) is inline and collapses to a space, exactly as in
@@ -65,8 +103,18 @@ _BLOCK_TAGS = (
     "|td|tfoot|th|thead|tr|ul"
 )
 
-_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script>", re.IGNORECASE)
-_STYLE_RE = re.compile(r"<style[\s\S]*?</style>", re.IGNORECASE)
+# The `\b[^>]*` in each end tag is load-bearing, not defensive noise. HTML's end-tag grammar
+# allows trailing whitespace and even attributes before the `>` — `</script >`, `</style\n>`,
+# `</script foo="bar">` — and while attributes on an end tag are a parse error, every browser
+# still closes the element. Real pages ship all three spellings. Matching only the tight
+# `</script>` means the element never matches, so the *body* survives into the passage text,
+# and a page's minified JavaScript — cache-busting build ids, CSRF tokens, timestamps, all of
+# which re-roll on every request — lands in the content hash. That is precisely the
+# permanent-false-alarm failure this module exists to prevent, and it fails silently: the page
+# reads fine, the hash just never settles. `\b` keeps this honest in the other direction too —
+# it stops `</scriptfoo>`, a different tag entirely, from closing a `<script>`.
+_SCRIPT_RE = re.compile(r"<script[\s\S]*?</script\b[^>]*>", re.IGNORECASE)
+_STYLE_RE = re.compile(r"<style[\s\S]*?</style\b[^>]*>", re.IGNORECASE)
 _COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
 _BLOCK_RE = re.compile(rf"</?(?:{_BLOCK_TAGS})\b[^>]*>", re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -136,7 +184,7 @@ def passages(normalized: str) -> list[str]:
     return [line for line in normalized.split("\n") if line]
 
 
-_TITLE_RE = re.compile(r"<title[^>]*>([\s\S]*?)</title>", re.IGNORECASE)
+_TITLE_RE = re.compile(r"<title[^>]*>([\s\S]*?)</title\b[^>]*>", re.IGNORECASE)
 
 
 def page_title(body: bytes) -> str:

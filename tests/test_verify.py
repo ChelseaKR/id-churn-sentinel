@@ -249,6 +249,24 @@ def test_rejecting_with_gap_moves_it_out_of_the_registry_and_names_the_hole(
     assert gap.hosts == ("www.kdhe.ks.gov",)
 
 
+def test_rejecting_with_gap_records_only_the_parsed_hostname(registry_file: Path) -> None:
+    raw = json.loads(registry_file.read_text())
+    raw["sources"][0]["url"] = "https://www.kdhe.ks.gov:8443/official/page"
+    registry_file.write_text(json.dumps(raw), encoding="utf-8")
+
+    reject(
+        registry_file,
+        "ks-kdhe-vital-statistics",
+        verifier="Chelsea Kelly-Reif",
+        reason="Kansas publishes no statewide page for this.",
+        at="2026-07-14",
+        to_gap=True,
+    )
+
+    gap = next(g for g in load_registry(registry_file).gaps if g.jurisdiction == "KS")
+    assert gap.hosts == ("www.kdhe.ks.gov",)
+
+
 def test_a_gap_is_refused_when_the_pair_is_still_watched(registry_file: Path) -> None:
     """A gap that claims we are blind to something we can see is a FALSE CONFESSION — and the
     completeness gate would (correctly) fail the build for it."""
@@ -336,6 +354,9 @@ def test_page_title_reads_the_page_rather_than_hoping(registry_file: Path) -> No
     # The trap this exists for: a status-code check blesses both of these.
     assert page_title(b"<title>404 Page Not Found</title>") == "404 Page Not Found"
     assert page_title(b"<title>Request Access</title>") == "Request Access"
+    # `</title >` is valid HTML. Failing to match it loses the single most useful string a
+    # human has for telling a real page from a bot-wall — silently, as an empty title.
+    assert page_title(b"<title>Request Access</title >") == "Request Access"
 
 
 def test_the_excerpt_is_bounded(registry_file: Path) -> None:

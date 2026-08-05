@@ -24,6 +24,17 @@ honest limit is stated in the file itself.
 
 **And it is not a claim about the law.** A baseline hash records what a URL served on a
 date. Nothing more.
+
+**One consequence of holding only hashes.** A hash means nothing except relative to the
+normalizer that produced it, and this file has no bytes to re-normalize — so when the
+normalizer version moves, `sentinel watch` can re-derive its baselines and this command
+structurally cannot. It therefore answers the same problem differently, and deliberately:
+it **labels** rather than refuses. Refusing every hash recorded under an older contract
+would leave a clean checkout unable to say anything at all, which is the exact hole this
+file exists to fill — so a MOVED hash across a contract boundary is still reported, and is
+reported *as* a comparison that may be measuring our normalizer rather than the page, on
+the specific sources it applies to and nowhere else. The remedy is one command
+(`sentinel watch && sentinel baseline write`), and the report names it.
 """
 
 from __future__ import annotations
@@ -35,13 +46,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from id_churn_sentinel.core.fetch import Fetcher
-from id_churn_sentinel.core.normalize import content_hash
+from id_churn_sentinel.core.normalize import (
+    CURRENT_CONTRACT,
+    UNRECORDED_CONTRACT,
+    content_hash,
+    representation_contract,
+)
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.errors import RegistryError
 
 __all__ = [
     "BASELINE_VERSION",
+    "BaselineEntry",
     "BaselineReport",
     "check_baselines",
     "default_baseline_path",
@@ -73,9 +90,30 @@ _README = [
     "A SOURCE WE CANNOT FETCH HAS NO BASELINE, and is listed under `unreachable` rather than",
     "given a fake one. A hash we did not observe is not a hash.",
     "",
+    "EVERY HASH CARRIES THE NORMALIZER THAT PRODUCED IT (`normalizer_version` /",
+    "`extractor_version`). A hash is only comparable against another hash from the same pair,",
+    "and this file holds no bytes to re-normalize — so `sentinel baseline check` reports a",
+    "cross-version comparison AS one, rather than presenting a normalization artifact as",
+    "drift. An entry with no versions recorded predates this field. Either way the fix is",
+    "the same: `sentinel watch && sentinel baseline write`.",
+    "",
     "REGENERATE: `sentinel watch && sentinel baseline write`. Never hand-edit a hash — a",
     "hand-edited baseline is a claim that a page said something it may never have said.",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineEntry:
+    """One committed hash, with the representation contract that produced it.
+
+    The contract is carried rather than assumed because assuming it is the bug: two hashes
+    from different normalizers are not comparable, and a file that records only the hash
+    makes that impossible to notice. `UNRECORDED_CONTRACT` is what an entry written before
+    this field existed loads as — an honest "we cannot tell", not a guess at v1.
+    """
+
+    sha256: str
+    contract: str = UNRECORDED_CONTRACT
 
 
 @dataclass(slots=True)
@@ -86,16 +124,27 @@ class BaselineReport:
     moved: list[tuple[str, str, str]] = field(default_factory=list)
     unbaselined: list[str] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
+    #: `source_id → the contract its committed hash was recorded under`, for the MOVED
+    #: sources only, and only where that contract is not the one this build computes under.
+    #: Never a bucket of its own: a MOVED hash is still reported, because refusing to report
+    #: it would blind the one command a clean checkout has. It is *qualified*, not withheld.
+    moved_across_contracts: dict[str, str] = field(default_factory=dict)
 
     @property
     def total(self) -> int:
         return len(self.matched) + len(self.moved) + len(self.unbaselined) + len(self.unreachable)
 
     def summary(self) -> str:
+        qualified = (
+            f", {len(self.moved_across_contracts)} of them compared against a hash from a "
+            f"different normalizer (may be a normalization artifact, not drift)"
+            if self.moved_across_contracts
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.matched)} match the committed baseline, "
-            f"{len(self.moved)} MOVED, {len(self.unbaselined)} have no committed baseline, "
-            f"{len(self.unreachable)} unreachable (not drift)"
+            f"{len(self.moved)} MOVED{qualified}, {len(self.unbaselined)} have no committed "
+            f"baseline, {len(self.unreachable)} unreachable (not drift)"
         )
 
 
@@ -129,6 +178,12 @@ def write_baselines(
             "url": snapshot.url,
             "sha256": snapshot.content_sha256,
             "observed_at": snapshot.fetched_at.isoformat(),
+            # Taken from the snapshot, never from this build's constants: the store may hold
+            # a baseline recorded under an older normalizer, and stamping today's version on
+            # yesterday's hash would fabricate exactly the provenance this field exists to
+            # make checkable.
+            "normalizer_version": snapshot.normalizer_version,
+            "extractor_version": snapshot.extractor_version,
         }
 
     payload = {
@@ -144,12 +199,17 @@ def write_baselines(
     return len(baselines)
 
 
-def load_baselines(path: Path | None = None) -> dict[str, str]:
-    """Load the committed baseline file as `{source_id: sha256}`.
+def load_baselines(path: Path | None = None) -> dict[str, BaselineEntry]:
+    """Load the committed baseline file as `{source_id: BaselineEntry}`.
 
     Validated on the way in, and loudly: a malformed baseline file is worse than none,
     because it would silently compare a live page against nonsense and report drift that
     never happened.
+
+    A missing `normalizer_version`/`extractor_version` is *not* an error and is *not*
+    back-filled with a guess. The committed file predates the field, and "we do not know
+    which normalizer produced this hash" is a true statement that the comparison downstream
+    can act on; "it was probably v1" is a convenient one that it cannot.
     """
     baseline_path = path or default_baseline_path()
     try:
@@ -168,18 +228,25 @@ def load_baselines(path: Path | None = None) -> dict[str, str]:
     if not isinstance(entries, dict):
         raise RegistryError("baseline file: `baselines` must be an object")
 
-    loaded: dict[str, str] = {}
+    loaded: dict[str, BaselineEntry] = {}
     for source_id, entry in entries.items():
         if not isinstance(entry, dict) or not isinstance(entry.get("sha256"), str):
             raise RegistryError(f"baseline file: {source_id!r} has no sha256")
-        loaded[source_id] = entry["sha256"]
+        normalizer = entry.get("normalizer_version")
+        extractor = entry.get("extractor_version")
+        contract = (
+            representation_contract(normalizer, extractor)
+            if isinstance(normalizer, str) and isinstance(extractor, str)
+            else UNRECORDED_CONTRACT
+        )
+        loaded[source_id] = BaselineEntry(sha256=entry["sha256"], contract=contract)
     return loaded
 
 
 def check_baselines(
     sources: Iterable[Source],
     fetcher: Fetcher,
-    baselines: dict[str, str],
+    baselines: dict[str, BaselineEntry],
 ) -> BaselineReport:
     """Fetch each source once and compare it against the committed baseline hash.
 
@@ -187,6 +254,14 @@ def check_baselines(
     is never drift** (an unreachable source is reported as unreachable and nothing is
     concluded from it), and **nothing is classified** (a moved hash is a fact about bytes,
     and what it means is a human's call).
+
+    And a third, added with the representation contract: **a hash is only comparable against
+    a hash from the same normalizer.** `watch()` resolves that by re-deriving the baseline
+    from retained bytes; this command has no bytes, so it resolves it by *saying so* — the
+    MOVED source is still reported, and named in `moved_across_contracts` as one whose
+    "movement" may be our normalizer rather than the page. Note what is not qualified: a
+    hash that *matches* across two contracts needs no caveat, because two normalizers
+    producing the same digest produced the same text.
 
     What this cannot do is show you the passage that changed — the previous text is not in
     the baseline file, only its hash. `sentinel watch` is the command that answers that, and
@@ -205,8 +280,11 @@ def check_baselines(
             continue
 
         current, _ = content_hash(result.body, result.content_type)
-        if current == committed:
+        if current == committed.sha256:
             report.matched.append(source.id)
-        else:
-            report.moved.append((source.id, committed, current))
+            continue
+
+        report.moved.append((source.id, committed.sha256, current))
+        if committed.contract != CURRENT_CONTRACT:
+            report.moved_across_contracts[source.id] = committed.contract
     return report

@@ -395,6 +395,113 @@ def test_review_rejects_confirming_without_classifying(
     assert "requires classifying it" in capsys.readouterr().err
 
 
+def test_review_list_prints_the_pending_queue_without_writing_anything(
+    drifted: tuple[list[str], str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The store-backed twin of `verify --list`: a reviewer who does not still have
+    `watch`'s output on screen can ask the local store what is still waiting on them, with
+    no fetch and no write."""
+    args, change_id = drifted
+    capsys.readouterr()
+
+    exit_code = main([*args, "review", "--list"])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert change_id in out
+    assert f"sentinel diff {change_id}" in out
+    assert "unreviewed — a human must review it" in out
+    assert "review --list: 1 change(s) pending human review" in out
+
+    # Listing is read-only: the change is exactly as unreviewed as it was before.
+    db = Path(args[args.index("--db") + 1])
+    with SnapshotStore(db) as store:
+        assert store.get_change(change_id).review_status is ReviewStatus.UNREVIEWED
+
+
+def test_review_list_filters_by_jurisdiction(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    fixture_after: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db = tmp_path / "s.db"
+    args = base_args(cli_registry, db)
+    california_url = "https://www.dmv.ca.gov/portal/x"  # cli_registry's ca-dmv entry
+    stub = StubFetcher(
+        {
+            source.url: (fixture_before, "text/html"),
+            california_url: (fixture_before, "text/html"),
+        }
+    )
+    main([*args, "watch"], fetcher=stub)
+    stub.set(source.url, fixture_after)
+    stub.set(california_url, fixture_after)
+    main([*args, "watch"], fetcher=stub)
+    capsys.readouterr()
+
+    exit_code = main([*args, "review", "--list", "--jurisdiction", "CA"])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "CA/drivers_license" in out
+    assert "TX/drivers_license" not in out
+    assert "review --list: 1 change(s) pending human review" in out
+
+
+def test_review_list_reports_a_possibly_removed_escalation_too(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`review --list` is the same read as `watch`'s live output, so an escalation a
+    reviewer missed when it first scrolled by is just as visible later."""
+    db = tmp_path / "s.db"
+    args = base_args(cli_registry, db)
+
+    main(
+        [*args, "watch", "--jurisdiction", "TX"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    for _ in range(3):
+        main(
+            [*args, "watch", "--jurisdiction", "TX", "--removal-threshold", "3"],
+            fetcher=StubFetcher({}),  # every fetch fails
+        )
+    capsys.readouterr()
+
+    exit_code = main([*args, "review", "--list"])
+    out = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "POSSIBLY REMOVED" in out
+    assert "NOT auto-classified" in out
+
+
+def test_review_with_missing_arguments_is_a_clear_error_not_a_crash(
+    drifted: tuple[list[str], str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No `--list`, and not enough to record a decision either — refused with a message
+    that names the way out, on both sides of the required set."""
+    args, change_id = drifted
+    capsys.readouterr()
+
+    assert main([*args, "review"]) == 1
+    assert "or `review --list`" in capsys.readouterr().err
+
+    exit_code = main([*args, "review", change_id, "--reviewer", "A Human"])
+    assert exit_code == 1
+    assert "or `review --list`" in capsys.readouterr().err
+
+    db = Path(args[args.index("--db") + 1])
+    with SnapshotStore(db) as store:
+        assert store.get_change(change_id).review_status is ReviewStatus.UNREVIEWED
+
+
 def test_publish_withholds_unreviewed_and_says_so(
     drifted: tuple[list[str], str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

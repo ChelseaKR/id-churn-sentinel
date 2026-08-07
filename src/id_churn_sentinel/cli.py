@@ -63,7 +63,15 @@ from id_churn_sentinel.core.coverage import (
 from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
 from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
-from id_churn_sentinel.core.normalize import CURRENT_CONTRACT
+from id_churn_sentinel.core.normalize import (
+    CURRENT_CONTRACT,
+    ContentKind,
+    kind_for_content_type,
+    normalize_html,
+    normalize_text,
+    page_title,
+    passages,
+)
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
@@ -502,7 +510,16 @@ def _cmd_verify_one(args: argparse.Namespace, path: Path) -> int:
 def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
     """Live-fetch every source and print its status. This is the tool a human uses to
     verify a seeded entry before flipping `verified: true`. It is NOT a merge gate: a state
-    website being down must never fail someone's build."""
+    website being down must never fail someone's build.
+
+    Reachability alone does not mean a page has anything to watch (issue #19): a JS shell, a
+    soft 404, and a bot-wall all answer `ok`. So a reachable text/HTML source also prints its
+    passage count and its own `<title>` — the two things CLAUDE.md's guardrail #7 already asks
+    a human to check by opening `sentinel sources check --twice` output and then reading the
+    page, made visible here without a second command or opening the URL by hand. Zero passages
+    is flagged inline; a title of "404 Page Not Found" or "Request Access" served with `ok` is
+    exactly the trap this line exists to surface.
+    """
     active = fetcher or HttpFetcher()
     failures = 0
     for source in registry.sources:
@@ -517,8 +534,25 @@ def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
         # `sentinel sources check | tee log` sees nothing at all until the run ends — and
         # sees *nothing* if they lose patience and Ctrl-C it.
         print(line, flush=True)
+        if result.ok and kind_for_content_type(result.content_type) != ContentKind.BINARY:
+            print(f"        {_text_check_line(result.body, result.content_type)}", flush=True)
     print(f"sources check: {len(registry) - failures}/{len(registry)} reachable")
     return 0  # never a gate — an outage is not a build failure
+
+
+def _text_check_line(body: bytes, content_type: str | None) -> str:
+    """The passage count and page title a human would otherwise have to open the URL to see."""
+    decoded = body.decode("utf-8", errors="replace")
+    normalized = (
+        normalize_html(decoded)
+        if kind_for_content_type(content_type) == ContentKind.HTML
+        else normalize_text(decoded)
+    )
+    count = len(passages(normalized))
+    title = page_title(body) or "(no <title>)"
+    if count == 0:
+        return f'⚠ 0 passages — "{title}" — JS shell, soft 404, or bot-wall are typical causes'
+    return f'{count} passage(s) — "{title}"'
 
 
 def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
@@ -655,6 +689,14 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             f"  ↻ re-baselined (baseline recorded under {recorded} and NOT re-derivable; "
             f"NO drift claimed either way): {source_id}"
         )
+    for source_id, url in report.no_text:
+        # Zero passages, this run — not baselined, not compared against last week, and NOT
+        # reported as unchanged. Printed every single run it recurs, on purpose: the bug this
+        # closes (#19) was exactly a source going quiet inside a permanently green "unchanged"
+        # bucket once its empty page first hashed the same as itself.
+        print(f"  ∅ NO EXTRACTABLE TEXT (not baselined, NO drift claimed either way): {source_id}")
+        print(f"      {url}")
+        print("      a human should open this page: JS shell, soft 404, or bot-wall are typical")
     escalated = {change.source_id for change in report.possibly_removed}
     for source_id, error in report.unreachable:
         # Reported, never counted as drift. This is the discipline inherited from

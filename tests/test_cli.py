@@ -119,6 +119,48 @@ def test_sources_check_reports_reachability_and_never_fails_the_build(
     assert "1/2 reachable" in out
 
 
+def test_sources_check_prints_the_passage_count_and_title_for_a_reachable_source(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The follow-on from issue #19: `ok` alone does not tell a maintainer whether a page has
+    anything to watch. A real fixture with real page text prints a nonzero passage count and
+    the page's own `<title>`, without a second command or opening the URL by hand."""
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    main([*base_args(cli_registry, tmp_path / "s.db"), "sources", "check"], fetcher=stub)
+
+    out = capsys.readouterr().out
+    assert "passage(s)" in out
+    assert "⚠" not in out
+
+
+def test_sources_check_flags_a_reachable_source_with_no_extractable_text(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The exact trap `docs/VERIFYING.md` warns a human about: a JS shell answers `ok` and
+    carries nothing to watch. Visible here without reading the page by hand."""
+    stub = StubFetcher(
+        {
+            source.url: (
+                b"<html><head><script>var a=1;</script></head><body></body></html>",
+                "text/html",
+            )
+        }
+    )
+
+    main([*base_args(cli_registry, tmp_path / "s.db"), "sources", "check"], fetcher=stub)
+
+    out = capsys.readouterr().out
+    assert "⚠ 0 passages" in out
+
+
 def test_sources_check_twice_names_the_false_drift_sources(
     cli_registry: Path,
     tmp_path: Path,

@@ -76,6 +76,22 @@ change record, and its diff is a like-for-like diff rather than a normalization 
 The one case where re-derivation is impossible — retained bytes that cannot reproduce the
 recorded baseline — claims no drift, re-baselines, and is reported in its own bucket, because
 "we cannot make this comparison valid" must never be dressed up as "the page changed".
+
+**And a third, for the same reason: its absence was a safety gap (issue #19).**
+`sha256("")` is a legitimate detection hash — it is what a JS shell, an empty 200, or a
+bot-wall serves once its markup and scripts are stripped, and two *different* sources with
+no page text share that one hash. Nothing before this discipline distinguished it from a real,
+stable measurement: a source that first serves no text is quietly baselined as `new`, and every
+week it keeps serving no text, the (identical) hash matches and it reports `unchanged` — the
+loudest possible silence, forever, about a page nobody has actually watched. `unchanged` and
+`new` both mean "we have a comparison and it means something"; neither is true of a page with
+no extractable text, and the discipline that protects a corrected URL and a version bump
+applies here too: refuse to conclude *anything* from that comparison, and say so every single
+time, not once. So a text/HTML fetch that normalizes to zero passages is checked and routed to
+its own bucket, `no_text`, before baselining or comparison — win, lose, or draw, that source's
+result this run is "we could not measure this," reported loudly, every run, for as long as it
+persists. (Binary content is exempt: an *opaque* zero-length normalized text is its documented,
+honest behaviour, not a symptom — see :func:`normalize.content_evidence`.)
 """
 
 from __future__ import annotations
@@ -97,8 +113,10 @@ from id_churn_sentinel.core.normalize import (
     EXTRACTOR_VERSION,
     NORMALIZER_VERSION,
     ContentEvidence,
+    ContentKind,
     content_evidence,
     content_hash,
+    kind_for_content_type,
     passages,
     representation_contract,
 )
@@ -164,7 +182,14 @@ class WatchReport:
     `unchanged`: a source whose baseline was recorded under an older representation contract
     lands in one of them only when the re-derived comparison found no content change. A
     source whose content really did change lands in `changed`, whatever contract its baseline
-    was recorded under."""
+    was recorded under.
+
+    `no_text` is the third non-drift bucket (issue #19): a successful text/HTML fetch whose
+    normalized text has zero passages. It preempts `new`/`unchanged`/`changed`/`renormalized`
+    entirely — there is no baseline, no comparison, and no drift claimed either way, for as
+    long as the condition holds. Unlike `unrenormalizable`, this is not a one-time transition;
+    a source that keeps serving no text lands here on *every* run, which is the point: the old
+    behaviour let identical "nothing" hash-match itself into a permanently silent `unchanged`."""
 
     changed: list[ChangeRecord] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
@@ -172,6 +197,7 @@ class WatchReport:
     rebaselined: list[tuple[str, str, str]] = field(default_factory=list)
     renormalized: list[tuple[str, str, str]] = field(default_factory=list)
     unrenormalizable: list[tuple[str, str]] = field(default_factory=list)
+    no_text: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
     possibly_removed: list[ChangeRecord] = field(default_factory=list)
     run_id: str = ""
@@ -188,6 +214,7 @@ class WatchReport:
             + len(self.rebaselined)
             + len(self.renormalized)
             + len(self.unrenormalizable)
+            + len(self.no_text)
             + len(self.unreachable)
         )
 
@@ -214,11 +241,17 @@ class WatchReport:
             if self.unrenormalizable
             else ""
         )
+        no_text = (
+            f", {len(self.no_text)} served NO extractable text (not baselined, no drift "
+            f"claimed — see below)"
+            if self.no_text
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.changed)} changed, "
             f"{len(self.unchanged)} unchanged, {len(self.new)} new baseline, "
             f"{len(self.unreachable)} unreachable (not drift)"
-            f"{rebaselined}{renormalized}{unrenormalizable}{escalated}"
+            f"{rebaselined}{renormalized}{unrenormalizable}{no_text}{escalated}"
         )
 
 
@@ -514,6 +547,14 @@ def _compare_against_baseline(
     means. The sibling of :func:`_handle_failure`, which refuses for the one remaining
     reason (there were no bytes at all).
     """
+    # Checked before anything else, and before `previous is None`: a page with no extractable
+    # text has nothing to baseline and nothing to compare, on the very first sighting or the
+    # hundredth. Binary content is excluded — its normalized text is empty by design (there is
+    # no extractor), and that is documented, honest behaviour, not this failure (issue #19).
+    if kind_for_content_type(content_type) != ContentKind.BINARY and not passages(normalized):
+        report.no_text.append((source.id, source.url))
+        return
+
     if previous is None:
         report.new.append(source.id)
         return
@@ -674,6 +715,16 @@ def watch_registry(
 
     observation_count = len(report.changed) + len(report.possibly_removed)
     state = RUN_PARTIAL if report.unreachable else RUN_COMPLETE if observation_count else RUN_QUIET
+    # KNOWN GAP (issue #19, not closed by this state computation): a run with report.no_text
+    # non-empty and everything else quiet still persists as RUN_QUIET, and status.json's
+    # "created no observations" message does not mention it. `no_text` is deliberately not
+    # routed through `store.record_change` here — doing so honestly would mean giving it a
+    # third `ChangeKind` (mirroring POSSIBLY_REMOVED's precedent) so it participates in
+    # `persisted_observations`, which touches the `changes` CHECK constraint, the review/feed
+    # gates, and every count that assumes those two kinds are exhaustive. That is a real,
+    # larger change and this fix does not attempt it. What IS fixed, unconditionally: no_text
+    # sources are never silently baselined or folded into `unchanged`, and `report.summary()` —
+    # what `sentinel watch` actually prints — names them loudly on every single run.
     store.finish_watch_run(
         run_id,
         state=state,

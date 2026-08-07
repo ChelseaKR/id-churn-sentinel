@@ -627,3 +627,106 @@ def test_the_re_derivation_note_survives_a_truncated_diff() -> None:
 
     assert excerpt.startswith("(baseline re-derived from its retained bytes")
     assert "diff truncated at" in excerpt
+
+
+# --- no extractable text is not a baseline, and never quietly "unchanged" (issue #19) --------
+#
+# The measured bug: a JS shell, an empty 200, and a bot-wall all normalize to zero passages,
+# `sha256("")` is a real, stable hash, and the old detector had no concept that a comparison
+# against "nothing" means nothing. A source that served no text was quietly baselined as `new`
+# and then reported `unchanged` forever after — the loudest possible silence about a page
+# nobody was actually watching.
+
+
+def test_a_first_sighting_with_no_text_is_not_baselined(store: SnapshotStore) -> None:
+    empty_source = Source(
+        id="tx-js-shell",
+        jurisdiction="TX",
+        document_class="drivers_license",
+        url="https://example.gov/js-shell",
+        authority="Texas Department of Public Safety",
+        verified=False,
+        notes="test fixture",
+    )
+    body = (
+        b'<html><head><script>var a = 1;</script></head><body><div id="root"></div></body></html>'
+    )
+
+    report = watch([empty_source], store, StubFetcher({empty_source.url: (body, "text/html")}))
+
+    assert report.no_text == [(empty_source.id, empty_source.url)]
+    assert report.new == []
+    assert report.unchanged == []
+    assert report.changed == []
+
+
+def test_no_text_recurs_every_run_instead_of_settling_into_unchanged(
+    source: Source, store: SnapshotStore
+) -> None:
+    """The heart of the bug. Two identical zero-passage fetches must not hash-match their way
+    into `unchanged` — that silence is exactly what let a scrubbed government page sit
+    unwatched for as long as it kept serving the same nothing."""
+    fetcher = StubFetcher({source.url: (b"<html><body></body></html>", "text/html")})
+
+    first = watch([source], store, fetcher)
+    second = watch([source], store, fetcher)
+
+    assert first.no_text == [(source.id, source.url)]
+    assert second.no_text == [(source.id, source.url)]
+    assert second.unchanged == []
+    assert second.new == []
+
+
+def test_a_transition_to_no_text_is_not_folded_into_a_change_record(
+    source: Source, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """A page that had real content and now has none is not silently diffed away as one
+    dismissible `changed` record either — it lands in the same loud, recurring bucket as a
+    page that never had text, so a reviewer cannot review it once and lose it."""
+    fetcher = StubFetcher({source.url: (fixture_before, "text/html")})
+    watch([source], store, fetcher)
+    fetcher.set(source.url, b"<html><body><script>x</script></body></html>")
+
+    report = watch([source], store, fetcher)
+
+    assert report.no_text == [(source.id, source.url)]
+    assert report.changed == []
+
+
+def test_two_different_no_text_sources_do_not_collide_into_one_bucket_entry(
+    source: Source, arizona_source: Source, store: SnapshotStore
+) -> None:
+    """Both normalize to the same sha256("") hash; the bucket must still name each source."""
+    fetcher = StubFetcher(
+        {
+            source.url: (b"<html><body></body></html>", "text/html"),
+            arizona_source.url: (b"<html><head><script>x</script></head></html>", "text/html"),
+        }
+    )
+
+    report = watch([source, arizona_source], store, fetcher)
+
+    assert {source_id for source_id, _ in report.no_text} == {source.id, arizona_source.id}
+
+
+def test_binary_content_with_no_normalized_text_is_not_flagged(
+    source: Source, store: SnapshotStore
+) -> None:
+    """Opaque bytes normalize to an empty string by design (`extractor_version = "none-v1"`,
+    no PDF extractor). That is documented, honest behaviour — content_hash covers the raw
+    bytes — and must not trip the same guard as a page that promised text and had none."""
+    report = watch(
+        [source],
+        store,
+        StubFetcher({source.url: (b"%PDF-1.4 not real pdf bytes", "application/pdf")}),
+    )
+
+    assert report.no_text == []
+    assert report.new == [source.id]
+
+
+def test_no_text_is_reported_loudly_in_the_summary(source: Source, store: SnapshotStore) -> None:
+    report = watch([source], store, StubFetcher({source.url: (b"<html></html>", "text/html")}))
+
+    assert "1 served NO extractable text" in report.summary()
+    assert "no drift claimed" in report.summary()

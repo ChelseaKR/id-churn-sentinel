@@ -41,6 +41,26 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **A source with no extractable text could be quietly baselined, then report
+  `unchanged` forever** (#19). `sha256("")` is a real, stable hash — it is
+  what a JS shell, an empty 200, and an HTTP-200 bot-wall all normalize to —
+  and the detector had no concept that a comparison against "nothing" means
+  nothing. Measured: an injected fetcher serving a script-only page baselined
+  as `new` on first sighting and reported `unchanged` on every run after,
+  identically to a genuinely stable page, with nothing in the run receipt or
+  `sentinel watch` output distinguishing the two. A text/HTML fetch that
+  normalizes to zero passages now lands in its own `no_text` bucket instead —
+  never baselined, never folded into `unchanged`, printed loudly by
+  `sentinel watch` on every run it recurs, for as long as it recurs. Binary
+  content (PDFs) is unaffected: an empty normalized text there is documented,
+  honest behaviour, not this failure. `sentinel sources check` also now
+  prints each reachable text/HTML source's passage count and `<title>`, so
+  the same trap is visible before a source is added, without a second
+  command or opening the URL by hand. Does not change the persisted run
+  `state`: a run containing only `no_text` sources and no real drift still
+  records as `quiet` at the database level — see the comment at the state
+  computation in `core/detect.py::watch_registry` for why, and what a full
+  fix would require.
 - Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
   `</script foo="bar">` are all valid ways to close an element and every
   browser honours them, but the strip regexes required the tight `</script>`

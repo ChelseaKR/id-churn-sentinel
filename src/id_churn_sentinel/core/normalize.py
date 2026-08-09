@@ -1,7 +1,7 @@
 """Content normalization and hashing — the layer that decides what counts as "changed".
 
-Ported from the prior art in `trans-docs-navigator/scripts/source-watch.ts`, which
-established the approach: government pages churn *markup* far more than they churn
+Adapted from an earlier content-hash watcher, which established the approach:
+government pages churn *markup* far more than they churn
 *text* (a rotating CSRF token, a "last reviewed" widget, a re-minified stylesheet),
 so hashing the raw bytes of an HTML page produces drift alerts that mean nothing.
 Strip script/style/comments/tags/entities, collapse whitespace, lowercase, then hash.

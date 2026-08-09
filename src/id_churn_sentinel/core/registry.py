@@ -14,8 +14,8 @@ Two structural rules keep it honest:
   silently-unwatched source.
 * **`verified` starts false, and only a human flips it.** Every seeded entry ships
   `verified: false`. The flag means "a named human loaded this URL and confirmed it is the
-  official page it claims to be" — no machine in this codebase decides it. This mirrors the
-  VERIFIERS discipline in trans-docs-navigator, where a record with a placeholder verifier
+  official page it claims to be" — no machine in this codebase decides it. This preserves
+  the seed-corpus verifier discipline, where a record with a placeholder verifier
   is treated as unverified content rather than quietly served as fact.
 
   **And a verification with no name on it is not a verification.** `verified: true` is only

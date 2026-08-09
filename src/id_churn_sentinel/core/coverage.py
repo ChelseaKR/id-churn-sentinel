@@ -11,9 +11,9 @@ project whose own front page went stale.
 
 So no number about coverage is written by hand. They are all derived from
 `sources/registry.json` by :func:`coverage`, and `sentinel coverage --check-docs` re-derives
-them and fails the build if any doc disagrees. This mirrors `gate-count` in the sibling repo
-trans-docs-navigator, which does the same thing for the gate count: *a self-description is a
-fact about the code, so compute it from the code.*
+them and fails the build if any doc disagrees. It applies the same derived-gate rule used by
+the earlier watcher: *a self-description is a fact about the code, so compute it from the
+code.*
 
 **And one invariant that is worth more than all the counting.** Every (state, core document
 class) pair is either a watched source or a *named gap*, and the gate proves it both ways:

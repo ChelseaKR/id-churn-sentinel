@@ -9,8 +9,8 @@ anything has moved**. It has to watch for a week before it can say anything at a
 
 That is a bad property for a repo whose whole claim is "we can tell you what went stale."
 
-So the hashes — and only the hashes — are committed, exactly as
-`trans-docs-navigator/corpus/source-hashes.json` commits them. A clean checkout can then
+So the hashes — and only the hashes — are committed, preserving the seed corpus baseline
+convention. A clean checkout can then
 run :func:`check_baselines`, fetch each source once, and answer "which of these pages is
 not what it was when this baseline was taken?" with no store, no history, and no week of
 waiting.
@@ -84,7 +84,7 @@ EMPTY_CONTENT_SHA256 = hashlib.sha256(b"").hexdigest()
 
 _README = [
     "COMMITTED BASELINE HASHES — the sha256 of the NORMALIZED TEXT each watched source",
-    "served, on the date given. Mirrors trans-docs-navigator/corpus/source-hashes.json.",
+    "served, on the date given. Preserves the seed corpus baseline convention.",
     "",
     "WHY THIS FILE EXISTS. The snapshot store (var/sentinel.db) is not committed — it holds",
     "megabytes of retained government HTML and grows every week. Without these hashes, a",

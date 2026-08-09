@@ -2,7 +2,7 @@
   "baseline_version": "1.0",
   "_README": [
     "COMMITTED BASELINE HASHES — the sha256 of the NORMALIZED TEXT each watched source",
-    "served, on the date given. Mirrors trans-docs-navigator/corpus/source-hashes.json.",
+    "served, on the date given. Preserves the seed corpus baseline convention.",
     "",
     "WHY THIS FILE EXISTS. The snapshot store (var/sentinel.db) is not committed — it holds",
     "megabytes of retained government HTML and grows every week. Without these hashes, a",

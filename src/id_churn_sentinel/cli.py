@@ -789,7 +789,7 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
     escalated = {change.source_id for change in report.possibly_removed}
     for source_id, error in report.unreachable:
         # Reported, never counted as drift. This is the discipline inherited from
-        # trans-docs-navigator's source-watch.ts, and it is the reason this tool can be
+        # an earlier content-hash watcher, and it is the reason this tool can be
         # trusted: an outage cannot manufacture a policy change.
         if source_id in escalated:
             continue  # printed below, louder

@@ -37,6 +37,25 @@ jobs:
         uses: trufflesecurity/trufflehog@00155c9dc586f34d189adc83d3ac2698c2ec551f # v3.95.8
         with:
           path: ./
+          # Pinning the action by SHA does NOT pin the scanner. The action's
+          # `version` input defaults to "latest" and it runs
+          # `ghcr.io/trufflesecurity/trufflehog:${VERSION}`, so every run here
+          # was pulling whatever was newest, regardless of the v3.95.8 pin
+          # above. That is how this workflow went red on 2026-08-09 with no
+          # change on our side: upstream shipped 3.96.0 and the next scheduled
+          # run picked it up.
+          version: "3.96.0"
           # The action passes --fail itself; repeating it in extra_args is a
           # startup error ("flag 'fail' cannot be repeated").
-          extra_args: --only-verified
+          #
+          # Lob is excluded because 3.96.0's Lob detector matches this repo's
+          # pytest function names. A Lob key is `test_` or `live_` followed by
+          # alphanumerics, which is also the shape of 362 test names here, and
+          # its verifier confirms them because it cannot tell a malformed key
+          # from an unauthorized one. Scanned with 3.95.8 the same history
+          # reports 0; with 3.96.0 it reports 5, and nothing in this repo
+          # changed between those runs. There is no Lob integration here.
+          # Scoped to the one detector rather than excluding tests/ by path,
+          # because fixtures are where a real credential is most likely to land
+          # by accident.
+          extra_args: --only-verified --exclude-detectors=Lob

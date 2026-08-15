@@ -591,6 +591,123 @@ def test_baseline_check_moved_count_is_zero_when_nothing_moved(
     assert "cannot show you the passage that changed" not in out_text
 
 
+def test_baseline_check_reports_an_unreadable_page_instead_of_a_match(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A page that turns into a JS shell must not be reported as matching anything, and the
+    workflow needs its own machine-readable count: a job branching only on the MOVED count
+    treats a blind page as a quiet one, which is how a scrubbed page stays unnoticed."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    blind = StubFetcher(
+        {source.url: (b"<html><head><script>x</script></head></html>", "text/html")}
+    )
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=blind,
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-no-text-count: 1" in out_text
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "0 match the committed baseline" in out_text
+    assert (
+        f"NO EXTRACTABLE TEXT (NOT compared, no drift claimed either way): {source.id}" in out_text
+    )
+    assert "says nothing about whether those pages changed" in out_text
+
+
+def test_baseline_check_emits_a_zero_no_text_count_when_every_page_was_readable(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The count line is unconditional. A missing line is not a zero, and the workflow is
+    entitled to tell those apart rather than defaulting the absence to 'nothing wrong'."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    main([*base_args(cli_registry, db), "watch"], fetcher=stub)
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert "baseline-check-no-text-count: 0" in out_text
+    assert "NO EXTRACTABLE TEXT" not in out_text
+
+
+def test_watch_names_an_unreadable_source_and_refuses_to_call_the_run_quiet(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """What an operator actually reads at 7am. Every other source in this run is readable and
+    unchanged, so the one blind page is the only thing standing between this run and QUIET —
+    and it must be enough. The bug was that page settling into a permanently green
+    `unchanged` bucket the moment its empty fetch hashed the same as itself."""
+    db = tmp_path / "s.db"
+    blind = StubFetcher(
+        {
+            source.url: (b"<html><body></body></html>", "text/html"),
+            "https://www.dmv.ca.gov/portal/x": (fixture_before, "text/html"),
+        }
+    )
+
+    assert main([*base_args(cli_registry, db), "watch"], fetcher=blind) == 0
+    first = capsys.readouterr().out
+    assert main([*base_args(cli_registry, db), "watch"], fetcher=blind) == 0
+    second = capsys.readouterr().out
+
+    assert "0 unreachable" in first  # nothing failed; the blind page is the only shortfall
+    for output in (first, second):
+        assert "QUIET" not in output
+        assert "PARTIAL" in output
+        assert "1 served NO extractable text" in output
+        assert (
+            f"NO EXTRACTABLE TEXT (not baselined, NO drift claimed either way): {source.id}"
+            in output
+        )
+    # The second run is the one the old code got wrong: identical nothing, hashed against
+    # itself, reported as an unremarkable unchanged source.
+    assert "1 unchanged" in second  # the California page, and only it
+    assert "2 unchanged" not in second
+
+
 def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
     cli_registry: Path,
     tmp_path: Path,

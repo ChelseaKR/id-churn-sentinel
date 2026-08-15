@@ -730,3 +730,117 @@ def test_no_text_is_reported_loudly_in_the_summary(source: Source, store: Snapsh
 
     assert "1 served NO extractable text" in report.summary()
     assert "no drift claimed" in report.summary()
+
+
+# --- and the same discipline in the STORE, not only in the report (issue #19) ----------------
+#
+# The bucket above was the first half of the fix and it was not the half that mattered. The
+# empty fetch was still written to the snapshot table before being routed, so `sha256("")`
+# became the source's latest snapshot — which is to say its baseline: the row
+# `sentinel baseline write` commits, and the row next week's fetch is compared against. These
+# tests assert the absence of that row, and the absence of everything it caused.
+
+
+def test_a_no_text_fetch_writes_no_snapshot_at_all(source: Source, store: SnapshotStore) -> None:
+    """A first sighting with no text leaves the store exactly as empty as it found it.
+
+    The sibling test `test_a_first_sighting_is_never_drift` asserts a snapshot IS written for a
+    real page; this one asserts the opposite for a page with nothing in it, because "not
+    reported as a baseline" and "not stored as one" are different claims and only the second
+    one survives contact with `baseline write`."""
+    body = (
+        b'<html><head><script>var a = 1;</script></head><body><div id="root"></div></body></html>'
+    )
+
+    report = watch([source], store, StubFetcher({source.url: (body, "text/html")}))
+
+    assert report.no_text == [(source.id, source.url)]
+    assert store.latest_snapshot(source.id) is None
+    assert store.snapshots(source.id) == ()
+
+
+def test_no_stored_snapshot_ever_holds_the_hash_of_nothing(
+    source: Source, arizona_source: Source, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """The property, stated over the whole store rather than one source.
+
+    `sha256("")` is what every blind page hashes to, so one such row is enough to make two
+    unrelated sources look identical to each other and stable over time. No run, on any mix of
+    sources, may leave one behind."""
+    empty_hash = hashlib.sha256(b"").hexdigest()
+    fetcher = StubFetcher(
+        {
+            source.url: (fixture_before, "text/html"),
+            arizona_source.url: (b"<html><body><script>x</script></body></html>", "text/html"),
+        }
+    )
+
+    watch([source, arizona_source], store, fetcher)
+    watch([source, arizona_source], store, fetcher)
+
+    stored = [
+        snapshot.content_sha256
+        for candidate in (source, arizona_source)
+        for snapshot in store.snapshots(candidate.id)
+    ]
+    assert stored, "the readable source must still be baselined"
+    assert empty_hash not in stored
+
+
+def test_a_page_that_goes_blank_does_not_overwrite_its_real_baseline(
+    source: Source, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """The destructive half of the bug. A page that had text and now serves none must not
+    replace the last thing we could actually read — that snapshot is the evidence a diff is
+    reproduced from, and five blind runs would otherwise evict it through retention."""
+    fetcher = StubFetcher({source.url: (fixture_before, "text/html")})
+    watch([source], store, fetcher)
+    baseline = store.latest_snapshot(source.id)
+    assert baseline is not None
+    fetcher.set(source.url, b"<html><body><script>x</script></body></html>")
+
+    for _ in range(6):  # more than DEFAULT_SNAPSHOT_RETENTION
+        watch([source], store, fetcher)
+
+    held = store.latest_snapshot(source.id)
+    assert held is not None
+    assert held.content_sha256 == baseline.content_sha256
+    assert held.normalized_text == baseline.normalized_text
+    assert held.raw_bytes == fixture_before
+
+
+def test_a_page_that_recovers_unchanged_text_is_not_reported_as_drift(
+    source: Source, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """The manufactured-drift half. Blind week, then the same page comes back exactly as it
+    was: the honest answer is `unchanged`. Comparing against the hash of nothing instead
+    reported a change record whose diff claimed the entire page had just been added — drift
+    minted by the tool out of its own blindness, handed to a reviewer as a finding."""
+    fetcher = StubFetcher({source.url: (fixture_before, "text/html")})
+    watch([source], store, fetcher)
+    fetcher.set(source.url, b"<html><body><script>x</script></body></html>")
+    watch([source], store, fetcher)
+    fetcher.set(source.url, fixture_before)
+
+    report = watch([source], store, fetcher)
+
+    assert report.changed == []
+    assert store.changes() == ()
+    assert report.unchanged == [source.id]
+
+
+def test_a_no_text_fetch_does_not_clear_the_failure_streak(
+    source: Source, store: SnapshotStore
+) -> None:
+    """`record_success` means "the source answered, so whatever was wrong is over". A bot-wall
+    has not answered in any sense this tool cares about, and exonerating it would hand a
+    permanently blind source a clean health record."""
+    watch([source], store, StubFetcher())  # an outage: streak 1
+    assert store.failure_streak(source.id) == 1
+
+    report = watch(
+        [source], store, StubFetcher({source.url: (b"<html><body></body></html>", "text/html")})
+    )
+
+    assert report.no_text == [(source.id, source.url)]
+    assert store.failure_streak(source.id) == 1

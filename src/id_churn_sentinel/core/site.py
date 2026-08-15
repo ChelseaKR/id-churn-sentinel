@@ -249,13 +249,25 @@ def _run_status_section(status: PublicRunStatus) -> str:
         completed = (
             attempted.completed_at.isoformat() if attempted.completed_at else "not completed"
         )
+        # A retrieval that returned no readable text is stated on this line, not left to be
+        # inferred from the gap between two counters (issue #19). "N successful retrievals"
+        # alone reads as "N pages watched", and for a JS shell or a bot-wall that is the one
+        # thing it does not mean.
+        unmeasured_text = (
+            f" <strong>{attempted.unmeasured_count} of those retrievals returned no "
+            f"extractable text and were not compared against a baseline</strong>, so this run "
+            f"is not evidence of no change for them; {attempted.observed_count} source(s) were "
+            f"actually compared."
+            if attempted.unmeasured_count
+            else ""
+        )
         attempted_text = (
             f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
             f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
             f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
-            f"{attempted.successful_count} successful retrievals."
+            f"{attempted.successful_count} successful retrievals.{unmeasured_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."
@@ -279,7 +291,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<p>{attempted_text}</p>",
             f"<p>{successful_text}</p>",
             '<p><a href="status.json">status.json</a> carries the exact eligible, attempted, '
-            "and successful source ID sets.</p>",
+            "successful, and unmeasured source ID sets.</p>",
             "</section>",
         ]
     )

@@ -112,11 +112,25 @@ jobs:
             echo "::error::baseline check emitted no 'baseline-check-moved-count:' line; cannot decide whether sources moved"
             exit 1
           fi
+          # Sources that answered with nothing readable (issue #19). Branched on for the same
+          # reason as the count above: a page that turns into a JS shell, an empty 200 or a
+          # bot-wall is NOT compared against the baseline at all, so it can never raise the
+          # MOVED count — a job watching only that number treats a blind page as a quiet one,
+          # which is precisely how a scrubbed page goes unnoticed. A missing marker is again a
+          # bug here rather than a state website being down, and again must be loud: defaulting
+          # the absence to zero is the reassuring answer, and the reassuring answer is the one
+          # that is wrong exactly when it matters.
+          no_text_count="$(sed -n 's/^baseline-check-no-text-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$no_text_count" =~ ^[0-9]+$ ]]; then
+            echo "::error::baseline check emitted no 'baseline-check-no-text-count:' line; cannot decide whether any source was unreadable"
+            exit 1
+          fi
           echo "moved-count=${moved_count}" >> "$GITHUB_OUTPUT"
-          if [[ "$moved_count" -gt 0 ]]; then
-            echo "moved=true" >> "$GITHUB_OUTPUT"
+          echo "no-text-count=${no_text_count}" >> "$GITHUB_OUTPUT"
+          if [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 ]]; then
+            echo "needs-review=true" >> "$GITHUB_OUTPUT"
           else
-            echo "moved=false" >> "$GITHUB_OUTPUT"
+            echo "needs-review=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload the report
@@ -130,20 +144,30 @@ jobs:
       # train the reviewer to close them unread — which is worse than no alert at all,
       # because it LOOKS like someone is watching.
       - name: Open or update the human-review queue
-        if: steps.check.outputs.moved == 'true'
+        if: steps.check.outputs.needs-review == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           MOVED_COUNT: ${{ steps.check.outputs.moved-count }}
+          NO_TEXT_COUNT: ${{ steps.check.outputs.no-text-count }}
         with:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('watch-report.txt', 'utf8');
             const movedCount = process.env.MOVED_COUNT;
+            const noTextCount = process.env.NO_TEXT_COUNT;
             const title = 'Review queue: watched sources moved';
             const body = [
-              '**A watched official source is no longer what the committed baseline says it was.**',
+              '**A watched official source is no longer what the committed baseline says it was,**',
+              '**or could not be read at all.**',
               '',
               `Sources moved this run: **${movedCount}**.`,
+              `Sources that answered with no extractable text: **${noTextCount}**.`,
+              '',
+              'An unreadable source was **not compared against anything** — a JS shell, an empty',
+              '200 and a bot-wall all normalize to the same nothing, so "it matches the baseline"',
+              'would be true of a page nobody can read. Those entries are not drift and not a',
+              'no-change result; they are pages a human has to open, and a source that keeps',
+              'landing there belongs in the GAPS block of `sources/registry.json` (`spa-no-text`).',
               '',
               'This is a machine observation about bytes at a URL. It is **not** a finding that',
               'the law changed, and nothing here is published to the feed. A named human must run',

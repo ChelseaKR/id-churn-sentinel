@@ -249,13 +249,29 @@ def _run_status_section(status: PublicRunStatus) -> str:
         completed = (
             attempted.completed_at.isoformat() if attempted.completed_at else "not completed"
         )
+        # A denominator of zero is not a score of zero and it is certainly not a clean sheet
+        # (issue #18). "attempted 0 of 0 eligible sources; 0 successful retrievals" is
+        # arithmetically true and reads as a run that had nothing to do and did it perfectly,
+        # when what it means is that the watcher was allowed to look at nothing. Completeness
+        # over an empty denominator is not a number, so it is not printed as one.
+        coverage_text = (
+            f"attempted {attempted.attempted_count} of {attempted.eligible_count} eligible "
+            f"sources; {attempted.successful_count} successful retrievals."
+            if attempted.eligible_count
+            else (
+                "<strong>no source was eligible to attempt, so this run measured nothing</strong> "
+                "— completeness is not measurable over an empty denominator, and this is not a "
+                "clean run. A source becomes eligible when a named human has verified it (with "
+                "evidence and a recheck date) <em>and</em> a named human has recorded a dated "
+                "robots/terms fetch-policy decision for it."
+            )
+        )
         attempted_text = (
             f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
-            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
-            f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
-            f"{attempted.successful_count} successful retrievals."
+            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; "
+            f"{coverage_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."
@@ -301,7 +317,14 @@ def _verification_notice(report: CoverageReport, eligibility: EligibilityReport)
     """
     verified = report.verified_total
     total = report.sources_total
-    if verified == total and total > 0:
+    if verified == total and total > 0 and not eligibility.eligible:
+        # The one combination that could publish a triumph over an empty pipe (issue #18):
+        # every source human-verified, and not one of them attempt-eligible, because a source
+        # also needs a dated fetch-policy decision before it is ever fetched. "All 152 sources
+        # are human-verified" is true and is the most reassuring sentence this page can lead
+        # with, and a reader who stops at the headline would take it for a working monitor.
+        headline = f"all {total} sources are human-verified, and none of them is being watched"
+    elif verified == total and total > 0:
         headline = f"All {total} sources are human-verified"
     elif verified == 0:
         # The sentence a reader must not be able to skim past, and it is the true one today.

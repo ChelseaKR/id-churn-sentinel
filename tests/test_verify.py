@@ -19,14 +19,24 @@ Offline, like everything else here: the fetcher and the prompt are both injected
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 from id_churn_sentinel.cli import main
+from id_churn_sentinel.core.eligibility import eligibility_report, evaluate_source
 from id_churn_sentinel.core.normalize import excerpt, page_title
 from id_churn_sentinel.core.registry import REJECTED, VERIFIED, load_registry
-from id_churn_sentinel.core.verify import Candidate, confirm, pending, reject, review_card
+from id_churn_sentinel.core.verify import (
+    Candidate,
+    confirm,
+    pending,
+    record_fetch_policy,
+    reject,
+    review_card,
+    run_verification,
+)
 from id_churn_sentinel.errors import RegistryError, VerificationError
 
 from .conftest import StubFetcher
@@ -97,7 +107,7 @@ def test_a_verification_without_a_name_is_refused(registry_file: Path) -> None:
     official page". With no name, that sentence has no subject — and it is worse than
     `false`, because it will be believed."""
     with pytest.raises(VerificationError, match="requires the name of the human"):
-        confirm(registry_file, "ks-kdhe-vital-statistics", verifier="   ")
+        confirm(registry_file, "ks-kdhe-vital-statistics", verifier="   ", evidence="var/e.json")
 
     assert load_registry(registry_file).verified_sources == ()
 
@@ -189,16 +199,25 @@ def test_the_boolean_and_the_block_may_never_disagree(registry_file: Path) -> No
 
 def test_confirming_records_the_name_and_the_date(registry_file: Path) -> None:
     recorded = confirm(
-        registry_file, "ks-kdhe-vital-statistics", verifier="Chelsea Kelly-Reif", at="2026-07-14"
+        registry_file,
+        "ks-kdhe-vital-statistics",
+        verifier="Chelsea Kelly-Reif",
+        at="2026-07-14",
+        evidence="var/evidence/verification/ks-kdhe-vital-statistics-2026-07-14.json",
     )
 
     assert recorded.status == VERIFIED
     entry = json.loads(registry_file.read_text())["sources"][0]
     assert entry["verified"] is True
+    # All four fields, because all four are what the eligibility predicate reads. The first
+    # three alone are what this writer used to produce, and a record carrying only those is one
+    # the predicate discards (issue #18).
     assert entry["verification"] == {
         "status": "verified",
         "verifier": "Chelsea Kelly-Reif",
         "at": "2026-07-14",
+        "evidence": "var/evidence/verification/ks-kdhe-vital-statistics-2026-07-14.json",
+        "expires_at": "2027-01-10",
     }
 
     reloaded = load_registry(registry_file)
@@ -289,7 +308,7 @@ def test_a_gap_is_refused_when_the_pair_is_still_watched(registry_file: Path) ->
 
 def test_an_unknown_source_id_is_an_error_not_a_silent_no_op(registry_file: Path) -> None:
     with pytest.raises(RegistryError, match="unknown source id"):
-        confirm(registry_file, "no-such-source", verifier="A Human")
+        confirm(registry_file, "no-such-source", verifier="A Human", evidence="var/e.json")
 
 
 # ---- the queue ------------------------------------------------------------------------------
@@ -307,7 +326,13 @@ def test_the_queue_can_be_prioritised_and_is_resumable(registry_file: Path) -> N
 
     # ...and a decided source leaves the queue, which is the whole of "resumable": the state
     # lives in the committed registry, not in a lockfile somebody has to remember to clean up.
-    confirm(registry_file, "us-passport-sex-markers", verifier="A Human", at="2026-07-14")
+    confirm(
+        registry_file,
+        "us-passport-sex-markers",
+        verifier="A Human",
+        at="2026-07-14",
+        evidence="var/evidence/verification/us-passport-sex-markers-2026-07-14.json",
+    )
     assert [s.id for s in pending(load_registry(registry_file))] == ["ks-kdhe-vital-statistics"]
 
 
@@ -497,7 +522,13 @@ def test_list_prints_the_queue_and_opens_no_sockets(
 def test_verify_reports_when_the_selection_is_already_done(
     registry_file: Path, fetcher_for: StubFetcher, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    confirm(registry_file, "us-passport-sex-markers", verifier="A Human", at="2026-07-14")
+    confirm(
+        registry_file,
+        "us-passport-sex-markers",
+        verifier="A Human",
+        at="2026-07-14",
+        evidence="var/evidence/verification/us-passport-sex-markers-2026-07-14.json",
+    )
 
     assert (
         main(
@@ -570,3 +601,340 @@ def test_the_committed_registry_is_still_entirely_unverified(
         "it, revert it."
     )
     assert len(registry.unverified) == 152
+
+
+# ---- working the queue has to move the attempt denominator (issue #18) ----------------------
+#
+# The measured bug: `verify.confirm()` wrote `status`, `verifier`, `at` and `note`, while
+# `core/eligibility.py` also requires an evidence reference and an in-date recheck expiry — and
+# nothing in `src/` could write a fetch-policy decision at all. A volunteer could therefore work
+# all 152 sources, watch the published site headline "All 152 sources are human-verified", and
+# leave the attempt denominator at zero with nothing telling them a second step existed.
+
+
+def test_a_confirmation_satisfies_the_verification_half_of_the_predicate(
+    registry_file: Path,
+) -> None:
+    """The precise regression. Before: the record this tool wrote was refused for two reasons
+    of its own making. What is left must be the fetch-policy decision — a different person's
+    judgment about somebody else's terms — and nothing else."""
+    confirm(
+        registry_file,
+        "ks-kdhe-vital-statistics",
+        verifier="A Named Human",
+        at="2026-08-15",
+        evidence="var/evidence/verification/ks-kdhe-vital-statistics-2026-08-15.json",
+    )
+
+    source = load_registry(registry_file).by_id("ks-kdhe-vital-statistics")
+    decision = evaluate_source(source, as_of=date(2026, 8, 15))
+
+    assert "verification-evidence-missing" not in decision.reasons
+    assert "verification-expiry-missing" not in decision.reasons
+    assert decision.reasons == ("fetch-policy-unreviewed",)
+
+
+def test_a_confirmation_without_evidence_is_refused_rather_than_silently_discarded(
+    registry_file: Path,
+) -> None:
+    """Refused loudly where it is written, because the alternative is not a weaker record — it
+    is a record the predicate throws away, which is indistinguishable to the volunteer from a
+    record that worked."""
+    with pytest.raises(VerificationError, match="requires an evidence reference"):
+        confirm(registry_file, "ks-kdhe-vital-statistics", verifier="A Named Human", evidence="  ")
+
+    assert load_registry(registry_file).verified_sources == ()
+
+
+def test_a_verification_can_go_stale(registry_file: Path) -> None:
+    """A verification with no expiry cannot be re-checked; it simply stands. The recorded
+    expiry is what stops one afternoon's work becoming a permanent claim."""
+    confirm(
+        registry_file,
+        "ks-kdhe-vital-statistics",
+        verifier="A Named Human",
+        at="2026-08-15",
+        evidence="var/evidence/verification/ks-2026-08-15.json",
+    )
+    source = load_registry(registry_file).by_id("ks-kdhe-vital-statistics")
+
+    assert source.verification.expires_at == "2027-02-11"
+    fresh = evaluate_source(source, as_of=date(2027, 2, 10))
+    stale = evaluate_source(source, as_of=date(2027, 2, 12))
+
+    assert "verification-recheck-due" not in fresh.reasons
+    assert "verification-recheck-due" in stale.reasons
+
+
+def test_the_session_writes_a_receipt_of_what_the_human_was_shown(
+    registry_file: Path, fetcher_for: StubFetcher, tmp_path: Path
+) -> None:
+    """The evidence a verification cites is a record of the page as it was at the moment of the
+    decision — not a path a volunteer was asked to invent."""
+    evidence_dir = tmp_path / "evidence"
+    outcome = run_verification(
+        load_registry(registry_file),
+        registry_file,
+        fetcher_for,
+        Answers("y", "q"),
+        lambda _line: None,
+        verifier="A Named Human",
+        federal_first=True,
+        evidence_dir=evidence_dir,
+        as_of=date(2026, 8, 15),
+    )
+
+    assert outcome.confirmed == 1
+    source = load_registry(registry_file).by_id("us-passport-sex-markers")
+    receipt_path = Path(source.verification.evidence)
+    assert receipt_path.exists(), "a verification cited evidence that does not exist"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["source_id"] == "us-passport-sex-markers"
+    assert receipt["url"] == source.url
+    assert receipt["page_title"] == page_title(PAGE)
+    assert receipt["verifier"] == "A Named Human"
+    assert receipt["fetch_ok"] is True
+    assert receipt["content_sha256"]
+    assert "order a certified copy" in receipt["normalized_text_excerpt"]
+
+
+def test_a_receipt_for_an_unfetchable_source_claims_no_page_evidence(
+    registry_file: Path, tmp_path: Path
+) -> None:
+    """`ssa.gov` 403s every client this project owns and its URL is still correct. The receipt
+    has to say the evidence is the human's rather than ours — an empty title and text under a
+    confident statement would read as a page we saw and found blank."""
+    evidence_dir = tmp_path / "evidence"
+    run_verification(
+        load_registry(registry_file),
+        registry_file,
+        StubFetcher(),  # every fetch fails
+        Answers("y", "q"),
+        lambda _line: None,
+        verifier="A Named Human",
+        federal_first=True,
+        evidence_dir=evidence_dir,
+        as_of=date(2026, 8, 15),
+    )
+
+    source = load_registry(registry_file).by_id("us-passport-sex-markers")
+    receipt = json.loads(Path(source.verification.evidence).read_text(encoding="utf-8"))
+
+    assert receipt["fetch_ok"] is False
+    assert receipt["page_title"] == ""
+    assert receipt["normalized_text_excerpt"] == ""
+    assert receipt["content_sha256"] == ""
+    assert receipt["fetch_error"]
+    assert "from outside this tool" in receipt["statement"]
+
+
+def test_the_session_reports_that_verification_alone_watches_nothing(
+    registry_file: Path, fetcher_for: StubFetcher, tmp_path: Path
+) -> None:
+    """The sentence the volunteer never got. Finishing the queue and being told '2 confirmed,
+    0 still unverified' is a report about effort; the number they came for is how many sources
+    the watcher will now attempt."""
+    outcome = run_verification(
+        load_registry(registry_file),
+        registry_file,
+        fetcher_for,
+        Answers("y", "y"),
+        lambda _line: None,
+        verifier="A Named Human",
+        evidence_dir=tmp_path / "evidence",
+        as_of=date(2026, 8, 15),
+    )
+
+    assert outcome.confirmed == 2
+    assert outcome.remaining == 0
+    assert outcome.attempt_eligible == 0
+    assert outcome.blocked_reasons == (("fetch-policy-unreviewed", 2),)
+    summary = outcome.eligibility_summary()
+    assert "0 of 2 source(s) are attempt-eligible" in summary
+    assert "fetch-policy-unreviewed: 2" in summary
+    assert "sentinel sources policy" in summary
+
+
+def test_both_decisions_together_put_a_source_in_the_attempt_denominator(
+    registry_file: Path, fetcher_for: StubFetcher, tmp_path: Path
+) -> None:
+    """End to end, and the point of the issue: the queue is workable and the denominator moves
+    off zero. Asserted through the shared predicate the watcher itself uses, never through a
+    count of decisions recorded."""
+    run_verification(
+        load_registry(registry_file),
+        registry_file,
+        fetcher_for,
+        Answers("y", "y"),
+        lambda _line: None,
+        verifier="A Named Human",
+        evidence_dir=tmp_path / "evidence",
+        as_of=date(2026, 8, 15),
+    )
+    for source_id in ("ks-kdhe-vital-statistics", "us-passport-sex-markers"):
+        record_fetch_policy(
+            registry_file,
+            source_id,
+            outcome="allow",
+            reviewer="A Policy Reviewer",
+            reason="robots.txt allows this path; terms permit one weekly request",
+            evidence="var/evidence/fetch-policy/2026-08-15-robots.txt",
+            at="2026-08-15",
+        )
+
+    report = eligibility_report(load_registry(registry_file), as_of=date(2026, 8, 15))
+
+    assert len(report.eligible) == 2
+    assert sorted(report.attempt_source_ids) == [
+        "ks-kdhe-vital-statistics",
+        "us-passport-sex-markers",
+    ]
+    assert report.ineligible == ()
+
+
+def test_a_fetch_policy_decision_refuses_blanks_and_refuses_to_be_unreviewed(
+    registry_file: Path,
+) -> None:
+    """`unreviewed` is the absence of this decision, not one of its outcomes, and a reading
+    with no reader or no evidence behind it is an assumption wearing a date."""
+    with pytest.raises(VerificationError, match="outcome must be"):
+        record_fetch_policy(
+            registry_file,
+            "ks-kdhe-vital-statistics",
+            outcome="unreviewed",
+            reviewer="A Policy Reviewer",
+            reason="r",
+            evidence="e",
+        )
+    with pytest.raises(VerificationError, match="requires reviewer, reason, evidence"):
+        record_fetch_policy(
+            registry_file,
+            "ks-kdhe-vital-statistics",
+            outcome="allow",
+            reviewer="  ",
+            reason="  ",
+            evidence="  ",
+        )
+
+    reloaded = load_registry(registry_file).by_id("ks-kdhe-vital-statistics")
+    assert reloaded.fetch_policy.outcome == "unreviewed"
+
+
+def test_verify_list_says_what_the_registry_actually_watches(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--list` is the screen someone reads *before* deciding to spend an afternoon. A count of
+    pending items says how much work is left; it does not say whether the work already done
+    reached the thing it was for."""
+    assert main(["--registry", str(registry_file), "verify", "--list"], fetcher=StubFetcher()) == 0
+
+    out = capsys.readouterr().out
+    assert "verify --list: 2 source(s) pending human verification" in out
+    assert "attempt-eligible today: 0 of 2 registered source(s)" in out
+    assert "fetch-policy-unreviewed: 2" in out
+    assert "sentinel sources policy" in out
+
+
+def test_the_cli_confirm_path_writes_a_receipt_and_a_recheck_date(
+    registry_file: Path,
+    fetcher_for: StubFetcher,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The scriptable path is subject to the same rule as the interactive one, because the rule
+    is not about the interface: a confirmation with no evidence is one the predicate discards."""
+    exit_code = main(
+        [
+            "--registry",
+            str(registry_file),
+            "verify",
+            "--source-id",
+            "ks-kdhe-vital-statistics",
+            "--confirm",
+            "--verifier",
+            "A Named Human",
+            "--evidence-dir",
+            str(tmp_path / "evidence"),
+        ],
+        fetcher=fetcher_for,
+    )
+
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "evidence:" in out
+    assert "recheck due:" in out
+    source = load_registry(registry_file).by_id("ks-kdhe-vital-statistics")
+    assert Path(source.verification.evidence).exists()
+    assert source.verification.expires_at
+
+
+def test_the_policy_command_records_the_decision_and_says_what_is_still_missing(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A reviewer who records `allow` has done half of what a source needs. The command reports
+    the source's eligibility after the write rather than implying the decision was enough."""
+    policy_args = [
+        "--registry",
+        str(registry_file),
+        "sources",
+        "policy",
+        "--source-id",
+        "ks-kdhe-vital-statistics",
+        "--outcome",
+        "allow",
+        "--reviewer",
+        "A Policy Reviewer",
+        "--reason",
+        "robots.txt allows this path; terms permit one weekly request",
+        "--evidence",
+        "var/evidence/fetch-policy/2026-08-15-robots.txt",
+    ]
+
+    assert main(policy_args, fetcher=StubFetcher()) == 0
+
+    out = capsys.readouterr().out
+    assert "→ allow" in out
+    assert "re-read due:" in out
+    assert "NOT yet attempt-eligible" in out
+    assert "unverified" in out
+
+    main(
+        [
+            "--registry",
+            str(registry_file),
+            "verify",
+            "--source-id",
+            "ks-kdhe-vital-statistics",
+            "--confirm",
+            "--verifier",
+            "A Named Human",
+            "--evidence",
+            "var/evidence/verification/ks.json",
+        ],
+        fetcher=StubFetcher(),
+    )
+    capsys.readouterr()
+    assert main(policy_args, fetcher=StubFetcher()) == 0
+
+    assert "this source is now attempt-eligible" in capsys.readouterr().out
+
+
+def test_a_denied_fetch_policy_keeps_the_source_out_of_the_denominator(
+    registry_file: Path,
+) -> None:
+    """The writer records a refusal as readily as a permission, and a refusal is not a hole in
+    the record — it is the record."""
+    record_fetch_policy(
+        registry_file,
+        "ks-kdhe-vital-statistics",
+        outcome="deny",
+        reviewer="A Policy Reviewer",
+        reason="robots.txt disallows this path for our user-agent",
+        evidence="var/evidence/fetch-policy/2026-08-15-robots.txt",
+        at="2026-08-15",
+    )
+
+    source = load_registry(registry_file).by_id("ks-kdhe-vital-statistics")
+    assert source.fetch_policy.outcome == "deny"
+    assert source.fetch_policy.expires_at == "2027-02-11"
+    assert "fetch-policy-denied" in evaluate_source(source, as_of=date(2026, 8, 15)).reasons

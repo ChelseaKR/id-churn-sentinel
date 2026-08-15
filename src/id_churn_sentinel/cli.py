@@ -3,6 +3,7 @@
     sentinel sources validate                      the registry gate (merge-blocking)
     sentinel sources check                         live liveness check (network; NOT a gate)
     sentinel sources check --twice                 find false-drift sources (network; NOT a gate)
+    sentinel sources policy --source-id ...        a human's dated robots/terms fetch decision
     sentinel verify [--jurisdiction TX]            THE HUMAN VERIFICATION QUEUE (network)
     sentinel coverage                              the derived coverage numbers + the burn-down
     sentinel coverage --check-docs                 self-description drift gate (merge-blocking)
@@ -13,11 +14,12 @@
     sentinel review <change-id> --reviewer ...     the human gate on a CHANGE
     sentinel publish --out docs/                   the site, the feeds, the inventory
 
-Two different humans, two different commands, and they are not interchangeable. `review` is a
-judgment about a **change** ("this diff matters"). `verify` is a judgment about a **source**
-("this URL is the official page"). Both refuse to run without a name; neither can be done by a
-machine; and today 0 of 152 sources have had the second one done to them, which every
-published artifact says out loud.
+Three different humans, three different commands, and they are not interchangeable. `review` is
+a judgment about a **change** ("this diff matters"). `verify` is a judgment about a **source**
+("this URL is the official page"). `sources policy` is a judgment about a **host** ("their
+robots.txt and terms permit us to watch this"). All three refuse to run without a name; none
+can be done by a machine; and a source is fetched only when the last two have both been done to
+it — today 0 of 152 sources have had either, which every published artifact says out loud.
 
 The fetcher is a parameter of :func:`main`, not a global. `main()` with no fetcher and no
 `watch` subcommand opens no sockets, which is why every test in this repo runs offline: the
@@ -61,7 +63,12 @@ from id_churn_sentinel.core.coverage import (
     coverage,
 )
 from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
-from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
+from id_churn_sentinel.core.eligibility import (
+    SourceEligibility,
+    eligibility_report,
+    evaluate_source,
+    parse_as_of,
+)
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.normalize import (
     CURRENT_CONTRACT,
@@ -75,6 +82,8 @@ from id_churn_sentinel.core.normalize import (
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
+    FETCH_POLICY_ALLOW,
+    FETCH_POLICY_DENY,
     Registry,
     default_registry_path,
     load_registry,
@@ -82,7 +91,19 @@ from id_churn_sentinel.core.registry import (
 from id_churn_sentinel.core.site import REPO_URL
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
-from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
+from id_churn_sentinel.core.verify import (
+    DEFAULT_EVIDENCE_DIR,
+    FETCH_POLICY_RECHECK_DAYS,
+    VERIFICATION_RECHECK_DAYS,
+    Candidate,
+    confirm,
+    pending,
+    record_fetch_policy,
+    reject,
+    run_verification,
+    today,
+    write_verification_receipt,
+)
 from id_churn_sentinel.errors import SentinelError
 
 __all__ = ["build_parser", "main", "run"]
@@ -117,6 +138,52 @@ def build_parser() -> argparse.ArgumentParser:
         "--as-of",
         default=datetime.now(UTC).date().isoformat(),
         help="policy date in YYYY-MM-DD (default: today in UTC)",
+    )
+    # The second of the two decisions a source needs before it can be watched, and until now
+    # the one nothing in this codebase could write: a human's dated reading of a host's
+    # robots.txt and terms. Working the verification queue alone leaves every source
+    # `fetch-policy-unreviewed` and the attempt denominator at zero (issue #18).
+    policy_cmd = sources_sub.add_parser(
+        "policy",
+        help="record a NAMED human's dated robots/terms fetch-policy decision for one source",
+        description=(
+            "Record the fetch-policy decision the eligibility predicate requires. This tool "
+            "does not make the decision and cannot: whether a host's robots.txt and terms "
+            "permit a weekly watch is a reading of somebody else's document. It records who "
+            "read it, when, on what evidence, for what reason, and until when. Verification "
+            "and this decision are both required before a source is attempted."
+        ),
+    )
+    policy_cmd.add_argument("--source-id", required=True, help="the registry entry to decide")
+    policy_cmd.add_argument(
+        "--outcome",
+        required=True,
+        choices=[FETCH_POLICY_ALLOW, FETCH_POLICY_DENY],
+        help="allow: a person read the policy and we may watch it. deny: we may not.",
+    )
+    policy_cmd.add_argument(
+        "--reviewer", required=True, help="the name of the human who read the policy. Required."
+    )
+    policy_cmd.add_argument(
+        "--reason", required=True, help="why this outcome follows from what they read. Required."
+    )
+    policy_cmd.add_argument(
+        "--evidence",
+        required=True,
+        help=(
+            "a reference to what was read — a path to a saved robots.txt/terms receipt, or the "
+            "URL of the terms and the date they were retrieved. Required, and not written for "
+            "you: unlike a page excerpt, nothing in this tool has read these terms."
+        ),
+    )
+    policy_cmd.add_argument(
+        "--expires",
+        default="",
+        help=(
+            f"YYYY-MM-DD this decision falls due for re-reading (default: "
+            f"{FETCH_POLICY_RECHECK_DAYS} days out). A permission we have not re-read is not a "
+            "permission we hold."
+        ),
     )
     check_cmd = sources_sub.add_parser(
         "check", help="fetch every source and report status (network)"
@@ -195,6 +262,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="with --source-id: record that this is NOT the official page (needs --reason)",
     )
     verify_cmd.add_argument("--reason", default="", help="with --reject: why. Required.")
+    verify_cmd.add_argument(
+        "--evidence-dir",
+        type=Path,
+        default=DEFAULT_EVIDENCE_DIR,
+        help=(
+            "where confirmation receipts are written — the record of what you were shown, "
+            f"which the registry entry then cites (default {DEFAULT_EVIDENCE_DIR}). Under "
+            "var/ and therefore untracked: a receipt carries an excerpt of whatever the page "
+            "was serving, and raw evidence is never automatically public "
+            "(docs/05-DATA-AND-EVIDENCE.md)."
+        ),
+    )
+    verify_cmd.add_argument(
+        "--evidence",
+        default="",
+        help=(
+            "with --source-id --confirm: cite this reference instead of fetching the page and "
+            "writing a receipt. For a source you verified elsewhere; the tool never invents one."
+        ),
+    )
+    verify_cmd.add_argument(
+        "--expires",
+        default="",
+        help=(
+            f"with --confirm: YYYY-MM-DD this verification falls due for a recheck (default: "
+            f"{VERIFICATION_RECHECK_DAYS} days out). A verification that cannot go stale can "
+            "never be re-checked."
+        ),
+    )
     verify_cmd.add_argument(
         "--gap",
         action="store_true",
@@ -377,11 +473,54 @@ def _dispatch_change_command(args: argparse.Namespace) -> int:
 def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
     if args.sources_command == "eligibility":
         return _cmd_sources_eligibility(registry, args.as_of)
+    if args.sources_command == "policy":
+        return _cmd_sources_policy(args)
     if args.sources_command == "check":
         if args.twice:
             return _cmd_sources_stability(registry, fetcher)
         return _cmd_sources_check(registry, fetcher)
     return _cmd_sources_validate(registry, args.registry or default_registry_path())
+
+
+def _cmd_sources_policy(args: argparse.Namespace) -> int:
+    """Write one dated fetch-policy decision, and say what it did and did not unlock.
+
+    The closing line is the point. A reviewer who records `allow` has done half of what a
+    source needs, and the other half is a different person's job on a different day — so the
+    command reports the source's eligibility *after* the write rather than implying the
+    decision was sufficient (issue #18).
+    """
+    path = args.registry or default_registry_path()
+    decision = record_fetch_policy(
+        path,
+        args.source_id,
+        outcome=args.outcome,
+        reviewer=args.reviewer,
+        reason=args.reason,
+        evidence=args.evidence,
+        expires_at=args.expires,
+    )
+    print(f"sources policy: {args.source_id} → {decision.outcome}")
+    print(f"  reviewer:    {decision.reviewer} on {decision.at}")
+    print(f"  evidence:    {decision.evidence}")
+    print(f"  re-read due: {decision.expires_at}")
+    print(f"  written to {path}")
+
+    reloaded = load_registry(path)
+    source = next((entry for entry in reloaded.sources if entry.id == args.source_id), None)
+    if source is None:  # pragma: no cover - the writer above would have raised
+        return 0
+    decided = evaluate_source(source, as_of=datetime.now(UTC).date())
+    if decided.eligible:
+        print("  this source is now attempt-eligible: the watcher will attempt it.")
+    else:
+        print(
+            "  this source is NOT yet attempt-eligible. A fetch-policy decision is one of two "
+            "a source needs; still missing:"
+        )
+        for reason in decided.reasons:
+            print(f"    {reason}")
+    return 0
 
 
 def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
@@ -461,10 +600,13 @@ def _cmd_verify(
             print(f"  {source.jurisdiction:<3} {source.document_class:<24} {source.id}")
             print(f"      {source.url}")
         print(f"verify --list: {len(queue)} source(s) pending human verification")
+        # The queue's length is not the answer to "is this repo watching anything yet", and a
+        # volunteer deciding whether to spend an afternoon deserves the answer that is (#18).
+        _print_eligibility_after_verification(registry)
         return 0
 
     if args.source_id:
-        return _cmd_verify_one(args, path)
+        return _cmd_verify_one(args, path, fetcher)
 
     outcome = run_verification(
         registry,
@@ -477,17 +619,74 @@ def _cmd_verify(
         document_class=args.document_class,
         federal_first=args.federal_first,
         limit=args.limit,
+        evidence_dir=args.evidence_dir,
     )
     print(f"\nverify: {outcome.summary()}")
+    print(f"verify: {outcome.eligibility_summary()}")
     print("Everything decided is already written to the registry — re-run to continue.")
     return 0
 
 
-def _cmd_verify_one(args: argparse.Namespace, path: Path) -> int:
-    """The scriptable single-source path. Same rules: a name, or nothing is written."""
+def _print_eligibility_after_verification(registry: Registry) -> None:
+    """What the registry will actually watch, and what is stopping the rest.
+
+    Printed by `verify --list` because that is the screen someone reads *before* deciding to
+    work the queue. Ending a queue command on a count of pending items says how much work is
+    left; it does not say whether the work already done reached the thing it was for.
+    """
+    report = eligibility_report(registry, as_of=datetime.now(UTC).date())
+    print(
+        f"  attempt-eligible today: {len(report.eligible)} of {len(report.decisions)} "
+        f"registered source(s)"
+    )
+    if not report.ineligible:
+        return
+    print("  a source needs BOTH a human verification (with evidence and a recheck date) and a")
+    print("  dated robots/terms fetch-policy decision before it is ever attempted. Blocked by:")
+    for reason, count in report.reason_counts:
+        print(f"    {reason}: {count}")
+    print("  the second decision is `sentinel sources policy` — see docs/VERIFYING.md.")
+
+
+def _cmd_verify_one(args: argparse.Namespace, path: Path, fetcher: Fetcher | None) -> int:
+    """The scriptable single-source path. Same rules: a name, or nothing is written.
+
+    A confirmation here fetches the page too, for the same reason the interactive path does:
+    the evidence a verification cites is a receipt of what was actually on the page at the
+    moment of the decision, and a script that skipped it would write the one kind of
+    verification the predicate throws away (issue #18).
+    """
     if args.confirm:
-        recorded = confirm(path, args.source_id, verifier=args.verifier)
-    elif args.reject:
+        source = next(
+            (entry for entry in load_registry(path).sources if entry.id == args.source_id), None
+        )
+        if source is None:
+            print(f"error: unknown source id: {args.source_id!r}", file=sys.stderr)
+            return 1
+        evidence = args.evidence
+        if not evidence:
+            candidate = Candidate.of(source, (fetcher or HttpFetcher()).fetch(source.url))
+            evidence = str(
+                write_verification_receipt(
+                    candidate,
+                    verifier=args.verifier.strip(),
+                    at=today(),
+                    directory=args.evidence_dir,
+                )
+            )
+        recorded = confirm(
+            path,
+            args.source_id,
+            verifier=args.verifier,
+            evidence=evidence,
+            expires_at=args.expires,
+        )
+        print(f"verify: {args.source_id} → {recorded.label}")
+        print(f"  evidence:    {recorded.evidence}")
+        print(f"  recheck due: {recorded.expires_at}")
+        print(f"  written to {path}")
+        return 0
+    if args.reject:
         recorded = reject(
             path,
             args.source_id,

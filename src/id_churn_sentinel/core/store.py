@@ -55,6 +55,9 @@ from id_churn_sentinel.errors import StoreError
 
 __all__ = [
     "DEFAULT_SNAPSHOT_RETENTION",
+    "OBSERVATION_MEASURED",
+    "OBSERVATION_NOT_RETRIEVED",
+    "OBSERVATION_NO_TEXT",
     "RUN_COMPLETE",
     "RUN_FAILED",
     "RUN_PARTIAL",
@@ -657,7 +660,51 @@ INSERT INTO representation_contracts (normalizer_version, extractor_version)
 VALUES ('passage-text-v2', 'none-v1');
 """,
     ),
+    (
+        7,
+        "v1-record-whether-a-source-was-measured",
+        # Issue #19. `retrieval_success` answers "did bytes arrive?", and the run receipt had
+        # no way to answer the different question "did those bytes yield anything we could
+        # compare?". A page serving a JS shell, an empty 200 or a bot-wall answers yes to the
+        # first and no to the second, and with only the first recorded, a run in which nothing
+        # was actually observed was indistinguishable from a run in which everything was
+        # observed and nothing had changed — the latter being what `quiet` publishes.
+        #
+        # Four values, because absence, measurement, unmeasurability and failure are four
+        # different facts and collapsing any of them loses the distinction this column exists
+        # to make:
+        #   ''              the source was never attempted (ineligible, or the run died first)
+        #   'measured'      bytes arrived and produced text we could compare
+        #   'no-text'       bytes arrived and produced zero passages: nothing to compare
+        #   'not-retrieved' no bytes arrived
+        #   'legacy-unknown' attempted before this column existed; we cannot say which
+        #
+        # `unmeasured_count` on the run mirrors the exact 'no-text' set for the same reason the
+        # other three counters exist: a redundant counter that disagrees with its ID set is how
+        # a tampered or half-migrated store is caught before it can publish.
+        #
+        # The attempt row's own `extraction_outcome` deliberately still reads 'text-normalized'
+        # for these fetches. That is what the extractor did — it normalized the text, and there
+        # was none — and rewriting it to a fifth extraction outcome would restate an evidence
+        # field about the *body* to carry a judgment about the *observation*.
+        """
+ALTER TABLE run_sources
+    ADD COLUMN observation_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (observation_outcome IN
+               ('', 'measured', 'no-text', 'not-retrieved', 'legacy-unknown'));
+ALTER TABLE watch_runs
+    ADD COLUMN unmeasured_count INTEGER NOT NULL DEFAULT 0 CHECK (unmeasured_count >= 0);
+
+UPDATE run_sources SET observation_outcome = 'legacy-unknown' WHERE attempted = 1;
+""",
+    ),
 )
+
+# What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
+# migration 7 for why each value exists and why none of them may be folded into another.
+OBSERVATION_MEASURED = "measured"
+OBSERVATION_NO_TEXT = "no-text"
+OBSERVATION_NOT_RETRIEVED = "not-retrieved"
 
 _V1_REQUIRED_COLUMNS = {
     "watch_runs": frozenset(
@@ -674,6 +721,7 @@ _V1_REQUIRED_COLUMNS = {
             "attempted_count",
             "successful_count",
             "observation_count",
+            "unmeasured_count",
             "error",
         }
     ),
@@ -689,6 +737,7 @@ _V1_REQUIRED_COLUMNS = {
             "eligibility_reasons",
             "attempted",
             "retrieval_success",
+            "observation_outcome",
             "outcome",
             "error",
         }
@@ -850,6 +899,12 @@ class WatchRun:
     eligible_source_ids: tuple[str, ...]
     attempted_source_ids: tuple[str, ...]
     successful_source_ids: tuple[str, ...]
+    #: Attempted sources whose retrieval succeeded and produced nothing comparable — a
+    #: text/HTML body that normalized to zero passages (issue #19). A subset of
+    #: ``successful_source_ids``: the bytes did arrive. Kept as its own set rather than
+    #: subtracted out of the successful one, because "we fetched it" and "we observed it" are
+    #: separate facts and a reader is entitled to both.
+    unmeasured_source_ids: tuple[str, ...]
     observation_count: int
     error: str
 
@@ -864,6 +919,20 @@ class WatchRun:
     @property
     def successful_count(self) -> int:
         return len(self.successful_source_ids)
+
+    @property
+    def unmeasured_count(self) -> int:
+        return len(self.unmeasured_source_ids)
+
+    @property
+    def observed_count(self) -> int:
+        """Sources this run actually managed to compare against a baseline.
+
+        Not ``successful_count``: a fetch that returned no extractable text succeeded and
+        observed nothing. This is the numerator a reader means by "how many sources did the
+        watcher actually look at this week".
+        """
+        return len(set(self.successful_source_ids) - set(self.unmeasured_source_ids))
 
     @property
     def attempt_completeness(self) -> float | None:
@@ -1344,10 +1413,27 @@ class SnapshotStore:
         extractor_version: str,
         error: str,
         evidence: AttemptEvidence,
+        measured: bool = True,
         completed_at: datetime | None = None,
     ) -> None:
+        """Record one terminal attempt, its evidence, and whether it observed anything.
+
+        ``measured`` is the answer to a different question from ``ok``: ``ok`` says bytes
+        arrived, ``measured`` says those bytes yielded something comparable. It defaults to
+        ``True`` because that is what a successful retrieval means for every content kind
+        except the one issue #19 is about — a text/HTML body that normalizes to zero passages
+        — and a caller that fetched nothing comparable has to say so explicitly. It is ignored
+        for a failed attempt, which observed nothing by definition.
+        """
         stamp = _as_utc(completed_at or datetime.now(UTC)).isoformat()
         outcome = "success" if ok else "failure"
+        observation = (
+            OBSERVATION_NOT_RETRIEVED
+            if not ok
+            else OBSERVATION_MEASURED
+            if measured
+            else OBSERVATION_NO_TEXT
+        )
         chain = json.dumps(
             [{"status": hop.status, "url": hop.url} for hop in evidence.redirect_chain],
             separators=(",", ":"),
@@ -1393,9 +1479,10 @@ class SnapshotStore:
                     f"{run_id}/{source_id}"
                 )
             source_cursor = self._conn.execute(
-                "UPDATE run_sources SET retrieval_success = ?, outcome = ?, error = ? "
+                "UPDATE run_sources SET retrieval_success = ?, outcome = ?, "
+                "observation_outcome = ?, error = ? "
                 "WHERE run_id = ? AND source_id = ? AND attempted = 1",
-                (int(ok), outcome, error, run_id, source_id),
+                (int(ok), outcome, observation, error, run_id, source_id),
             )
             if source_cursor.rowcount != 1:
                 self._conn.rollback()
@@ -1433,8 +1520,10 @@ class SnapshotStore:
             counts = self._conn.execute(
                 "SELECT COUNT(*) AS attempted, "
                 "COALESCE(SUM(CASE WHEN retrieval_success = 1 THEN 1 ELSE 0 END), 0) "
-                "AS successful FROM run_sources WHERE run_id = ? AND attempted = 1",
-                (run_id,),
+                "AS successful, "
+                "COALESCE(SUM(CASE WHEN observation_outcome = ? THEN 1 ELSE 0 END), 0) "
+                "AS unmeasured FROM run_sources WHERE run_id = ? AND attempted = 1",
+                (OBSERVATION_NO_TEXT, run_id),
             ).fetchone()
             run = self._conn.execute(
                 "SELECT eligible_count, state FROM watch_runs WHERE run_id = ?", (run_id,)
@@ -1449,18 +1538,20 @@ class SnapshotStore:
             )
             attempted_count = int(counts["attempted"])
             successful_count = int(counts["successful"])
+            unmeasured_count = int(counts["unmeasured"])
             eligible_count = int(run["eligible_count"])
             _validate_terminal_evidence(
                 state=state,
                 eligible_count=eligible_count,
                 attempted_count=attempted_count,
                 successful_count=successful_count,
+                unmeasured_count=unmeasured_count,
                 persisted_observations=persisted_observations,
                 claimed_observations=observation_count,
             )
             cursor = self._conn.execute(
                 "UPDATE watch_runs SET completed_at = ?, state = ?, attempted_count = ?, "
-                "successful_count = ?, observation_count = ?, error = ? "
+                "successful_count = ?, observation_count = ?, unmeasured_count = ?, error = ? "
                 "WHERE run_id = ? AND state = 'running'",
                 (
                     _as_utc(completed_at or datetime.now(UTC)).isoformat(),
@@ -1468,6 +1559,7 @@ class SnapshotStore:
                     attempted_count,
                     successful_count,
                     persisted_observations,
+                    unmeasured_count,
                     error,
                     run_id,
                 ),
@@ -1519,14 +1611,19 @@ class SnapshotStore:
 
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
         source_rows = self._conn.execute(
-            "SELECT source_id, eligible, attempted, retrieval_success FROM run_sources "
-            "WHERE run_id = ? ORDER BY source_id",
+            "SELECT source_id, eligible, attempted, retrieval_success, observation_outcome "
+            "FROM run_sources WHERE run_id = ? ORDER BY source_id",
             (row["run_id"],),
         ).fetchall()
         eligible = tuple(str(source["source_id"]) for source in source_rows if source["eligible"])
         attempted = tuple(str(source["source_id"]) for source in source_rows if source["attempted"])
         successful = tuple(
             str(source["source_id"]) for source in source_rows if source["retrieval_success"] == 1
+        )
+        unmeasured = tuple(
+            str(source["source_id"])
+            for source in source_rows
+            if source["observation_outcome"] == OBSERVATION_NO_TEXT
         )
         persisted_observation_count = int(
             self._conn.execute(
@@ -1542,8 +1639,15 @@ class SnapshotStore:
             int(row["attempted_count"]),
             int(row["successful_count"]),
             int(row["observation_count"]),
+            int(row["unmeasured_count"]),
         )
-        actual = (len(eligible), len(attempted), len(successful), persisted_observation_count)
+        actual = (
+            len(eligible),
+            len(attempted),
+            len(successful),
+            persisted_observation_count,
+            len(unmeasured),
+        )
         if row["state"] != RUN_RUNNING and expected != actual:
             raise StoreError(
                 f"watch run {row['run_id']} count/set mismatch: stored={expected}, exact={actual}"
@@ -1560,6 +1664,7 @@ class SnapshotStore:
             eligible_source_ids=eligible,
             attempted_source_ids=attempted,
             successful_source_ids=successful,
+            unmeasured_source_ids=unmeasured,
             observation_count=int(row["observation_count"]),
             error=str(row["error"]),
         )
@@ -2030,27 +2135,40 @@ def _validate_terminal_evidence(
     eligible_count: int,
     attempted_count: int,
     successful_count: int,
+    unmeasured_count: int,
     persisted_observations: int,
     claimed_observations: int | None,
 ) -> None:
+    """Refuse to persist a terminal state the run's own receipt does not support.
+
+    ``unmeasured_count`` — sources whose retrieval succeeded and produced nothing comparable
+    (issue #19) — blocks ``quiet`` and ``complete`` for the same reason a failed retrieval
+    does. Both states publish sentences that begin "the latest watch completed for every
+    eligible source", and a source we fetched but could not read is not one we completed.
+    """
     if state != RUN_FAILED and (eligible_count == 0 or attempted_count != eligible_count):
         raise StoreError(
             f"cannot mark run {state}: attempted {attempted_count} of "
             f"{eligible_count} eligible sources"
         )
-    if state == RUN_QUIET and (persisted_observations != 0 or successful_count != eligible_count):
-        raise StoreError(
-            "quiet requires zero observations and successful retrieval of every eligible source"
-        )
-    if state == RUN_COMPLETE and (
-        persisted_observations == 0 or successful_count != eligible_count
+    if state == RUN_QUIET and (
+        persisted_observations != 0 or successful_count != eligible_count or unmeasured_count
     ):
         raise StoreError(
-            "complete requires at least one observation and successful retrieval of every "
-            "eligible source"
+            "quiet requires zero observations, successful retrieval of every eligible source, "
+            "and a comparable observation for each of them"
         )
-    if state == RUN_PARTIAL and successful_count >= eligible_count:
-        raise StoreError("partial requires at least one failed eligible-source retrieval")
+    if state == RUN_COMPLETE and (
+        persisted_observations == 0 or successful_count != eligible_count or unmeasured_count
+    ):
+        raise StoreError(
+            "complete requires at least one observation, successful retrieval of every "
+            "eligible source, and a comparable observation for each of them"
+        )
+    if state == RUN_PARTIAL and successful_count >= eligible_count and unmeasured_count == 0:
+        raise StoreError(
+            "partial requires at least one eligible source that was not retrieved or not measured"
+        )
     if claimed_observations is not None and claimed_observations != persisted_observations:
         raise StoreError(
             "watch-run observation count does not match persisted run observations: "

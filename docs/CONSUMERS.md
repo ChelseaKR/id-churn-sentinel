@@ -49,7 +49,7 @@ Everything below is published to a static URL and consumable with **no account, 
 | **The RSS feed** | `feed.xml` | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
 | **One feed per jurisdiction** | `changes-us-tx.json` · `feed-us-tx.xml` | An org that serves one state is not made to consume all 52. `us-tx` for Texas, `us-dc` for DC, plain `us` for the federal bucket (passport, SSA, Selective Service). |
 | **The inventory** | `sources.json` | Version 2 exposes every registered candidate, its dated `attempt_eligible` decision and reasons, fetch-policy outcome, and every named gap. Registration is not represented as monitoring. |
-| **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
+| **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful/**unmeasured** source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
 | **The schema** | `schema/changes-v2.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
 | **The health schema** | `schema/status-v1.schema.json` | Closed JSON Schema 2020-12 contract for `status.json`. |
 
@@ -279,6 +279,12 @@ The following is a complete schema-valid illustrative record. Its source is deli
 - **The feed will never require a credential.**
 - **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `status.json`, their versioned schemas, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
 - **Run health is a separate fact.** Read `status.json` before interpreting feed silence. Its `generated_at` never means a watch succeeded; use `state`, `last_attempted_run`, and `last_successful_run`. The contract is `schema/status-v1.schema.json`.
+- **A successful retrieval is not the same as an observation.** `unmeasured_source_ids` (schema 1.1) names every source whose fetch succeeded and produced no readable text — a client-rendered shell, an empty 200, a bot-wall. Those pages were **not compared against anything**, so for them the run is not evidence of no change, and a run holding one is `partial` rather than `quiet`. `observed_source_count` is the number actually compared. Do not compute a watched-page count from `successful_retrieval_count` alone:
+
+```sh
+# the sources this run could not read at all — for these, our silence means nothing
+curl -s $BASE/status.json | jq '.last_attempted_run.unmeasured_source_ids'
+```
 - **The two *base* URLs are both supported, and the raw one is not going away.** The raw base serves the committed bytes off the branch and needs nothing enabled; the Pages base serves the identical bytes. If a third host ever appears, the paths above will be identical there too — the base is the only thing you should ever have to change.
 - **A `feed_url` field appears in every document.** It is the project's canonical home, so an item that reaches someone out of context can be traced back. It is not a fetch endpoint — use the bases above.
 

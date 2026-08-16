@@ -19,7 +19,9 @@ import pytest
 
 from id_churn_sentinel.core.baseline import (
     BASELINE_VERSION,
+    EMPTY_CONTENT_SHA256,
     BaselineEntry,
+    BaselineWriteReport,
     check_baselines,
     default_baseline_path,
     load_baselines,
@@ -55,7 +57,7 @@ def test_write_then_load_round_trips_the_hash(
 
     written = write_baselines(store, registry, out, now=GENERATED)
 
-    assert written == 1
+    assert written == BaselineWriteReport(written=1, unreachable=0, unmeasurable=0)
     loaded = load_baselines(out)
     snapshot = store.latest_snapshot(source.id)
     assert snapshot is not None
@@ -76,9 +78,10 @@ def test_a_source_we_could_not_fetch_gets_no_hash(
 
     written = write_baselines(store, registry, out, now=GENERATED)
 
-    assert written == 0
+    assert written == BaselineWriteReport(written=0, unreachable=1, unmeasurable=0)
     payload = json.loads(out.read_text())
     assert payload["unreachable"] == [source.id]
+    assert payload["unmeasurable"] == []
     assert payload["baselines"] == {}
     assert load_baselines(out) == {}
 
@@ -170,6 +173,109 @@ def test_the_committed_baseline_matches_the_committed_registry() -> None:
     orphans = set(baselines) - known
     assert not orphans, f"baseline hashes for sources not in the registry: {sorted(orphans)}"
     assert all(len(entry.sha256) == 64 for entry in baselines.values())
+
+
+# -- a hash of nothing is not a baseline (issue #19) ---------------------------------
+#
+# `sha256("")` is what a JS shell, an empty 200 and a bot-wall all hash to. Committed to this
+# file it makes `baseline check` — the one command a clean checkout has — report a page nobody
+# can read as one that "matches the committed baseline", which is the single most reassuring
+# line this tool prints, about the one condition it must never print it for.
+
+
+def test_a_stored_snapshot_of_nothing_is_never_written_as_a_baseline(
+    tmp_path: Path, registry: Registry, source: Source, store: SnapshotStore
+) -> None:
+    """Defence in depth for stores written before the watcher stopped recording these.
+    The source is named under `unmeasurable` — not `unreachable`, which would send an
+    operator to look at a host that answered perfectly well."""
+    store.record_snapshot(
+        source_id=source.id,
+        url=source.url,
+        fetched_at=GENERATED,
+        http_status=200,
+        content_sha256=EMPTY_CONTENT_SHA256,
+        raw_bytes=b"<html><body><script>x</script></body></html>",
+        normalized_text="",
+        normalizer_version=CURRENT_CONTRACT.split("/")[0],
+        extractor_version=CURRENT_CONTRACT.split("/")[1],
+    )
+    out = tmp_path / "baseline-hashes.json"
+
+    written = write_baselines(store, registry, out, now=GENERATED)
+
+    assert written == BaselineWriteReport(written=0, unreachable=0, unmeasurable=1)
+    payload = json.loads(out.read_text())
+    assert payload["baselines"] == {}
+    assert payload["unmeasurable"] == [source.id]
+    assert payload["unreachable"] == []
+    assert EMPTY_CONTENT_SHA256 not in out.read_text()
+
+
+def test_a_committed_hash_of_nothing_is_refused_at_load_time(tmp_path: Path) -> None:
+    """Loudly, rather than by dropping the entry: keep it and a blind page 'matches'; drop it
+    and the same page reads as merely 'no committed baseline', which is what a perfectly
+    healthy unwatched source looks like. Neither reading is true, so neither is offered."""
+    committed = tmp_path / "b.json"
+    committed.write_text(
+        json.dumps(
+            {
+                "baseline_version": BASELINE_VERSION,
+                "baselines": {
+                    "tx-blind": {"url": "https://example.gov/x", "sha256": EMPTY_CONTENT_SHA256}
+                },
+            }
+        )
+    )
+
+    with pytest.raises(RegistryError, match="sha256 of empty content"):
+        load_baselines(committed)
+
+
+def test_a_page_with_no_extractable_text_is_not_compared_against_the_baseline(
+    source: Source, fixture_before: bytes
+) -> None:
+    """It cannot match and it cannot have moved: neither statement is about the page. The
+    committed hash is not even consulted, so no outcome can be reported about a page this
+    command could not read."""
+    live = StubFetcher({source.url: (fixture_before, "text/html")})
+    committed = {source.id: BaselineEntry(_hash_of(live, source), CURRENT_CONTRACT)}
+
+    report = check_baselines(
+        [source],
+        StubFetcher({source.url: (b"<html><head><script>x</script></head></html>", "text/html")}),
+        committed,
+    )
+
+    assert report.no_text == [(source.id, source.url)]
+    assert report.matched == []
+    assert report.moved == []
+    assert report.unbaselined == []
+    assert "served NO extractable text" in report.summary()
+    assert "0 match the committed baseline" in report.summary()
+
+
+def test_a_binary_source_is_still_compared_normally(source: Source) -> None:
+    """A PDF normalizes to empty text by design and its hash covers the raw bytes, so it is a
+    real measurement and must not be swept into the unreadable bucket."""
+    pdf = b"%PDF-1.4 not real pdf bytes"
+    live = StubFetcher({source.url: (pdf, "application/pdf")})
+    committed = {source.id: BaselineEntry(_hash_of(live, source), CURRENT_CONTRACT)}
+
+    report = check_baselines(
+        [source], StubFetcher({source.url: (pdf, "application/pdf")}), committed
+    )
+
+    assert report.no_text == []
+    assert report.matched == [source.id]
+
+
+def test_the_committed_baseline_file_contains_no_hash_of_nothing() -> None:
+    """Asserted against the real committed file, offline: whatever is in `sources/` today, a
+    hash of nothing is never among it."""
+    baselines = load_baselines(default_baseline_path())
+
+    assert all(entry.sha256 != EMPTY_CONTENT_SHA256 for entry in baselines.values())
 
 
 def _hash_of(fetcher: StubFetcher, source: Source) -> str:

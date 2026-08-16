@@ -56,11 +56,29 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   honest behaviour, not this failure. `sentinel sources check` also now
   prints each reachable text/HTML source's passage count and `<title>`, so
   the same trap is visible before a source is added, without a second
-  command or opening the URL by hand. Does not change the persisted run
-  `state`: a run containing only `no_text` sources and no real drift still
-  records as `quiet` at the database level — see the comment at the state
-  computation in `core/detect.py::watch_registry` for why, and what a full
-  fix would require.
+  command or opening the URL by hand.
+- **And the three things that bucket did not fix** (#19, second pass). Routing
+  the fetch to a bucket happened *after* it was written to the snapshot store,
+  so `sha256("")` still became the source's latest snapshot — which is its
+  baseline: the row `sentinel baseline write` commits, and the row next week's
+  fetch is compared against. Measured on an injected fetcher: a page that went
+  blank for one run and came back **byte-identical** was reported as `changed`,
+  with a diff claiming the whole page had just been added; six blank runs
+  evicted the last readable snapshot through retention, destroying the evidence
+  a diff is reproduced from. Now: the check happens before any write, so no
+  snapshot row is created, the last real baseline stands untouched, and a
+  recovered page reports `unchanged`. The failure streak is no longer reset by
+  such a fetch either — `record_success` means "the source answered", and a
+  bot-wall has not. The run `state` gap named in the entry above is closed:
+  a run holding an unmeasured source records as `partial`, never `quiet`, and
+  `finish_watch_run` refuses `quiet`/`complete` independently of the detector.
+  `status.json` (schema 1.1) and the site now carry `unmeasured_source_ids`,
+  `unmeasured_count` and `observed_source_count` beside the successful
+  retrievals, `sentinel baseline check` reports unreadable pages in their own
+  bucket and emits `baseline-check-no-text-count:` for CI, and the weekly
+  workflow files the review-queue issue on that count as well as on MOVED.
+  `baseline write` refuses to commit a hash of nothing even from an older
+  store, and `load_baselines` refuses to load one.
 - Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
   `</script foo="bar">` are all valid ways to close an element and every
   browser honours them, but the strip regexes required the tight `</script>`

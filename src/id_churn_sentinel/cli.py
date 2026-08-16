@@ -775,11 +775,20 @@ def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
     out = args.out or default_baseline_path()
     with SnapshotStore(args.db) as store:
         written = write_baselines(store, registry, out)
-    print(f"baseline write: {written}/{len(registry)} source(s) → {out}")
-    if written < len(registry):
+    print(f"baseline write: {written.written}/{len(registry)} source(s) → {out}")
+    if written.unreachable:
         print(
-            f"  ({len(registry) - written} source(s) have never been fetched successfully and "
+            f"  ({written.unreachable} source(s) have never been fetched successfully and "
             f"carry NO hash — a hash we did not observe is not a hash)"
+        )
+    if written.unmeasurable:
+        # Only reachable from a store written before issue #19 was fixed, or by a writer that
+        # bypasses the watcher. Said out loud rather than counted with the unreachable ones:
+        # the operator needs to know a page answered and was unreadable, which is a different
+        # thing to chase than a host that never answered.
+        print(
+            f"  ({written.unmeasurable} source(s) have a stored snapshot with NO readable text "
+            f"and carry NO hash — the sha256 of nothing is not a baseline)"
         )
     return 0
 
@@ -831,6 +840,19 @@ def _cmd_baseline_check(
         )
     for source_id in report.unbaselined:
         print(f"  ?  no committed baseline: {source_id}", flush=True)
+    for source_id, url in report.no_text:
+        # Fetched fine, and unreadable: zero passages out of a page that promised text. Not
+        # compared against the committed hash at all, because the comparison would be against
+        # the hash of nothing — which is what every blind page in the registry hashes to.
+        print(
+            f"  ∅ NO EXTRACTABLE TEXT (NOT compared, no drift claimed either way): {source_id}",
+            flush=True,
+        )
+        print(f"      {url}", flush=True)
+        print(
+            "      a human should open this page: JS shell, soft 404, or bot-wall are typical",
+            flush=True,
+        )
     for source_id, error in report.unreachable:
         # Same rule as everywhere else in this tool: an outage is not a content change.
         print(f"  ⚠️  unreachable (NOT drift): {source_id} — {error}", flush=True)
@@ -849,12 +871,26 @@ def _cmd_baseline_check(
     # is the one that gets closed unread on the week it mattered. Subtract this from that to
     # get the count that is unambiguously about a page.
     print(f"baseline-check-cross-contract-count: {len(report.moved_across_contracts)}")
+    # Sources this pass could not read at all, on their own machine-readable line, for the same
+    # reason the two lines above exist — and because a workflow branching only on MOVED treats
+    # a blind page as a quiet one. Zero here is a real measurement; the absence of the line is
+    # not, which is why the workflow fails loudly when it is missing rather than assuming zero.
+    print(f"baseline-check-no-text-count: {len(report.no_text)}")
     if report.moved:
         print(
             "\nA MOVED source is a fact about bytes, not a finding about the law, and this\n"
             "command cannot show you the passage that changed — the committed baseline holds\n"
             "the hash, not the text. Run `sentinel watch` (which retains the bytes) to get a\n"
             "reviewable diff, and a human decides what it means."
+        )
+    if report.no_text:
+        print(
+            f"\n{len(report.no_text)} source(s) answered with no extractable text. Those pages\n"
+            "were NOT compared against anything: every blind page hashes to the same sha256 of\n"
+            "an empty string, so 'it matches the baseline' would be true of a page nobody can\n"
+            "read. This run says nothing about whether those pages changed — a human has to\n"
+            "open them, and a source that keeps landing here belongs in the GAPS block of\n"
+            "sources/registry.json (`spa-no-text`), not in a reviewer's queue."
         )
     if report.moved_across_contracts:
         # Said once, loudly, and only when it applies. This command holds hashes and no

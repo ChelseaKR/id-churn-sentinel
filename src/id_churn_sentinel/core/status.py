@@ -23,7 +23,13 @@ __all__ = [
     "status_json",
 ]
 
-STATUS_SCHEMA_VERSION = "1.0"
+# 1.1 (2026-08-15, issue #19) adds `unmeasured_source_ids`, `unmeasured_count` and
+# `observed_source_count` to each run. Additive, and a version bump rather than a silent
+# widening: the contract is a *closed* schema (`additionalProperties: false`), so a consumer
+# validating against 1.0 must be able to tell that the document it is holding is a different
+# one. The fields exist because `successful_retrieval_count` alone let a source that returned
+# no readable text be counted among the pages we watched.
+STATUS_SCHEMA_VERSION = "1.1"
 DEFAULT_STALE_AFTER = timedelta(days=8)
 
 
@@ -117,9 +123,18 @@ def _run_payload(run: WatchRun | None) -> dict[str, Any] | None:
         "eligible_source_ids": list(run.eligible_source_ids),
         "attempted_source_ids": list(run.attempted_source_ids),
         "successful_source_ids": list(run.successful_source_ids),
+        # Retrieved, and unreadable: a text/HTML body that normalized to zero passages, so
+        # nothing about this source was observed (issue #19). Published as its own set rather
+        # than deducted from the successful one, because a consumer reading
+        # `successful_retrieval_count` is entitled to know which of those retrievals produced
+        # no observation — and because a source silently missing from a count reads as zero,
+        # which here would be a claim that it was watched and nothing changed.
+        "unmeasured_source_ids": list(run.unmeasured_source_ids),
         "eligible_count": run.eligible_count,
         "attempted_count": run.attempted_count,
         "successful_retrieval_count": run.successful_count,
+        "unmeasured_count": run.unmeasured_count,
+        "observed_source_count": run.observed_count,
         "attempt_completeness": run.attempt_completeness,
         "observation_count": run.observation_count,
         # Raw errors remain operational evidence.  Publishing arbitrary network/database
@@ -130,15 +145,30 @@ def _run_payload(run: WatchRun | None) -> dict[str, Any] | None:
 
 
 def _message(status: PublicRunStatus) -> str:
+    """The one sentence a consumer reads. It may never claim more than the receipt holds.
+
+    ``partial`` covers two different shortfalls — a retrieval that failed, and a retrieval
+    that succeeded and yielded no text to compare (issue #19) — so its sentence names both
+    rather than asserting the first. And a run with unmeasured sources appends the count and
+    the consequence, because "we could not read that page" is exactly the fact a reader would
+    otherwise fill in with the reassuring default.
+    """
     messages = {
         "running": "A watch run started but has not recorded a terminal outcome.",
         "quiet": "The latest watch completed for every eligible source and created no observations.",
         "complete": "The latest watch completed and created one or more observations for human review.",
-        "partial": "The latest watch attempted its eligible sources, but one or more retrievals failed.",
+        "partial": "The latest watch attempted its eligible sources, but one or more produced no comparable observation: a retrieval failed, or a page returned no extractable text.",
         "failed": "The latest watch did not complete. Feed silence is not evidence of no change.",
         "stale": "No terminal watch receipt is recent enough. Feed silence is not evidence of no change.",
     }
-    return messages[status.state]
+    message = messages[status.state]
+    unmeasured = status.last_attempted.unmeasured_count if status.last_attempted else 0
+    if unmeasured:
+        message += (
+            f" {unmeasured} source(s) returned no extractable text and were not compared "
+            "against a baseline; for those sources this run is not evidence of no change."
+        )
+    return message
 
 
 def _as_utc(value: datetime) -> datetime:

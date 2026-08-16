@@ -92,6 +92,31 @@ its own bucket, `no_text`, before baselining or comparison — win, lose, or dra
 result this run is "we could not measure this," reported loudly, every run, for as long as it
 persists. (Binary content is exempt: an *opaque* zero-length normalized text is its documented,
 honest behaviour, not a symptom — see :func:`normalize.content_evidence`.)
+
+**Three consequences of that discipline, each of which was still a live defect after the
+bucket existed**, because a bucket in a report is not the same thing as a refusal to record:
+
+1. **Nothing is written to the snapshot store.** The bucket alone left the empty fetch being
+   recorded as a snapshot first and *then* routed, so `sha256("")` still became the source's
+   latest snapshot — which is to say its baseline, the thing `sentinel baseline write` commits
+   and the thing next week's fetch is compared against. Three lies followed from that one row:
+   the committed baseline file gained a hash of nothing; a page that recovered its text was
+   reported as `changed` against nothing, minting drift out of a recovery; and five blind runs
+   evicted the last real bytes through snapshot retention, destroying the evidence that would
+   have made the comparison possible again. So the check now happens *before* `record_snapshot`,
+   and an unmeasurable fetch leaves the last real baseline exactly where it was.
+2. **The failure streak is not reset.** `record_success` means "this source answered, so
+   whatever was wrong is over". A page serving a bot-wall has not answered in any sense this
+   tool cares about, and exonerating it would let a source sit permanently blind with a clean
+   health record. Nor is a failure recorded: we did reach the host, and inventing a fetch
+   failure would eventually escalate a `possibly_removed` record whose stated evidence — N
+   consecutive *failed fetches* — never happened. The streak is left exactly as it was, which
+   is the only honest option: this run neither confirms nor clears anything.
+3. **The run is not `quiet`.** `quiet` is the state that publishes as "the latest watch
+   completed for every eligible source and created no observations", and that sentence is
+   false for a run that could not measure a source at all. A run with an unmeasurable source
+   is `partial` — the state that already exists for "we did not get a comparable observation
+   for every eligible source" — and the store now refuses to record it as anything else.
 """
 
 from __future__ import annotations
@@ -186,10 +211,12 @@ class WatchReport:
 
     `no_text` is the third non-drift bucket (issue #19): a successful text/HTML fetch whose
     normalized text has zero passages. It preempts `new`/`unchanged`/`changed`/`renormalized`
-    entirely — there is no baseline, no comparison, and no drift claimed either way, for as
-    long as the condition holds. Unlike `unrenormalizable`, this is not a one-time transition;
-    a source that keeps serving no text lands here on *every* run, which is the point: the old
-    behaviour let identical "nothing" hash-match itself into a permanently silent `unchanged`."""
+    entirely — no snapshot is recorded, no baseline is written or overwritten, no comparison is
+    made, and no drift is claimed either way, for as long as the condition holds. Unlike
+    `unrenormalizable`, this is not a one-time transition; a source that keeps serving no text
+    lands here on *every* run, which is the point: the old behaviour let identical "nothing"
+    hash-match itself into a permanently silent `unchanged`. A run containing one is `partial`,
+    never `quiet`."""
 
     changed: list[ChangeRecord] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
@@ -437,6 +464,22 @@ def _comparable_baseline(
     return _ComparableBaseline(evidence.detection_sha256, evidence.normalized_text, recorded)
 
 
+def _is_unmeasurable(normalized_text: str, content_type: str | None) -> bool:
+    """True when a successful fetch produced nothing this tool can compare (issue #19).
+
+    Binary content is excluded, and the exclusion is not a special case bolted on: an opaque
+    body's normalized text is empty *by design* (`EXTRACTOR_VERSION = "none-v1"` — there is no
+    PDF extractor), its detection hash covers the raw bytes rather than the empty string, and
+    comparing those hashes week to week is a real, honest measurement. A text/HTML body that
+    normalizes to zero passages is the opposite: the hash covers nothing, every page with no
+    text shares it, and comparing it to itself proves only that we are still not reading
+    anything.
+    """
+    if kind_for_content_type(content_type) == ContentKind.BINARY:
+        return False
+    return not passages(normalized_text)
+
+
 def _watch_authorized_sources(
     sources: Iterable[Source],
     store: SnapshotStore,
@@ -465,6 +508,12 @@ def _watch_authorized_sources(
         evidence: ContentEvidence | None = None
         if result.ok:
             evidence = content_evidence(result.body, result.content_type)
+        # Decided here, before anything is stored, because every write below depends on it:
+        # a fetch that produced no comparable observation must not reach the snapshot table,
+        # must not clear the health streak, and must not let the run finish `quiet`.
+        measured = evidence is not None and not _is_unmeasurable(
+            evidence.normalized_text, result.content_type
+        )
         if run_id is not None:
             store.finish_fetch_attempt(
                 run_id,
@@ -476,6 +525,7 @@ def _watch_authorized_sources(
                 extractor_version=EXTRACTOR_VERSION if result.ok else "",
                 error=result.error or "",
                 evidence=_attempt_evidence(result, evidence),
+                measured=measured,
                 completed_at=result.fetched_at,
             )
 
@@ -493,6 +543,16 @@ def _watch_authorized_sources(
 
         if evidence is None:  # pragma: no cover - guarded by result.ok above
             raise AssertionError("successful fetch did not produce normalized content")
+
+        if not measured:
+            # Zero passages out of a page that promised text. There is nothing here to
+            # baseline and nothing to compare, on the first sighting or the hundredth, so
+            # this source's run ends here — before `record_success` (which would exonerate a
+            # source we did not observe) and before `record_snapshot` (which would overwrite
+            # the last real baseline with a hash of nothing). Reported every run it recurs.
+            report.no_text.append((source.id, source.url))
+            continue
+
         new_hash, normalized = evidence.detection_sha256, evidence.normalized_text
         previous = store.latest_snapshot(source.id)
 
@@ -540,21 +600,17 @@ def _compare_against_baseline(
     observed_at: datetime,
     run_id: str | None,
 ) -> None:
-    """One successful fetch against its baseline: the only place drift is ever concluded.
+    """One *measured* fetch against its baseline: the only place drift is ever concluded.
 
     Every early return here is a refusal to conclude drift, and each one is a different
     reason the comparison in front of us would not mean what a change record claims it
     means. The sibling of :func:`_handle_failure`, which refuses for the one remaining
     reason (there were no bytes at all).
-    """
-    # Checked before anything else, and before `previous is None`: a page with no extractable
-    # text has nothing to baseline and nothing to compare, on the very first sighting or the
-    # hundredth. Binary content is excluded — its normalized text is empty by design (there is
-    # no extractor), and that is documented, honest behaviour, not this failure (issue #19).
-    if kind_for_content_type(content_type) != ContentKind.BINARY and not passages(normalized):
-        report.no_text.append((source.id, source.url))
-        return
 
+    A fetch with no extractable text never reaches this function: the caller routes it to
+    `no_text` before recording anything, because that case must be refused *upstream* of the
+    snapshot store rather than downstream of it (issue #19).
+    """
     if previous is None:
         report.new.append(source.id)
         return
@@ -714,17 +770,16 @@ def watch_registry(
         raise
 
     observation_count = len(report.changed) + len(report.possibly_removed)
-    state = RUN_PARTIAL if report.unreachable else RUN_COMPLETE if observation_count else RUN_QUIET
-    # KNOWN GAP (issue #19, not closed by this state computation): a run with report.no_text
-    # non-empty and everything else quiet still persists as RUN_QUIET, and status.json's
-    # "created no observations" message does not mention it. `no_text` is deliberately not
-    # routed through `store.record_change` here — doing so honestly would mean giving it a
-    # third `ChangeKind` (mirroring POSSIBLY_REMOVED's precedent) so it participates in
-    # `persisted_observations`, which touches the `changes` CHECK constraint, the review/feed
-    # gates, and every count that assumes those two kinds are exhaustive. That is a real,
-    # larger change and this fix does not attempt it. What IS fixed, unconditionally: no_text
-    # sources are never silently baselined or folded into `unchanged`, and `report.summary()` —
-    # what `sentinel watch` actually prints — names them loudly on every single run.
+    # `partial` covers both ways a run can fail to produce a comparable observation for every
+    # eligible source: a retrieval that failed, and a retrieval that succeeded and yielded no
+    # text to compare (issue #19). Neither may finish `quiet`, whose published sentence is
+    # "completed for every eligible source and created no observations" — a claim that a run
+    # which could not measure a source has not earned. The store enforces the same rule
+    # independently: `finish_watch_run` refuses `quiet` or `complete` while any attempted
+    # source is recorded as unmeasured, so a future caller cannot re-introduce the silence by
+    # computing this line differently.
+    unmeasured = bool(report.unreachable or report.no_text)
+    state = RUN_PARTIAL if unmeasured else RUN_COMPLETE if observation_count else RUN_QUIET
     store.finish_watch_run(
         run_id,
         state=state,

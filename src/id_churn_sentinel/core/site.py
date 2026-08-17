@@ -313,8 +313,17 @@ def _verification_notice(report: CoverageReport, eligibility: EligibilityReport)
     """
     verified = report.verified_total
     total = report.sources_total
-    if verified == total and total > 0:
+    monitored = len(eligibility.eligible)
+    if verified == total and total > 0 and monitored == total:
         headline = f"All {total} sources are human-verified"
+    elif verified == total and total > 0:
+        # Human-verified and still not watched. `verified` is a fact about a person opening a
+        # URL; attempt-eligibility additionally needs an evidence reference, a recheck expiry
+        # and a dated fetch-policy decision (issue #18). Claiming completeness on the flag
+        # alone puts the page's loudest line — the one a reader skims and stops at — one word
+        # away from "this registry is finished and we are watching it", at a moment when the
+        # feed cannot populate. The two facts are stated together or not at all.
+        headline = f"all {total} sources are human-verified, and {monitored} of them are monitored"
     elif verified == 0:
         # The sentence a reader must not be able to skim past, and it is the true one today.
         headline = f"no human has confirmed any of these {total} sources"

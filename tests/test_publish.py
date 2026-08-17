@@ -15,9 +15,12 @@ from pathlib import Path
 
 from id_churn_sentinel.core.changes import ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.publish import FEED_SCHEMA_VERSION, changes_json, feed_xml, publish
-from id_churn_sentinel.core.registry import Registry
+from id_churn_sentinel.core.registry import VERIFIED, Registry, Source, Verification
+
+from .conftest import eligible_source
 
 GENERATED = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+NOW = GENERATED
 
 
 def _reviewed_variant(
@@ -409,3 +412,48 @@ def test_exported_serializers_cannot_bypass_the_review_gate(
     assert json_payload["changes"] == []
     assert channel is not None and channel.findall("item") == []
     assert observed_change.id not in xml
+
+
+# -- the RSS channel makes the same claim, and it is durable -----------------------
+#
+# An RSS reader shows the channel description once and the items forever, so "All 3 sources in
+# TX are HUMAN-VERIFIED" is a jurisdiction-named claim a subscriber keeps. Read as *and
+# therefore watched* it is wrong whenever the verification flag is set but the source is not
+# attempt-eligible — the state working the whole queue leaves the registry in (issue #18).
+
+
+def test_a_verified_but_unwatched_feed_does_not_claim_completeness(source: Source) -> None:
+    verified_only = replace(
+        source,
+        verified=True,
+        verification=Verification(status=VERIFIED, verifier="A Named Human", at="2026-01-01"),
+    )
+    registry = Registry(version="1.0", sources=(verified_only,))
+
+    xml = feed_xml(
+        [],
+        feed_url="https://example.test/",
+        generated_at=NOW,
+        registry=registry,
+        jurisdiction="TX",
+        eligibility_as_of=NOW.date(),
+    )
+
+    assert "All 1 sources in TX are HUMAN-VERIFIED." not in xml
+    assert "only 0 of 1 are attempt-eligible" in xml
+    assert "silence is not evidence that nothing changed at the rest" in xml
+
+
+def test_a_verified_and_watched_feed_still_claims_completeness(source: Source) -> None:
+    registry = Registry(version="1.0", sources=(eligible_source(source),))
+
+    xml = feed_xml(
+        [],
+        feed_url="https://example.test/",
+        generated_at=NOW,
+        registry=registry,
+        jurisdiction="TX",
+        eligibility_as_of=NOW.date(),
+    )
+
+    assert "All 1 sources in TX are HUMAN-VERIFIED." in xml

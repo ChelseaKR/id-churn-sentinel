@@ -554,3 +554,163 @@ def test_spacing_can_be_disabled(monkeypatch: pytest.MonkeyPatch, no_robots: Non
     fetcher.fetch(URL + "/two")
 
     assert clock.slept == []
+
+
+# -- the guards have to survive a redirect -----------------------------------------
+#
+# The scheme check and the robots check were applied to the URL this module was handed and
+# to no other. `HTTPRedirectHandler` follows `http` as happily as `https` and never
+# reconsults a policy, so a government page that 301'd to cleartext was read in cleartext —
+# by a tool whose own docstring promises it "does not fetch over plaintext, ever" — and a
+# page that redirected to another host was read without that host's robots.txt ever being
+# fetched. Both are refused before any body is read.
+
+
+def follow_redirect(
+    monkeypatch: pytest.MonkeyPatch, target: str, *, status: int = 301
+) -> list[str]:
+    """Patch the page seam so it drives the recorder the way urllib's redirect handler does.
+
+    `serve_page` appends hops directly, which is right for tests about the recorded chain and
+    wrong for tests about the refusal: the refusal lives in `redirect_request`, so it has to
+    be the thing under test rather than something stepped around.
+    """
+    requested: list[str] = []
+
+    def opener(request: urllib.request.Request, *, timeout: float, recorder: Any) -> FakeResponse:
+        requested.append(request.full_url)
+        following = recorder.redirect_request(
+            request, None, status, "Moved Permanently", HTTPMessage(), target
+        )
+        if following is None:  # pragma: no cover — the stdlib follows 301 on GET
+            raise AssertionError("the stdlib declined a redirect these tests rely on")
+        requested.append(following.full_url)
+        return FakeResponse(b"<p>the page at the redirect target</p>")
+
+    monkeypatch.setattr(fetch_mod, "_open_page", opener)
+    return requested
+
+
+def test_a_redirect_to_plaintext_is_refused_and_never_read(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """ "Does not fetch over plaintext, ever" has to be true of every hop, or it is true of
+    the first request and of nothing else."""
+    requested = follow_redirect(monkeypatch, "http://www.dps.texas.gov/section/driver-license")
+
+    result = HttpFetcher().fetch(URL)
+
+    assert not result.ok
+    assert result.error_class == ERROR_CLASS_NON_HTTPS
+    assert result.body == b""
+    assert "non-https" in (result.error or "")
+    # The refusal happened in the redirect handler, so the cleartext URL was never opened.
+    assert not any(candidate.startswith("http://") for candidate in requested)
+
+
+def test_a_redirect_to_a_robots_disallowed_target_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The policy that governs a page is the policy of the server that serves it. Consulting
+    the registry host's robots.txt and then reading a different host's page honours nothing."""
+    disallowing = b"User-agent: *\nDisallow: /private\n"
+
+    def robots_opener(request: urllib.request.Request, **_: object) -> FakeResponse:
+        return FakeResponse(disallowing)
+
+    monkeypatch.setattr(urllib.request, "urlopen", robots_opener)
+    follow_redirect(monkeypatch, "https://www.dps.texas.gov/private/internal")
+
+    result = HttpFetcher().fetch(URL)
+
+    assert not result.ok
+    assert result.error_class == ERROR_CLASS_ROBOTS_DISALLOWED
+    assert result.body == b""
+
+
+def test_a_redirect_to_an_allowed_https_target_is_still_followed(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """The guards must refuse two specific things and nothing else. A government page moving
+    to a new https path is the ordinary case, and blinding the watcher to it would be its own
+    wrong "no change"."""
+    target = "https://www.dps.texas.gov/section/driver-license/moved"
+    follow_redirect(monkeypatch, target)
+
+    result = HttpFetcher().fetch(URL)
+
+    assert result.ok
+    assert result.final_url == target
+    assert result.redirect_chain == (RedirectHop(status=301, url=target),)
+
+
+def test_a_refused_redirect_keeps_the_hops_taken_before_it(
+    monkeypatch: pytest.MonkeyPatch, no_robots: None
+) -> None:
+    """A refusal's journey is evidence too: where the source now points is what a maintainer
+    has to look at, and it is not the URL the registry names."""
+    first = RedirectHop(status=301, url="https://www.dps.texas.gov/moved")
+
+    def opener(request: urllib.request.Request, *, timeout: float, recorder: Any) -> FakeResponse:
+        recorder.hops.append(first)
+        recorder.redirect_request(
+            request, None, 302, "Found", HTTPMessage(), "http://www.dps.texas.gov/final"
+        )
+        raise AssertionError("the plaintext hop should have been refused")  # pragma: no cover
+
+    monkeypatch.setattr(fetch_mod, "_open_page", opener)
+
+    result = HttpFetcher().fetch(URL)
+
+    assert not result.ok
+    assert result.error_class == ERROR_CLASS_NON_HTTPS
+    assert result.redirect_chain == (first,)
+    assert result.final_url == first.url
+
+
+# -- the other half of a robots policy ---------------------------------------------
+#
+# robots.txt is not only a list of paths. A server that says `Crawl-delay: 10` has stated the
+# rate it wants, and honouring its Disallow lines while ignoring that is honouring half a
+# policy — from a tool whose own gap list describes robots as "honoured without appeal".
+
+
+def test_a_declared_crawl_delay_is_honoured_when_it_exceeds_our_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route(monkeypatch, robots=b"User-agent: *\nCrawl-delay: 10\nAllow: /\n", page=b"ok")
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert fetcher.fetch(URL).ok
+    assert fetcher.fetch(URL + "/two").ok
+
+    assert clock.slept == [10.0]
+
+
+def test_a_declared_crawl_delay_below_our_floor_does_not_speed_us_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A shorter declared delay is permission we do not need. Taking it would only make this
+    a heavier guest on infrastructure the people it serves pay for."""
+    route(monkeypatch, robots=b"User-agent: *\nCrawl-delay: 0.5\nAllow: /\n", page=b"ok")
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    fetcher.fetch(URL + "/two")
+
+    assert clock.slept == [2.0]
+
+
+def test_a_host_declaring_no_crawl_delay_keeps_our_own_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route(monkeypatch, robots=b"User-agent: *\nAllow: /\n", page=b"ok")
+    clock = FakeClock()
+    fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    fetcher.fetch(URL)
+    fetcher.fetch(URL + "/two")
+
+    assert clock.slept == [2.0]

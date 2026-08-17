@@ -261,13 +261,27 @@ def _run_status_section(status: PublicRunStatus) -> str:
             if attempted.unmeasured_count
             else ""
         )
+        # "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and
+        # a bad one: a ratio over an empty denominator reads as a score, and the reader who
+        # skims it takes away a tidy row of zeroes rather than the fact that this run looked
+        # at nothing. Every count in it is zero for a reason that has nothing to do with the
+        # pages being quiet. Say the reason instead of publishing the ratio.
+        coverage_text = (
+            "<strong>no source was attempt-eligible, so this run examined nothing</strong> — "
+            "there is no denominator here and the zero counts are not a measurement of any "
+            "page"
+            if attempted.eligible_count == 0
+            else (
+                f"attempted {attempted.attempted_count} of {attempted.eligible_count} "
+                f"eligible sources; {attempted.successful_count} successful retrievals"
+            )
+        )
         attempted_text = (
             f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
-            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
-            f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
-            f"{attempted.successful_count} successful retrievals.{unmeasured_text}"
+            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; "
+            f"{coverage_text}.{unmeasured_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."

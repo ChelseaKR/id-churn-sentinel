@@ -435,3 +435,76 @@ def test_nonpositive_stale_interval_and_naive_generation_time_are_handled(
 
     with SnapshotStore(tmp_path / "empty.db") as empty:
         assert build_public_status(empty, now=NOW).state == "stale"
+
+
+# -- a ratio over an empty denominator is not a measurement ------------------------
+#
+# "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and a bad
+# one. A reader skimming the run-health block takes away a tidy row of zeroes, when every one
+# of those zeroes is zero for a reason that has nothing to do with the watched pages being
+# quiet. A sibling repo published "0 of 0" as a real organisation's failing score; the same
+# shape here would read as a clean run.
+
+
+def test_a_zero_eligible_run_does_not_render_a_ratio_over_an_empty_denominator(
+    tmp_path: Path, source: Source, fixture_before: bytes
+) -> None:
+    ineligible = Registry(version="1.0", sources=(source,))  # unverified, no fetch policy
+    with SnapshotStore(tmp_path / "status.db") as store:
+        report = watch_registry(
+            ineligible,
+            store,
+            StubFetcher({source.url: (fixture_before, "text/html")}),
+            as_of=AS_OF,
+            started_at=NOW,
+            completed_at=NOW,
+        )
+        status = build_public_status(store, now=NOW)
+        site_path = publish(
+            [],
+            tmp_path / "out",
+            registry=ineligible,
+            now=NOW,
+            run_status=status,
+            eligibility_as_of=AS_OF,
+        ).site_path
+        assert site_path is not None
+        page = site_path.read_text(encoding="utf-8")
+
+    assert report.state == "failed"
+    assert "0 of 0 eligible sources" not in page
+    assert "no source was attempt-eligible, so this run examined nothing" in page
+    assert "the zero counts are not a measurement of any page" in page
+    # The machine-readable side already refuses to compute the rate; pin that too.
+    payload = json.loads(status_json(status, generated_at=NOW))
+    assert payload["last_attempted_run"]["attempt_completeness"] is None
+
+
+def test_a_real_run_still_states_its_ratio(
+    tmp_path: Path, source: Source, fixture_before: bytes
+) -> None:
+    """The refusal is scoped to the empty denominator. A run with sources still reports
+    coverage as a ratio, which is the number an operator actually needs."""
+    registry = _registry(source)
+    with SnapshotStore(tmp_path / "status.db") as store:
+        watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_before, "text/html")}),
+            as_of=AS_OF,
+            started_at=NOW,
+            completed_at=NOW,
+        )
+        status = build_public_status(store, now=NOW)
+        site_path = publish(
+            [],
+            tmp_path / "out",
+            registry=registry,
+            now=NOW,
+            run_status=status,
+            eligibility_as_of=AS_OF,
+        ).site_path
+        assert site_path is not None
+        page = site_path.read_text(encoding="utf-8")
+
+    assert "attempted 1 of 1 eligible sources; 1 successful retrievals" in page

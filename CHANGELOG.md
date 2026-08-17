@@ -41,6 +41,50 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **`sentinel baseline check` reported a run that examined nothing as a clean
+  run.** With an empty attempt denominator it printed `0 source(s): 0 match the
+  committed baseline, 0 MOVED`, emitted `baseline-check-moved-count: 0`, and
+  exited 0 — byte-for-byte what a complete run over sources that all matched
+  emits. `watch.yml` branches on those numbers, so it concluded
+  `needs-review=false` and went green. With the registry at 0/152
+  attempt-eligible that is the branch it took on every weekly run to date, all
+  four of which reported success while checking zero sources. The command now
+  emits `baseline-check-attempted-count:` on every run, says `NO SOURCE WAS
+  CHECKED`, and exits 1 when the denominator is empty; the workflow branches on
+  the denominator first, files a review issue that says what actually happened,
+  and only then goes red. Drift and unreachable sources still exit 0 — a state
+  website being down is the tool working.
+- **A committed baseline hash could be compared against a page it was never
+  taken from.** `write_baselines` records each hash's URL; `load_baselines`
+  dropped it, so re-pointing a source in the registry turned page A's hash into
+  "page B MOVED" — a false change, filed by the weekly job as *a watched
+  official source is no longer what the committed baseline says it was*.
+  `watch()` has always refused this comparison and re-baselined instead; the
+  loader now keeps the URL so `baseline check` can make the same refusal, in its
+  own `url_changed` bucket and its own count, never folded into MOVED or into a
+  match. A test pins that no committed entry cites a page the registry no longer
+  watches.
+- **A redirect walked past both of the fetcher's guards.** The https-only check
+  and the robots check applied to the URL the module was handed and to no other,
+  while `HTTPRedirectHandler` follows `http` as happily as `https` and never
+  reconsults a policy — so a page that 301'd to cleartext was read in cleartext,
+  and a page that redirected to another host was read without that host's
+  robots.txt ever being fetched. Both are now refused before any body is read,
+  with the hops taken beforehand kept as evidence. A host's declared
+  `Crawl-delay` is also honoured now when it exceeds the 2s floor; a shorter one
+  does not speed us up.
+- **Working the whole verification queue left the attempt denominator at zero,
+  silently** (#18). `sentinel verify --list`, the end of a verify session, and a
+  scripted `--confirm` now print what would still block each source, derived
+  from the same predicate the watcher enforces so the warning silences itself
+  when it stops being true. `docs/VERIFYING.md` says it on the first screen.
+- **Two published surfaces read as "finished" while the tool watched nothing.**
+  `index.html` headlined *All N sources are human-verified* and every RSS
+  channel description carried *All N sources in TX are HUMAN-VERIFIED* whenever
+  the verification flag was set — true of the flag, and read as *and therefore
+  watched* at a moment when the feed could not populate. Both claims are kept
+  but conditioned on the sources being attempt-eligible. The run-health block no
+  longer renders `attempted 0 of 0 eligible sources` as a ratio.
 - **A source with no extractable text could be quietly baselined, then report
   `unchanged` forever** (#19). `sha256("")` is a real, stable hash — it is
   what a JS shell, an empty 200, and an HTTP-200 bot-wall all normalize to —

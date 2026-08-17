@@ -76,6 +76,7 @@ from id_churn_sentinel.core.normalize import (
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
+    REJECTED,
     Registry,
     Source,
     default_registry_path,
@@ -534,7 +535,12 @@ def _print_residual_ineligibility(sources: Sequence[Source]) -> None:
     position to act on it, with the numbers derived so the message disappears by itself on the
     day it stops being true.
     """
-    remaining = unwatchable_after_confirmation(sources)
+    # A rejected source is excluded: a human has already established that its URL is wrong, so
+    # "what would still block it if you confirmed it" is a hypothetical about a page nobody is
+    # going to confirm, and counting it would overstate the remaining work.
+    remaining = unwatchable_after_confirmation(
+        [source for source in sources if source.verification_status != REJECTED]
+    )
     if not remaining:
         return
     print(

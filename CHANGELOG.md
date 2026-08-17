@@ -41,6 +41,25 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **The install step in front of every gate could not see lockfile drift.**
+  `make install` ran `uv sync --frozen --group dev`, and `make verify` depends on
+  `install`, so this was the first thing every merge gate did. `--frozen`
+  installs from `uv.lock` without reading `pyproject.toml`; it cannot notice the
+  two disagree and exits 0 on a drifted lock, so a dependency added or bumped
+  without relocking would have installed cleanly and passed all seven stages
+  while the test environment quietly stopped matching the declared dependencies.
+  Now `uv sync --locked`, which re-resolves and exits 1 on drift. That matters
+  more here than elsewhere: with an Actions spending limit in play, local
+  `make verify` is the gate that always exists, so it has to be the strict one.
+  `CONTRIBUTING.md` and the `verify` help text are updated to match.
+- **Four standards were undeclared in the README conformance table**, which the
+  section's own preamble promises states the position honestly: Performance, AI
+  Development Measurement, Incident Response, and Data Governance. All four are
+  now declared with their current state, each pointing at the artifact that
+  already carries the work (`docs/10-OPERATIONS-SRE.md` for the runbooks and the
+  freshness gates, `docs/05-DATA-AND-EVIDENCE.md` for the evidence and retention
+  plan) and naming what has not been done.
+
 - **`sentinel baseline check` reported a run that examined nothing as a clean
   run.** With an empty attempt denominator it printed `0 source(s): 0 match the
   committed baseline, 0 MOVED`, emitted `baseline-check-moved-count: 0`, and

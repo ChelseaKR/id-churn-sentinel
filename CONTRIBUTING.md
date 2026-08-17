@@ -60,7 +60,7 @@ make verify
 format + bare-TODO gate), `mypy --strict`, pytest with the **90% branch
 coverage floor**, `pip-audit`, registry validation + coverage-drift check,
 and the two safety gates — exactly what `ci.yml` runs, on the same pinned
-(`uv sync --frozen`) toolchain. Green locally means green in CI; there is no
+(`uv sync --locked`) toolchain. Green locally means green in CI; there is no
 CI-only gate and no local-only gate. (And because the account has an Actions
 spending limit, *local* `make verify` is the gate that always exists —
 never rely on CI to catch what you didn't run.)

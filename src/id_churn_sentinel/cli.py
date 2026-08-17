@@ -40,6 +40,7 @@ from pathlib import Path
 
 from id_churn_sentinel import __version__
 from id_churn_sentinel.core.baseline import (
+    BaselineReport,
     check_baselines,
     default_baseline_path,
     load_baselines,
@@ -75,14 +76,22 @@ from id_churn_sentinel.core.normalize import (
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
+    REJECTED,
     Registry,
+    Source,
     default_registry_path,
     load_registry,
 )
 from id_churn_sentinel.core.site import REPO_URL
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
-from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
+from id_churn_sentinel.core.verify import (
+    confirm,
+    pending,
+    reject,
+    run_verification,
+    unwatchable_after_confirmation,
+)
 from id_churn_sentinel.errors import SentinelError
 
 __all__ = ["build_parser", "main", "run"]
@@ -461,6 +470,7 @@ def _cmd_verify(
             print(f"  {source.jurisdiction:<3} {source.document_class:<24} {source.id}")
             print(f"      {source.url}")
         print(f"verify --list: {len(queue)} source(s) pending human verification")
+        _print_residual_ineligibility(queue)
         return 0
 
     if args.source_id:
@@ -480,6 +490,10 @@ def _cmd_verify(
     )
     print(f"\nverify: {outcome.summary()}")
     print("Everything decided is already written to the registry — re-run to continue.")
+    # Reloaded from disk, not from the in-memory registry: the session wrote to the file as it
+    # went, and the question a verifier is owed at the end is about the state they actually
+    # left behind.
+    _print_residual_ineligibility(load_registry(path).sources)
     return 0
 
 
@@ -504,7 +518,47 @@ def _cmd_verify_one(args: argparse.Namespace, path: Path) -> int:
         return 1
     print(f"verify: {args.source_id} → {recorded.label}")
     print(f"  written to {path}")
+    if args.confirm:
+        _print_residual_ineligibility([load_registry(path).by_id(args.source_id)])
     return 0
+
+
+def _print_residual_ineligibility(sources: Sequence[Source]) -> None:
+    """Say what a confirmation does NOT accomplish, before the volunteer walks away.
+
+    Working the whole 152-source queue leaves the attempt denominator at zero, and nothing
+    told the person who did the work (issue #18). `sentinel verify` writes the status, the
+    verifier and the date — that is its whole job, and it is the only writer of
+    `verified: true`. The watcher additionally requires a verification evidence reference and
+    a recheck expiry, plus a dated fetch-policy decision that no command in this tool writes
+    at all. Nothing here relaxes any of that. It states it, at the one moment someone is in a
+    position to act on it, with the numbers derived so the message disappears by itself on the
+    day it stops being true.
+    """
+    # A rejected source is excluded: a human has already established that its URL is wrong, so
+    # "what would still block it if you confirmed it" is a hypothetical about a page nobody is
+    # going to confirm, and counting it would overstate the remaining work.
+    remaining = unwatchable_after_confirmation(
+        [source for source in sources if source.verification_status != REJECTED]
+    )
+    if not remaining:
+        return
+    print(
+        "\n  ⚠️  CONFIRMING IS NOT THE LAST STEP. A confirmation records that a named human "
+        "opened\n"
+        "      the URL. It does not make the source attempt-eligible, so the watcher will "
+        "still\n"
+        "      not fetch it and the feed will still stay empty. Even fully confirmed, these\n"
+        "      would remain blocked:"
+    )
+    for reason, count in remaining.items():
+        print(f"        {reason}: {count}")
+    print(
+        "      `sentinel verify` writes status/verifier/date only. The evidence reference and\n"
+        "      recheck expiry, and the dated fetch-policy decision, are separate records that\n"
+        "      no command in this tool writes yet (issue #18, SRC-03). Check with:\n"
+        "        sentinel sources eligibility"
+    )
 
 
 def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
@@ -793,6 +847,78 @@ def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
     return 0
 
 
+def _refuse_empty_baseline_check() -> int:
+    """A pass with an empty attempt denominator, reported as one and exited as one.
+
+    Fail closed, exactly as `sentinel watch` does for the same condition and for the same
+    reason: a run that attempted nothing observed nothing, and exiting 0 hands a caller a
+    clean result it did not earn. This is deliberately NOT the "never a gate" case — that
+    rule protects a state website being *down*, which is a source we tried and could not
+    reach. Nothing was tried here, so no socket is opened and no fetcher is constructed.
+
+    Every count marker is still emitted, and still zero. A workflow must be able to parse the
+    same lines on every run: a marker that appears only on success makes its own absence
+    ambiguous, which is the failure this whole block exists to remove.
+    """
+    print(f"baseline check: {BaselineReport().summary()}")
+    print("baseline-check-moved-count: 0")
+    print("baseline-check-cross-contract-count: 0")
+    print("baseline-check-no-text-count: 0")
+    print("baseline-check-url-changed-count: 0")
+    print(
+        "  FAILED: no attempt-eligible source was checked. This run is not evidence that "
+        "nothing changed.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _print_baseline_buckets(report: BaselineReport) -> None:
+    """One line per source, in its own bucket. Each bucket is a different claim, and the
+    three non-drift ones are printed as loudly as MOVED on purpose: a source this pass could
+    not compare is not a source it found unchanged."""
+    for source_id, committed, current in report.moved:
+        # The qualifier rides on the line itself, not only in a footer. A reviewer who scans
+        # the MOVED lines and stops there must not come away believing a page changed when
+        # what changed may be the normalizer the committed hash was taken with.
+        recorded = report.moved_across_contracts.get(source_id)
+        caveat = f"  (baseline normalizer: {recorded}; MAY be an artifact)" if recorded else ""
+        print(
+            f"  ✎ MOVED   {source_id:<28} {committed[:12]} → {current[:12]}{caveat}",
+            flush=True,
+        )
+    for source_id in report.unbaselined:
+        print(f"  ?  no committed baseline: {source_id}", flush=True)
+    for source_id, baselined_url, registry_url in report.url_changed:
+        # The registry points this source id somewhere else now, so the committed hash is
+        # about a page this run never fetched. Reported loudly and as its own thing: calling
+        # it MOVED would be a change record about a page that may not have changed, and
+        # calling it a match would be worse.
+        print(
+            f"  ↻ REGISTRY URL CHANGED since the baseline was taken (NOT compared, no drift "
+            f"claimed either way): {source_id}",
+            flush=True,
+        )
+        print(f"      baseline was taken from: {baselined_url}", flush=True)
+        print(f"      registry now points at:  {registry_url}", flush=True)
+    for source_id, url in report.no_text:
+        # Fetched fine, and unreadable: zero passages out of a page that promised text. Not
+        # compared against the committed hash at all, because the comparison would be against
+        # the hash of nothing — which is what every blind page in the registry hashes to.
+        print(
+            f"  ∅ NO EXTRACTABLE TEXT (NOT compared, no drift claimed either way): {source_id}",
+            flush=True,
+        )
+        print(f"      {url}", flush=True)
+        print(
+            "      a human should open this page: JS shell, soft 404, or bot-wall are typical",
+            flush=True,
+        )
+    for source_id, error in report.unreachable:
+        # Same rule as everywhere else in this tool: an outage is not a content change.
+        print(f"  ⚠️  unreachable (NOT drift): {source_id} — {error}", flush=True)
+
+
 def _cmd_baseline_check(
     args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None
 ) -> int:
@@ -825,37 +951,18 @@ def _cmd_baseline_check(
     _print_ineligible_sources(
         tuple(decision for decision in selected_decisions if not decision.eligible)
     )
+    # The attempt denominator, on its own machine-readable line and BEFORE any fetch, for the
+    # same reason the three count markers below exist — and for a stronger one. Every numerator
+    # this command prints is zero when nothing was checked, which is byte-identical to what a
+    # complete run over sources that all matched prints. A workflow branching on a numerator
+    # alone therefore reads "we examined nothing" as "nothing moved". Branch on this first.
+    print(f"baseline-check-attempted-count: {len(sources)}")
+    if not sources:
+        return _refuse_empty_baseline_check()
     active = fetcher or HttpFetcher()
     report = check_baselines(sources, active, baselines)
 
-    for source_id, committed, current in report.moved:
-        # The qualifier rides on the line itself, not only in a footer. A reviewer who scans
-        # the MOVED lines and stops there must not come away believing a page changed when
-        # what changed may be the normalizer the committed hash was taken with.
-        recorded = report.moved_across_contracts.get(source_id)
-        caveat = f"  (baseline normalizer: {recorded}; MAY be an artifact)" if recorded else ""
-        print(
-            f"  ✎ MOVED   {source_id:<28} {committed[:12]} → {current[:12]}{caveat}",
-            flush=True,
-        )
-    for source_id in report.unbaselined:
-        print(f"  ?  no committed baseline: {source_id}", flush=True)
-    for source_id, url in report.no_text:
-        # Fetched fine, and unreadable: zero passages out of a page that promised text. Not
-        # compared against the committed hash at all, because the comparison would be against
-        # the hash of nothing — which is what every blind page in the registry hashes to.
-        print(
-            f"  ∅ NO EXTRACTABLE TEXT (NOT compared, no drift claimed either way): {source_id}",
-            flush=True,
-        )
-        print(f"      {url}", flush=True)
-        print(
-            "      a human should open this page: JS shell, soft 404, or bot-wall are typical",
-            flush=True,
-        )
-    for source_id, error in report.unreachable:
-        # Same rule as everywhere else in this tool: an outage is not a content change.
-        print(f"  ⚠️  unreachable (NOT drift): {source_id} — {error}", flush=True)
+    _print_baseline_buckets(report)
     print(f"baseline check: {report.summary()}")
     # A machine-readable count, on its own line, for CI to branch on. The prose summary above
     # always contains the word "MOVED" — including when it reads "0 MOVED" — so a workflow that
@@ -876,6 +983,20 @@ def _cmd_baseline_check(
     # a blind page as a quiet one. Zero here is a real measurement; the absence of the line is
     # not, which is why the workflow fails loudly when it is missing rather than assuming zero.
     print(f"baseline-check-no-text-count: {len(report.no_text)}")
+    # Sources whose committed hash describes a page the registry no longer points at. Its own
+    # machine-readable line for the same reason as the three above, and it must never be added
+    # to the MOVED count: that count is what a workflow alerts a human with as "a source is no
+    # longer what the baseline said", and this is a source we could not check at all.
+    print(f"baseline-check-url-changed-count: {len(report.url_changed)}")
+    if report.url_changed:
+        print(
+            f"\n{len(report.url_changed)} source(s) are registered at a DIFFERENT URL than the\n"
+            "one their committed hash was taken from. Those pages were NOT compared against\n"
+            "anything: the committed hash describes a document this run never fetched, and\n"
+            "subtracting one page from an unrelated one is not drift detection. This run says\n"
+            "nothing about whether those pages changed. Refresh the file with:\n"
+            "  sentinel watch && sentinel baseline write"
+        )
     if report.moved:
         print(
             "\nA MOVED source is a fact about bytes, not a finding about the law, and this\n"

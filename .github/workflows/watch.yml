@@ -98,7 +98,27 @@ jobs:
           if [[ -n "$JURISDICTION" ]]; then
             args+=(--jurisdiction "$JURISDICTION")
           fi
+          # The command now exits non-zero when its attempt denominator is empty, which is a
+          # condition a human must see rather than a step that should vanish. Capture the
+          # status instead of letting `set -e` end the job here: the markers below still have
+          # to be parsed, and the review-queue issue still has to be filed, before the job is
+          # allowed to go red.
+          set +e
           uv run sentinel baseline check "${args[@]}" | tee watch-report.txt
+          check_status="${PIPESTATUS[0]}"
+          set -e
+          echo "check-status=${check_status}" >> "$GITHUB_OUTPUT"
+          # THE ATTEMPT DENOMINATOR, read before any numerator. Every count below is 0 when
+          # nothing was checked, which is byte-identical to a complete run in which everything
+          # matched — so branching on a numerator alone reads "we examined nothing" as "nothing
+          # moved". That is the fail-open this repo exists to refuse, and with the registry at
+          # 0/152 attempt-eligible it is the branch this job actually takes every week.
+          attempted_count="$(sed -n 's/^baseline-check-attempted-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$attempted_count" =~ ^[0-9]+$ ]]; then
+            echo "::error::baseline check emitted no 'baseline-check-attempted-count:' line; cannot tell whether anything was checked at all"
+            exit 1
+          fi
+          echo "attempted-count=${attempted_count}" >> "$GITHUB_OUTPUT"
           # Branch on the machine-readable count, NOT on the prose. The human-readable summary
           # says "... 0 MOVED, ..." even when nothing moved, so `grep -q "MOVED"` was true on
           # every run and this job refiled the review-queue issue forever. A weekly alert that
@@ -125,11 +145,32 @@ jobs:
             echo "::error::baseline check emitted no 'baseline-check-no-text-count:' line; cannot decide whether any source was unreadable"
             exit 1
           fi
+          # Sources the registry has re-pointed since the baseline was written. Deliberately
+          # NOT added to the MOVED count — that count is what alerts a human that a page is no
+          # longer what the baseline said, and these are pages that were not compared at all —
+          # but still a review trigger, because a stale baseline entry means that source is
+          # unwatched until someone re-derives it. Missing marker is loud, as above.
+          url_changed_count="$(sed -n 's/^baseline-check-url-changed-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$url_changed_count" =~ ^[0-9]+$ ]]; then
+            echo "::error::baseline check emitted no 'baseline-check-url-changed-count:' line; cannot decide whether any baseline describes a page we no longer watch"
+            exit 1
+          fi
+          echo "url-changed-count=${url_changed_count}" >> "$GITHUB_OUTPUT"
           echo "moved-count=${moved_count}" >> "$GITHUB_OUTPUT"
           echo "no-text-count=${no_text_count}" >> "$GITHUB_OUTPUT"
-          if [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 ]]; then
+          # A zero denominator needs a human as much as a moved page does — more, in fact,
+          # because it means the monitor is not monitoring. It is surfaced as its own output
+          # rather than folded into the counts so the issue body can say WHICH of the two
+          # happened: "nothing moved" and "nothing was looked at" are opposite facts.
+          if [[ "$attempted_count" -eq 0 ]]; then
+            echo "::warning::baseline check attempted 0 sources; this run is not evidence that nothing changed"
+            echo "nothing-checked=true" >> "$GITHUB_OUTPUT"
+            echo "needs-review=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 || "$url_changed_count" -gt 0 ]]; then
+            echo "nothing-checked=false" >> "$GITHUB_OUTPUT"
             echo "needs-review=true" >> "$GITHUB_OUTPUT"
           else
+            echo "nothing-checked=false" >> "$GITHUB_OUTPUT"
             echo "needs-review=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -149,43 +190,93 @@ jobs:
         env:
           MOVED_COUNT: ${{ steps.check.outputs.moved-count }}
           NO_TEXT_COUNT: ${{ steps.check.outputs.no-text-count }}
+          ATTEMPTED_COUNT: ${{ steps.check.outputs.attempted-count }}
+          URL_CHANGED_COUNT: ${{ steps.check.outputs.url-changed-count }}
+          NOTHING_CHECKED: ${{ steps.check.outputs.nothing-checked }}
         with:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('watch-report.txt', 'utf8');
             const movedCount = process.env.MOVED_COUNT;
             const noTextCount = process.env.NO_TEXT_COUNT;
-            const title = 'Review queue: watched sources moved';
+            const attemptedCount = process.env.ATTEMPTED_COUNT;
+            const urlChangedCount = process.env.URL_CHANGED_COUNT;
+            const nothingChecked = process.env.NOTHING_CHECKED === 'true';
+            // Two different findings need two different sentences, and the wrong one is
+            // actively misleading: a queue headed "watched sources moved" that was filed by a
+            // run which watched nothing tells a reviewer the opposite of what happened.
+            const title = nothingChecked
+              ? 'Watch did not run: 0 sources were attempt-eligible'
+              : 'Review queue: watched sources moved';
+            const opening = nothingChecked
+              ? [
+                  '**Nothing was checked this run. This is not a finding that nothing changed.**',
+                  '',
+                  `Sources attempted: **${attemptedCount}**. No page was fetched, no hash was`,
+                  'compared, and no source in the registry was observed. Feed silence this week',
+                  'carries no information at all.',
+                  '',
+                  'A source becomes attempt-eligible only with a dated human verification (with',
+                  'evidence and a recheck expiry) AND a dated fetch-policy decision. The machine',
+                  'report below names the exact reasons and their counts. Until at least one',
+                  'source clears both, this job cannot observe anything, and every count it',
+                  'prints will be zero for that reason rather than for a reassuring one.',
+                ]
+              : [
+                  '**A watched official source is no longer what the committed baseline says it was,**',
+                  '**or could not be read at all.**',
+                  '',
+                  `Sources attempted: **${attemptedCount}**.`,
+                  `Sources moved this run: **${movedCount}**.`,
+                  `Sources that answered with no extractable text: **${noTextCount}**.`,
+                  `Sources registered at a different URL than their baseline was taken from: **${urlChangedCount}**.`,
+                ];
+            // The remedy differs as much as the finding does. Handing a reviewer
+            // `sentinel diff <change-id>` when no change exists sends them looking for a
+            // record that was never minted; the real next step is the verification queue.
+            const remedy = nothingChecked
+              ? [
+                  'There is no change id to review, because no observation was made. The step',
+                  'that unblocks this job is the source-verification queue:',
+                  '',
+                  '```sh',
+                  'make install',
+                  'uv run sentinel sources eligibility   # the exact reasons, per source',
+                  'uv run sentinel verify --verifier "Your Name" --federal-first',
+                  '```',
+                  '',
+                  'See `docs/VERIFYING.md`. Note that a confirmation alone does not make a source',
+                  'attempt-eligible: the dated fetch-policy decision is a separate record.',
+                ]
+              : [
+                  'An unreadable source was **not compared against anything** — a JS shell, an empty',
+                  '200 and a bot-wall all normalize to the same nothing, so "it matches the baseline"',
+                  'would be true of a page nobody can read. Those entries are not drift and not a',
+                  'no-change result; they are pages a human has to open, and a source that keeps',
+                  'landing there belongs in the GAPS block of `sources/registry.json` (`spa-no-text`).',
+                  '',
+                  'This is a machine observation about bytes at a URL. It is **not** a finding that',
+                  'the law changed, and nothing here is published to the feed. A named human must run',
+                  'the review before any of it reaches a consumer:',
+                  '',
+                  '```sh',
+                  'make install',
+                  'uv run sentinel watch                 # retains the bytes, so you get a passage diff',
+                  'uv run sentinel diff <change-id>      # read the passage that actually changed',
+                  'uv run sentinel review <change-id> --reviewer "Your Name" \\',
+                  '    --significance editorial|substantive --status confirmed|dismissed',
+                  'uv run sentinel publish --out docs/',
+                  '```',
+                  '',
+                  'Note `baseline check` gives you the *hash*, not the passage — run `sentinel watch`',
+                  'for the diff. And remember an `editorial` dismissal is as valuable as a confirmation:',
+                  'a source that keeps producing them is a false-drift source and belongs in the GAPS',
+                  'block of `sources/registry.json`, not in a reviewer\'s queue.',
+                ];
             const body = [
-              '**A watched official source is no longer what the committed baseline says it was,**',
-              '**or could not be read at all.**',
+              ...opening,
               '',
-              `Sources moved this run: **${movedCount}**.`,
-              `Sources that answered with no extractable text: **${noTextCount}**.`,
-              '',
-              'An unreadable source was **not compared against anything** — a JS shell, an empty',
-              '200 and a bot-wall all normalize to the same nothing, so "it matches the baseline"',
-              'would be true of a page nobody can read. Those entries are not drift and not a',
-              'no-change result; they are pages a human has to open, and a source that keeps',
-              'landing there belongs in the GAPS block of `sources/registry.json` (`spa-no-text`).',
-              '',
-              'This is a machine observation about bytes at a URL. It is **not** a finding that',
-              'the law changed, and nothing here is published to the feed. A named human must run',
-              'the review before any of it reaches a consumer:',
-              '',
-              '```sh',
-              'make install',
-              'uv run sentinel watch                 # retains the bytes, so you get a passage diff',
-              'uv run sentinel diff <change-id>      # read the passage that actually changed',
-              'uv run sentinel review <change-id> --reviewer "Your Name" \\',
-              '    --significance editorial|substantive --status confirmed|dismissed',
-              'uv run sentinel publish --out docs/',
-              '```',
-              '',
-              'Note `baseline check` gives you the *hash*, not the passage — run `sentinel watch`',
-              'for the diff. And remember an `editorial` dismissal is as valuable as a confirmation:',
-              'a source that keeps producing them is a false-drift source and belongs in the GAPS',
-              'block of `sources/registry.json`, not in a reviewer\'s queue.',
+              ...remedy,
               '',
               '<details><summary>Machine report</summary>',
               '',
@@ -221,3 +312,16 @@ jobs:
                 labels: ['review-queue'],
               });
             }
+
+      # Last, so the human-review issue is already filed before the job colour changes. A run
+      # that observed nothing is not a successful run, and a green tick next to it is the same
+      # wrong "no change" the tool refuses to publish. Drift itself still exits 0 — a state
+      # website being down, or a page genuinely moving, is the tool WORKING and must never look
+      # like a broken build. This fails only for "we checked nothing", which is neither.
+      - name: Fail the run if nothing was checked
+        if: steps.check.outputs.nothing-checked == 'true'
+        env:
+          CHECK_STATUS: ${{ steps.check.outputs.check-status }}
+        run: |
+          echo "::error::baseline check attempted 0 sources (sentinel exit ${CHECK_STATUS}). This run observed nothing and is not evidence that nothing changed."
+          exit 1

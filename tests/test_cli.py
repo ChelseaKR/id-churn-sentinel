@@ -752,7 +752,11 @@ def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
     )
 
     output = capsys.readouterr().out
-    assert exit_code == 0
+    # The property this test is named for is unchanged and still asserted below: no source
+    # that fails canonical eligibility is fetched. The exit code moved from 0 to 1, because a
+    # run that fetched nothing observed nothing — and exiting 0 was how the weekly job read
+    # "we checked no sources" as "no source moved". Nothing here is relaxed to accommodate it.
+    assert exit_code == 1
     assert stub.calls == []
     assert "0/2 selected source(s) attempt-eligible" in output
     assert "fetch-policy-unreviewed: 2" in output
@@ -867,3 +871,167 @@ def test_baseline_check_flags_a_hash_recorded_by_a_different_normalizer(
     # would page a human for every artifact on the first pass after a version bump.
     assert "baseline-check-moved-count: 1" in out
     assert "baseline-check-cross-contract-count: 1" in out
+
+
+# -- the empty attempt denominator ------------------------------------------------
+#
+# `sentinel watch` has always failed closed on this condition. `sentinel baseline check` —
+# the command the WEEKLY HOSTED JOB runs — did not: it printed "0 source(s): 0 match the
+# committed baseline, 0 MOVED", emitted `baseline-check-moved-count: 0`, and exited 0. Those
+# are the exact bytes a complete run over sources that all matched emits, so the workflow
+# concluded `needs-review=false` and went green. With the committed registry at 0/152
+# attempt-eligible that was the branch it took every single week: a monitor that observed
+# nothing, reporting as a monitor that saw no change.
+
+
+@pytest.fixture
+def ineligible_cli_registry(tmp_path: Path, source: Source) -> Path:
+    """A registry whose entries are real and whose eligibility is incomplete — the shape the
+    committed `sources/registry.json` is in today (unverified, fetch-policy-unreviewed)."""
+    path = tmp_path / "ineligible-registry.json"
+    path.write_text(
+        json.dumps(
+            {
+                "registry_version": "1.0",
+                "sources": [
+                    {
+                        "id": source.id,
+                        "jurisdiction": source.jurisdiction,
+                        "document_class": source.document_class,
+                        "url": source.url,
+                        "authority": source.authority,
+                        "verified": False,
+                        "notes": "synthetic test fixture",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_baseline_check_fails_closed_when_no_source_was_attempted(
+    ineligible_cli_registry: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A zero attempt denominator is not a clean result, and must not exit as one."""
+    committed = tmp_path / "baseline-hashes.json"
+    committed.write_text(
+        json.dumps({"baseline_version": "1.0", "baselines": {}}),
+        encoding="utf-8",
+    )
+    stub = StubFetcher()
+
+    exit_code = main(
+        [
+            *base_args(ineligible_cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(committed),
+        ],
+        fetcher=stub,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    # Nothing was fetched, so no government server was contacted for a run that could not
+    # have observed anything anyway.
+    assert stub.calls == []
+    assert "NO SOURCE WAS CHECKED" in captured.out
+    assert "not evidence that nothing changed" in captured.err
+    # The denominator marker exists and is zero, so a workflow can branch on the one number
+    # that distinguishes "nothing moved" from "nothing was looked at".
+    assert "baseline-check-attempted-count: 0" in captured.out
+
+
+def test_baseline_check_publishes_its_attempt_denominator_on_a_real_run(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The marker is not a failure-only signal: a workflow must be able to read the
+    denominator on every run, or the absence of the line is itself ambiguous."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-attempted-count: 2" in out_text
+    assert "NO SOURCE WAS CHECKED" not in out_text
+
+
+def test_baseline_check_never_counts_a_re_pointed_source_as_moved(
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    fixture_after: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The MOVED count is what a workflow alerts a human with. A source whose registry URL
+    changed was not compared against anything, so it must never reach that number."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    original = tmp_path / "registry-original.json"
+    original.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [eligible_source_entry(source)]}),
+        encoding="utf-8",
+    )
+    main(
+        [*base_args(original, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(original, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    repointed_url = "https://www.dps.texas.gov/an-entirely-different-page"
+    repointed = tmp_path / "registry-repointed.json"
+    entry = eligible_source_entry(source)
+    entry["url"] = repointed_url
+    repointed.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [entry]}), encoding="utf-8"
+    )
+
+    exit_code = main(
+        [
+            *base_args(repointed, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({repointed_url: (fixture_after, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "baseline-check-url-changed-count: 1" in out_text
+    assert "REGISTRY URL CHANGED" in out_text
+    assert f"baseline was taken from: {source.url}" in out_text
+    assert f"registry now points at:  {repointed_url}" in out_text
+    # The command must not offer the passage-diff follow-up here: there is no observed drift
+    # to read, and pointing a reviewer at one would send them looking for a record that was
+    # never minted.
+    assert "cannot show you the passage that changed" not in out_text

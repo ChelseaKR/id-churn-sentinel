@@ -24,6 +24,13 @@ watcher that hammers them is taking from the commons it claims to protect. The s
 lives in the fetcher, not the caller, so no code path that reaches the network can skip it
 — the same reasoning that puts robots and the User-Agent here (threat model 06 names
 "per-host limits" as the denial-of-service mitigation).
+
+**And both of those guards survive a redirect**, which for a long time they did not. The
+scheme check and the robots check were applied to the URL this module was handed and to no
+other, while `HTTPRedirectHandler` cheerfully follows `http` as well as `https` and never
+reconsults a policy. So a page that 301'd to cleartext was read in cleartext, and a page that
+redirected to another host was read without that host's robots.txt ever being fetched. Both
+are now refused in :class:`_RedirectRecorder`, before any body is read — see its docstring.
 """
 
 from __future__ import annotations
@@ -201,19 +208,52 @@ class Fetcher(Protocol):
     def fetch(self, url: str) -> FetchResult: ...
 
 
-class _RedirectRecorder(urllib.request.HTTPRedirectHandler):
-    """urllib's own redirect handler, with a memory.
+class _RedirectRefused(Exception):  # noqa: N818 — a control-flow signal, not an error state
+    """A redirect target this fetcher declines to follow.
 
-    Plain `urlopen` follows redirects invisibly: the caller sees the final body and, at
-    best, the final URL — every intermediate hop is discarded. This subclass changes no
-    redirect *behaviour* (same hop limit, same status handling, delegated to the stdlib);
-    it only writes down each hop as it is followed, so the chain can be persisted as fetch
-    evidence. One recorder serves one `fetch()` call and is never reused — a recorder
-    shared across calls would splice two pages' journeys into one lie.
+    Carried out of the stdlib's redirect machinery so `fetch()` can turn it into an ordinary
+    classified :class:`FetchResult` failure. It reuses the existing closed error vocabulary
+    (`non-https-scheme`, `robots-disallowed`) rather than inventing a class, because those are
+    exactly what happened — the refusal is the same refusal, made one hop later.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, url: str, reason: str, error_class: str) -> None:
+        super().__init__(reason)
+        self.url = url
+        self.reason = reason
+        self.error_class = error_class
+
+
+class _RedirectRecorder(urllib.request.HTTPRedirectHandler):
+    """urllib's own redirect handler, with a memory and the fetcher's two refusals.
+
+    Plain `urlopen` follows redirects invisibly: the caller sees the final body and, at
+    best, the final URL — every intermediate hop is discarded. This subclass writes down each
+    hop as it is followed, so the chain can be persisted as fetch evidence. One recorder
+    serves one `fetch()` call and is never reused — a recorder shared across calls would
+    splice two pages' journeys into one lie.
+
+    **And it re-applies the two guards `fetch()` applies to the URL it was given.** Both were
+    previously checked once, on the registry URL, and a redirect walked straight past them:
+
+    * *Scheme.* `HTTPRedirectHandler` follows `http`, `https` and `ftp` alike, so a government
+      page that 301s to `http://` was fetched in cleartext — by a tool whose own docstring
+      says it "does not fetch over plaintext, ever", for a population that includes people in
+      hostile jurisdictions. The promise was true of the first request and of no other.
+    * *robots.txt.* The policy consulted was the one belonging to the host in the registry. A
+      redirect to a different host, or to a path that host disallows, was fetched without ever
+      reading the policy that governs it. "robots.txt honoured without appeal" has to mean the
+      policy of the server we actually read, or it means nothing.
+
+    Refusing here rather than after the fact is the point: by the time `fetch()` sees a
+    `final_url` the bytes have already been taken.
+    """
+
+    def __init__(self, allows: Callable[[str], str | None] | None = None) -> None:
         self.hops: list[RedirectHop] = []
+        # Returns an error class when the target must not be followed, `None` when it may be.
+        # Injected rather than reaching back into the fetcher so this stays a pure policy seam.
+        self._allows = allows
 
     def redirect_request(
         self,
@@ -225,9 +265,25 @@ class _RedirectRecorder(urllib.request.HTTPRedirectHandler):
         newurl: str,
     ) -> urllib.request.Request | None:
         new_request = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if new_request is not None:
-            self.hops.append(RedirectHop(status=code, url=new_request.full_url))
+        if new_request is None:
+            return None
+        target = new_request.full_url
+        refusal = self._allows(target) if self._allows is not None else None
+        if refusal is not None:
+            # The stdlib reads and closes `fp` only after this method returns a request, so a
+            # raise here would leak the live response stream. This process is a long-lived
+            # weekly watcher against servers that rate-limit, which is where that bites.
+            if fp is not None:
+                fp.close()
+            raise _RedirectRefused(target, _redirect_refusal_reason(refusal, target), refusal)
+        self.hops.append(RedirectHop(status=code, url=target))
         return new_request
+
+
+def _redirect_refusal_reason(error_class: str, target: str) -> str:
+    if error_class == ERROR_CLASS_NON_HTTPS:
+        return f"refusing to follow a redirect to a non-https URL: {target!r}"
+    return f"robots.txt disallows the redirect target for our user-agent: {target!r}"
 
 
 def _open_page(
@@ -305,8 +361,10 @@ class HttpFetcher:
         )
         # One recorder per call: its hops are this fetch's redirect chain, kept even when
         # the fetch ends in an error partway down the chain — a failure's journey is
-        # evidence too (the hop that 404s is the hop a maintainer has to look at).
-        recorder = _RedirectRecorder()
+        # evidence too (the hop that 404s is the hop a maintainer has to look at). It also
+        # carries this fetcher's scheme and robots guards, so a redirect cannot walk past
+        # either of the two checks applied to the URL above.
+        recorder = _RedirectRecorder(self._redirect_refusal)
         try:
             with _open_page(request, timeout=self._timeout, recorder=recorder) as response:
                 chain = tuple(recorder.hops)
@@ -337,6 +395,19 @@ class HttpFetcher:
                     byte_limit=self._max_bytes,
                     truncated=False,
                 )
+        except _RedirectRefused as exc:
+            # We stopped part-way down a chain on purpose. The hops taken before the refusal
+            # are still evidence — they are how a maintainer sees where the source now points
+            # — and no body was read, so there is nothing that could be mistaken for content.
+            chain = tuple(recorder.hops)
+            return FetchResult.failure(
+                url,
+                exc.reason,
+                error_class=exc.error_class,
+                final_url=chain[-1].url if chain else url,
+                redirect_chain=chain,
+                byte_limit=self._max_bytes,
+            )
         except urllib.error.HTTPError as exc:
             # A 404 or a 403 is a *fetch failure*, not an empty page. Hashing an error
             # body would report "the page changed" the day a state stands up a WAF.
@@ -367,22 +438,64 @@ class HttpFetcher:
                 byte_limit=self._max_bytes,
             )
 
+    def _redirect_refusal(self, target: str) -> str | None:
+        """The two guards, re-applied to a redirect target. `None` means it may be followed.
+
+        Same order and same rules as `fetch()` applies to the URL it was handed, because they
+        are the same rules: a redirect does not make plaintext acceptable, and it does not
+        make another server's robots.txt somebody else's problem. Reading the new host's
+        robots.txt is a real request, and the right one to make — it is cached per host, and
+        the alternative is reading that host's *page* without having read its policy.
+        """
+        if urlparse(target).scheme != "https":
+            return ERROR_CLASS_NON_HTTPS
+        if self._respect_robots and not self._robots_allow(target):
+            return ERROR_CLASS_ROBOTS_DISALLOWED
+        return None
+
     def _space_before_request(self, host: str) -> None:
         """Sleep so consecutive page requests to ``host`` are at least
-        ``min_host_interval`` apart. The gap is measured between request *starts*, so a slow
-        response shrinks the added wait rather than stacking on top of it — the interval
+        ``min_host_interval`` apart — or further apart still if that host's robots.txt asks
+        for it (:meth:`_host_interval`). The gap is measured between request *starts*, so a
+        slow response shrinks the added wait rather than stacking on top of it — the interval
         bounds the rate we hit a host, never the time a host takes to answer. The first
         request to a host never waits; only the second and later ones do."""
-        if self._min_host_interval <= 0:
+        interval = self._host_interval(host)
+        if interval <= 0:
             return
         now = self._monotonic()
         last = self._last_request_at.get(host)
         if last is not None:
-            remaining = self._min_host_interval - (now - last)
+            remaining = interval - (now - last)
             if remaining > 0:
                 self._sleep(remaining)
                 now = self._monotonic()
         self._last_request_at[host] = now
+
+    def _host_interval(self, host: str) -> float:
+        """Our own floor, or the host's declared `Crawl-delay`, whichever is more generous.
+
+        `robots.txt` is not only a list of paths. A server that says `Crawl-delay: 10` has
+        stated the rate it wants, and honouring the Disallow lines while ignoring that is
+        honouring half a policy — this tool's own gap list already describes robots as
+        "honoured without appeal", and CLAUDE.md's guardrail #4 says the answer to a server
+        that does not want us is to stop, not to route around it. Our 2s floor still applies
+        when a host asks for less or asks for nothing: a shorter declared delay is permission
+        we do not need, and taking it would only make us a heavier guest on infrastructure the
+        people this tool serves pay for.
+        """
+        declared: float | None = None
+        parser = self._robots.get(host)
+        if parser is not None:
+            try:
+                raw = parser.crawl_delay(self._user_agent)
+            except (AttributeError, ValueError):  # pragma: no cover — defensive
+                raw = None
+            if raw is not None:
+                declared = float(raw)
+        if declared is None:
+            return self._min_host_interval
+        return max(self._min_host_interval, declared)
 
     def _robots_allow(self, url: str) -> bool:
         """Check (and cache) robots.txt per host. A robots.txt we cannot read is treated as

@@ -671,7 +671,10 @@ def feed_xml(
             f"evidence that nothing changed there."
         )
     )
-    description = f"{description} {_registry_sentence(scoped_sources, jurisdiction)}"
+    description = (
+        f"{description} "
+        f"{_registry_sentence(scoped_sources, jurisdiction, as_of=eligibility_as_of or generated_at.date())}"
+    )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<rss version="2.0">\n'
@@ -688,15 +691,31 @@ def feed_xml(
     )
 
 
-def _registry_sentence(sources: Sequence[Source], jurisdiction: str | None) -> str:
+def _registry_sentence(sources: Sequence[Source], jurisdiction: str | None, *, as_of: date) -> str:
     """One sentence, in the channel description, stating the registry's verification state for
     whatever this feed is scoped to. Counted, not asserted — it will read differently the day
-    someone finishes the burn-down, and it will read differently *by itself*."""
+    someone finishes the burn-down, and it will read differently *by itself*.
+
+    The completeness claim additionally requires that the scoped sources are actually
+    attempt-eligible. `verified` is a fact about a person opening a URL; being watched needs an
+    evidence reference, a recheck expiry and a dated fetch-policy decision on top of it (issue
+    #18). An RSS reader shows this description once and the items forever, so "All 3 sources in
+    TX are HUMAN-VERIFIED" is a durable, jurisdiction-named claim that a subscriber would
+    reasonably read as *and therefore watched* — while the Texas feed sits permanently empty
+    because nothing in it can be fetched. Both facts, or neither.
+    """
     scope = jurisdiction or "the registry"
     verified = sum(1 for s in sources if s.verified)
+    monitored = sum(1 for s in sources if evaluate_source(s, as_of=as_of).eligible)
     where = f"in {scope}" if jurisdiction else "in the registry"
-    if verified == len(sources) and sources:
+    if verified == len(sources) and sources and monitored == len(sources):
         return f"All {len(sources)} sources {where} are HUMAN-VERIFIED. {REGISTRY_DISCLAIMER}"
+    if verified == len(sources) and sources:
+        return (
+            f"All {len(sources)} sources {where} are HUMAN-VERIFIED, but only {monitored} of "
+            f"{len(sources)} are attempt-eligible, so this feed's silence is not evidence that "
+            f"nothing changed at the rest. {REGISTRY_DISCLAIMER}"
+        )
     return (
         f"SOURCE REGISTRY: {verified} of {len(sources)} sources {where} are human-verified; "
         f"the rest are UNVERIFIED — machine-checked candidate URLs that no human has confirmed "

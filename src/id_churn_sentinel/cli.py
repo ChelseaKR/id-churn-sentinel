@@ -77,13 +77,20 @@ from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
     Registry,
+    Source,
     default_registry_path,
     load_registry,
 )
 from id_churn_sentinel.core.site import REPO_URL
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
-from id_churn_sentinel.core.verify import confirm, pending, reject, run_verification
+from id_churn_sentinel.core.verify import (
+    confirm,
+    pending,
+    reject,
+    run_verification,
+    unwatchable_after_confirmation,
+)
 from id_churn_sentinel.errors import SentinelError
 
 __all__ = ["build_parser", "main", "run"]
@@ -462,6 +469,7 @@ def _cmd_verify(
             print(f"  {source.jurisdiction:<3} {source.document_class:<24} {source.id}")
             print(f"      {source.url}")
         print(f"verify --list: {len(queue)} source(s) pending human verification")
+        _print_residual_ineligibility(queue)
         return 0
 
     if args.source_id:
@@ -481,6 +489,10 @@ def _cmd_verify(
     )
     print(f"\nverify: {outcome.summary()}")
     print("Everything decided is already written to the registry — re-run to continue.")
+    # Reloaded from disk, not from the in-memory registry: the session wrote to the file as it
+    # went, and the question a verifier is owed at the end is about the state they actually
+    # left behind.
+    _print_residual_ineligibility(load_registry(path).sources)
     return 0
 
 
@@ -505,7 +517,42 @@ def _cmd_verify_one(args: argparse.Namespace, path: Path) -> int:
         return 1
     print(f"verify: {args.source_id} → {recorded.label}")
     print(f"  written to {path}")
+    if args.confirm:
+        _print_residual_ineligibility([load_registry(path).by_id(args.source_id)])
     return 0
+
+
+def _print_residual_ineligibility(sources: Sequence[Source]) -> None:
+    """Say what a confirmation does NOT accomplish, before the volunteer walks away.
+
+    Working the whole 152-source queue leaves the attempt denominator at zero, and nothing
+    told the person who did the work (issue #18). `sentinel verify` writes the status, the
+    verifier and the date — that is its whole job, and it is the only writer of
+    `verified: true`. The watcher additionally requires a verification evidence reference and
+    a recheck expiry, plus a dated fetch-policy decision that no command in this tool writes
+    at all. Nothing here relaxes any of that. It states it, at the one moment someone is in a
+    position to act on it, with the numbers derived so the message disappears by itself on the
+    day it stops being true.
+    """
+    remaining = unwatchable_after_confirmation(sources)
+    if not remaining:
+        return
+    print(
+        "\n  ⚠️  CONFIRMING IS NOT THE LAST STEP. A confirmation records that a named human "
+        "opened\n"
+        "      the URL. It does not make the source attempt-eligible, so the watcher will "
+        "still\n"
+        "      not fetch it and the feed will still stay empty. Even fully confirmed, these\n"
+        "      would remain blocked:"
+    )
+    for reason, count in remaining.items():
+        print(f"        {reason}: {count}")
+    print(
+        "      `sentinel verify` writes status/verifier/date only. The evidence reference and\n"
+        "      recheck expiry, and the dated fetch-policy decision, are separate records that\n"
+        "      no command in this tool writes yet (issue #18, SRC-03). Check with:\n"
+        "        sentinel sources eligibility"
+    )
 
 
 def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:

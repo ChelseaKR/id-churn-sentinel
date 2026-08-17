@@ -3,6 +3,39 @@
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion.**
 > Status today: **`0 of 152 sources are human-verified`.** Everything below exists to change that number.
 
+## Read this before you start: confirming is not the last step
+
+**Working this entire queue does not, by itself, make the tool watch anything.** That is worth
+knowing before you spend an afternoon on it rather than after.
+
+`sentinel verify` records one thing: that a named human opened a URL and confirmed it is the
+official page. That is the judgment only a person can make, and it is the whole point of this
+document. But the watcher's eligibility predicate requires two further records that `verify`
+does not write:
+
+- **a verification evidence reference and a recheck expiry** — `verify` writes the status, your
+  name and the date, and nothing else;
+- **a dated fetch-policy decision** (reviewer, date, evidence, reason, expiry) — *no command in
+  this tool writes one at all* yet. Today it has to be edited into `sources/registry.json` by
+  hand.
+
+Until both exist for a source, that source stays out of the attempt denominator: the watcher
+will not fetch it, and the feed stays empty. The predicate is fail-closed by design and is not
+going to be relaxed — a source nobody has fully signed off is a source this tool declines to
+speak about. What was missing was anyone *telling* you. `sentinel verify --list` and the end of
+every verify session now print exactly what would still be blocking, derived from the same
+predicate the watcher uses, and:
+
+```sh
+uv run sentinel sources eligibility   # the exact reasons and their counts, any time
+```
+
+This is tracked as issue #18 and `SRC-03` in `docs/13-BACKLOG.md`. **None of it makes your
+verification worth less.** It is the step that cannot be automated, it is the blocker on
+everything else, and it is genuinely the most valuable thing anyone can do for this repo. It is
+just not the only step, and you should hear that from the tooling rather than from an empty
+feed three weeks later.
+
 ## The question you are answering
 
 For each source, exactly one question:

@@ -175,6 +175,38 @@ def test_the_committed_baseline_matches_the_committed_registry() -> None:
     assert all(len(entry.sha256) == 64 for entry in baselines.values())
 
 
+def test_no_committed_baseline_cites_a_page_the_registry_no_longer_watches() -> None:
+    """Every committed hash must name the URL the registry still points that source id at.
+
+    A baseline entry is a citation: *this page served this text on this date*. If the registry
+    is re-pointed and the file is not re-derived, the entry goes on citing page A while the
+    check fetches page B — and the two are silently subtracted from each other. `check_baselines`
+    now refuses that comparison at runtime, but a refusal means the source stops being checked,
+    so the drift must not be allowed to land in the committed file in the first place. Offline,
+    and it currently holds for all 146 committed entries.
+    """
+    registry = load_registry()
+    baselines = load_baselines(default_baseline_path())
+    by_id = {source.id: source for source in registry.sources}
+
+    drifted = {
+        source_id: (entry.url, by_id[source_id].url)
+        for source_id, entry in baselines.items()
+        if source_id in by_id and entry.url and entry.url != by_id[source_id].url
+    }
+    assert not drifted, (
+        "committed baseline hashes were taken from a URL the registry no longer points at, so "
+        "they describe pages that are no longer watched. Those sources cannot be checked until "
+        "the file is re-derived: `sentinel watch && sentinel baseline write`. "
+        f"{drifted}"
+    )
+    unrecorded = sorted(source_id for source_id, entry in baselines.items() if not entry.url)
+    assert not unrecorded, (
+        "committed baseline entries with no recorded URL cannot be checked against the "
+        f"registry at all, so a re-pointed source would go unnoticed: {unrecorded}"
+    )
+
+
 # -- a hash of nothing is not a baseline (issue #19) ---------------------------------
 #
 # `sha256("")` is what a JS shell, an empty 200 and a bot-wall all hash to. Committed to this
@@ -381,3 +413,132 @@ def test_write_baselines_stamps_the_snapshots_contract_not_this_builds(
     write_baselines(store, registry, out, now=GENERATED)
 
     assert load_baselines(out)[source.id].contract == "passage-text-v1/none-v1"
+
+
+# -- the baseline's own citation ---------------------------------------------------
+#
+# `write_baselines` has always recorded which URL each hash came from. `load_baselines` threw
+# it away, so `check_baselines` could not ask the one question that decides whether the
+# comparison means anything: does the registry still point this source id at the page the hash
+# describes? Without it, correcting a registry URL turned page A's committed hash into "page B
+# MOVED" — a false change, filed by the weekly job as *a watched official source is no longer
+# what the committed baseline says it was*. `watch()` has always refused that same comparison.
+
+
+def test_load_baselines_keeps_the_url_the_hash_was_taken_from(
+    tmp_path: Path, registry: Registry, source: Source, store: SnapshotStore, fetcher: StubFetcher
+) -> None:
+    watch([source], store, fetcher)
+    path = tmp_path / "baseline-hashes.json"
+    write_baselines(store, registry, path, now=GENERATED)
+
+    loaded = load_baselines(path)
+
+    assert loaded[source.id].url == source.url
+
+
+def test_a_registry_url_change_is_re_baselined_not_reported_as_drift(
+    tmp_path: Path,
+    registry: Registry,
+    source: Source,
+    store: SnapshotStore,
+    fetcher: StubFetcher,
+    fixture_after: bytes,
+) -> None:
+    """The committed hash describes a page this run never fetched. Nothing may be concluded."""
+    watch([source], store, fetcher)
+    path = tmp_path / "baseline-hashes.json"
+    write_baselines(store, registry, path, now=GENERATED)
+    baselines = load_baselines(path)
+
+    corrected = Source(
+        id=source.id,
+        jurisdiction=source.jurisdiction,
+        document_class=source.document_class,
+        url="https://www.dps.texas.gov/an-entirely-different-page",
+        authority=source.authority,
+        verified=False,
+        notes="the maintainer re-pointed this source id",
+    )
+    report = check_baselines(
+        [corrected],
+        StubFetcher({corrected.url: (fixture_after, "text/html")}),
+        baselines,
+    )
+
+    # Asserted first, and deliberately: this is the false change itself. Before the loader
+    # kept the baselined URL, this line read [(source.id, <page A hash>, <page B hash>)] — a
+    # MOVED record about a page that had not been shown to move, which the weekly job files
+    # as "a watched official source is no longer what the committed baseline says it was".
+    assert report.moved == []
+    # And not a match either: both claims describe a comparison that was never made.
+    assert report.matched == []
+    assert report.url_changed == [(source.id, source.url, corrected.url)]
+    assert "no drift claimed either way" in report.summary()
+    assert report.total == 1
+
+
+def test_an_unchanged_registry_url_still_compares_normally(
+    tmp_path: Path, registry: Registry, source: Source, store: SnapshotStore, fetcher: StubFetcher
+) -> None:
+    """The refusal is scoped to a URL that actually changed — it must not blind the check."""
+    watch([source], store, fetcher)
+    path = tmp_path / "baseline-hashes.json"
+    write_baselines(store, registry, path, now=GENERATED)
+
+    report = check_baselines([source], fetcher, load_baselines(path))
+
+    assert report.matched == [source.id]
+    assert report.url_changed == []
+
+
+def test_a_moved_page_at_the_same_url_is_still_reported_as_moved(
+    tmp_path: Path,
+    registry: Registry,
+    source: Source,
+    store: SnapshotStore,
+    fetcher: StubFetcher,
+    fixture_after: bytes,
+) -> None:
+    """The whole point of the command must survive the new refusal."""
+    watch([source], store, fetcher)
+    path = tmp_path / "baseline-hashes.json"
+    write_baselines(store, registry, path, now=GENERATED)
+
+    report = check_baselines(
+        [source],
+        StubFetcher({source.url: (fixture_after, "text/html")}),
+        load_baselines(path),
+    )
+
+    assert [entry[0] for entry in report.moved] == [source.id]
+    assert report.url_changed == []
+
+
+def test_a_baseline_entry_with_no_recorded_url_is_compared_rather_than_refused(
+    tmp_path: Path, source: Source, fetcher: StubFetcher, fixture_before: bytes
+) -> None:
+    """An entry written before the field must not become uncheckable.
+
+    "We do not know which page this hash came from" is a true statement, and the honest
+    response to it is the comparison we have always made — not a fabricated URL mismatch that
+    would silently drop the source out of the check.
+    """
+    from id_churn_sentinel.core.normalize import content_hash
+
+    digest, _ = content_hash(fixture_before, "text/html")
+    path = tmp_path / "legacy-baseline.json"
+    path.write_text(
+        json.dumps(
+            {
+                "baseline_version": BASELINE_VERSION,
+                "baselines": {source.id: {"sha256": digest}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = check_baselines([source], fetcher, load_baselines(path))
+
+    assert report.matched == [source.id]
+    assert report.url_changed == []

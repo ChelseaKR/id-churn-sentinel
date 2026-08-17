@@ -145,6 +145,17 @@ jobs:
             echo "::error::baseline check emitted no 'baseline-check-no-text-count:' line; cannot decide whether any source was unreadable"
             exit 1
           fi
+          # Sources the registry has re-pointed since the baseline was written. Deliberately
+          # NOT added to the MOVED count — that count is what alerts a human that a page is no
+          # longer what the baseline said, and these are pages that were not compared at all —
+          # but still a review trigger, because a stale baseline entry means that source is
+          # unwatched until someone re-derives it. Missing marker is loud, as above.
+          url_changed_count="$(sed -n 's/^baseline-check-url-changed-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$url_changed_count" =~ ^[0-9]+$ ]]; then
+            echo "::error::baseline check emitted no 'baseline-check-url-changed-count:' line; cannot decide whether any baseline describes a page we no longer watch"
+            exit 1
+          fi
+          echo "url-changed-count=${url_changed_count}" >> "$GITHUB_OUTPUT"
           echo "moved-count=${moved_count}" >> "$GITHUB_OUTPUT"
           echo "no-text-count=${no_text_count}" >> "$GITHUB_OUTPUT"
           # A zero denominator needs a human as much as a moved page does — more, in fact,
@@ -155,7 +166,7 @@ jobs:
             echo "::warning::baseline check attempted 0 sources; this run is not evidence that nothing changed"
             echo "nothing-checked=true" >> "$GITHUB_OUTPUT"
             echo "needs-review=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 ]]; then
+          elif [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 || "$url_changed_count" -gt 0 ]]; then
             echo "nothing-checked=false" >> "$GITHUB_OUTPUT"
             echo "needs-review=true" >> "$GITHUB_OUTPUT"
           else
@@ -180,6 +191,7 @@ jobs:
           MOVED_COUNT: ${{ steps.check.outputs.moved-count }}
           NO_TEXT_COUNT: ${{ steps.check.outputs.no-text-count }}
           ATTEMPTED_COUNT: ${{ steps.check.outputs.attempted-count }}
+          URL_CHANGED_COUNT: ${{ steps.check.outputs.url-changed-count }}
           NOTHING_CHECKED: ${{ steps.check.outputs.nothing-checked }}
         with:
           script: |
@@ -188,6 +200,7 @@ jobs:
             const movedCount = process.env.MOVED_COUNT;
             const noTextCount = process.env.NO_TEXT_COUNT;
             const attemptedCount = process.env.ATTEMPTED_COUNT;
+            const urlChangedCount = process.env.URL_CHANGED_COUNT;
             const nothingChecked = process.env.NOTHING_CHECKED === 'true';
             // Two different findings need two different sentences, and the wrong one is
             // actively misleading: a queue headed "watched sources moved" that was filed by a
@@ -216,6 +229,7 @@ jobs:
                   `Sources attempted: **${attemptedCount}**.`,
                   `Sources moved this run: **${movedCount}**.`,
                   `Sources that answered with no extractable text: **${noTextCount}**.`,
+                  `Sources registered at a different URL than their baseline was taken from: **${urlChangedCount}**.`,
                 ];
             // The remedy differs as much as the finding does. Handing a reviewer
             // `sentinel diff <change-id>` when no change exists sends them looking for a

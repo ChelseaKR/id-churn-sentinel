@@ -226,8 +226,3 @@ human-facing site), with current state stated honestly:
 ## Provenance
 
 Built AI-assisted, within a portfolio that shares a common quality standard: every project ships merge-blocking gates for its core safety properties, and audit artifacts are committed rather than claimed.
-
-## Support
-
-This is independent, unpaid work. If it has been useful to you, you can
-<a href='https://ko-fi.com/T6T6GMYTU' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>

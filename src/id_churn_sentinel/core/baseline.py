@@ -188,6 +188,18 @@ class BaselineReport:
         )
 
     def summary(self) -> str:
+        if not self.total:
+            # A pass over no sources at all. Every count below is zero, and each zero is
+            # ambiguous in exactly the direction that hurts: "0 MOVED" is what a clean,
+            # complete, everything-matched run prints, and it is also what a run that
+            # examined nothing prints. The registry is 0/152 attempt-eligible today, so this
+            # is the branch the weekly job actually takes — and the sentence it printed was
+            # the reassuring one. A failure to observe is never a finding of no change.
+            return (
+                "NO SOURCE WAS CHECKED — 0 source(s) were attempted, so this run compared "
+                "nothing against the committed baseline. It is NOT evidence that nothing "
+                "moved; it is the absence of evidence either way."
+            )
         qualified = (
             f", {len(self.moved_across_contracts)} of them compared against a hash from a "
             f"different normalizer (may be a normalization artifact, not drift)"

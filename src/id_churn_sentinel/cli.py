@@ -40,6 +40,7 @@ from pathlib import Path
 
 from id_churn_sentinel import __version__
 from id_churn_sentinel.core.baseline import (
+    BaselineReport,
     check_baselines,
     default_baseline_path,
     load_baselines,
@@ -825,6 +826,29 @@ def _cmd_baseline_check(
     _print_ineligible_sources(
         tuple(decision for decision in selected_decisions if not decision.eligible)
     )
+    # The attempt denominator, on its own machine-readable line and BEFORE any fetch, for the
+    # same reason the three count markers below exist — and for a stronger one. Every numerator
+    # this command prints is zero when nothing was checked, which is byte-identical to what a
+    # complete run over sources that all matched prints. A workflow branching on a numerator
+    # alone therefore reads "we examined nothing" as "nothing moved". Branch on this first.
+    print(f"baseline-check-attempted-count: {len(sources)}")
+    if not sources:
+        # Fail closed, exactly as `sentinel watch` does for the same condition, and for the
+        # same reason: a run with an empty attempt denominator produced no observation, and
+        # exiting 0 hands a caller a clean result it did not earn. This is deliberately NOT
+        # the "never a gate" case — that rule protects a state website being down, which is a
+        # source we tried and could not reach. Nothing was tried here, so no socket is opened
+        # and no fetcher is constructed.
+        print(f"baseline check: {BaselineReport().summary()}")
+        print("baseline-check-moved-count: 0")
+        print("baseline-check-cross-contract-count: 0")
+        print("baseline-check-no-text-count: 0")
+        print(
+            "  FAILED: no attempt-eligible source was checked. This run is not evidence that "
+            "nothing changed.",
+            file=sys.stderr,
+        )
+        return 1
     active = fetcher or HttpFetcher()
     report = check_baselines(sources, active, baselines)
 

@@ -293,9 +293,21 @@ def test_watch_escalates_a_long_dead_source_and_says_it_is_not_classified(
     )
     capsys.readouterr()
 
+    # `--min-removal-silence-days 0` because three runs in one test take milliseconds, not
+    # three weeks. The flag exists precisely so that distinction is explicit rather than
+    # accidental: without it, this loop models an afternoon and must not escalate.
     for _ in range(3):
         exit_code = main(
-            [*args, "watch", "--jurisdiction", "TX", "--removal-threshold", "3"],
+            [
+                *args,
+                "watch",
+                "--jurisdiction",
+                "TX",
+                "--removal-threshold",
+                "3",
+                "--min-removal-silence-days",
+                "0",
+            ],
             fetcher=StubFetcher({}),  # every fetch fails
         )
 

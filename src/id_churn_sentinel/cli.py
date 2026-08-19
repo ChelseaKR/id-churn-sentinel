@@ -35,7 +35,7 @@ import argparse
 import json
 import sys
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from id_churn_sentinel import __version__
@@ -61,7 +61,12 @@ from id_churn_sentinel.core.coverage import (
     completeness_violations,
     coverage,
 )
-from id_churn_sentinel.core.detect import REMOVAL_THRESHOLD, check_stability, watch
+from id_churn_sentinel.core.detect import (
+    MIN_REMOVAL_SILENCE,
+    REMOVAL_THRESHOLD,
+    check_stability,
+    watch,
+)
 from id_churn_sentinel.core.eligibility import SourceEligibility, eligibility_report, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.normalize import (
@@ -239,6 +244,17 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "consecutive failed fetches before a source escalates to `possibly_removed` "
             f"and requires human review (default {REMOVAL_THRESHOLD})"
+        ),
+    )
+    watch_cmd.add_argument(
+        "--min-removal-silence-days",
+        type=int,
+        default=int(MIN_REMOVAL_SILENCE.total_seconds() // 86_400),
+        help=(
+            "minimum days of unbroken silence before an escalation is allowed, whatever "
+            "the failure count — so re-running the watcher several times in one sitting "
+            "cannot manufacture a removal alarm (default "
+            f"{int(MIN_REMOVAL_SILENCE.total_seconds() // 86_400)})"
         ),
     )
 
@@ -731,6 +747,7 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             active,
             jurisdiction=args.jurisdiction,
             removal_threshold=args.removal_threshold,
+            min_removal_silence=timedelta(days=args.min_removal_silence_days),
         )
 
     print(

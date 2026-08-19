@@ -23,6 +23,7 @@ from __future__ import annotations
 import inspect
 import json
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -83,8 +84,17 @@ def test_watch_never_classifies_an_unreachable_source_however_long_it_stays_down
             return FetchResult.failure(url, "HTTP 404", status=404)
 
     watch([source], store, fetcher)  # a baseline to lose
-    for _ in range(REMOVAL_THRESHOLD * 2):
-        report = watch([source], store, Gone(), removal_threshold=REMOVAL_THRESHOLD)
+    # A week between runs, because escalation is a claim about elapsed silence as well as
+    # a count of failures — see MIN_REMOVAL_SILENCE.
+    monday = datetime(2026, 1, 5, 7, 11, tzinfo=UTC)
+    for run in range(REMOVAL_THRESHOLD * 2):
+        report = watch(
+            [source],
+            store,
+            Gone(),
+            removal_threshold=REMOVAL_THRESHOLD,
+            now=monday + run * timedelta(days=7),
+        )
 
     assert report.possibly_removed, "the source must actually escalate, or this proves nothing"
     for change in report.possibly_removed:

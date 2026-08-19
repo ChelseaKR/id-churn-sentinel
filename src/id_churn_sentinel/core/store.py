@@ -30,7 +30,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from types import TracebackType
@@ -66,6 +66,7 @@ __all__ = [
     "AttemptEvidence",
     "FetchAttempt",
     "RunSourceInput",
+    "SilenceWindow",
     "Snapshot",
     "SnapshotStore",
     "WatchRun",
@@ -698,6 +699,37 @@ ALTER TABLE watch_runs
 UPDATE run_sources SET observation_outcome = 'legacy-unknown' WHERE attempted = 1;
 """,
     ),
+    (
+        8,
+        "v1-when-the-silence-started",
+        # `source_health` could say a source had failed N times running, and when it last
+        # failed. It could not say when the streak BEGAN — so it could not answer the one
+        # question `REMOVAL_THRESHOLD` is actually about: how long has this page been
+        # silent? A count of runs is not a duration. Three failures spread over three
+        # weekly runs and three failures inside one afternoon's back-to-back runs were
+        # recorded identically, and the escalation treated them identically.
+        #
+        # That is not hypothetical. In this repository's only retained observation session
+        # (2026-07-13), six sources reached `consecutive_failures = 3` inside a
+        # seventy-four-minute window, because the tool was run three times in one sitting.
+        # Under the old rule those six were "three weeks silent". They were three minutes
+        # silent. See `REMOVAL_THRESHOLD` in core/detect.py.
+        #
+        # Recording the start of the streak is also the minimum needed to ever MEASURE an
+        # outage length. `fetch_attempts` carries the per-attempt evidence, but only for as
+        # long as a database survives; the health row is the durable per-source summary, and
+        # without this column a year of faithful weekly runs still yields no outage
+        # durations from it.
+        #
+        # NULL is meaningful and is not backfilled: it means "this streak began before the
+        # column existed, so its duration is unknown". `record_failure` adopts the current
+        # timestamp for a NULL streak on the next failure, which starts the measured window
+        # now rather than inventing a start date we never observed. The conservative
+        # direction is deliberate — it delays an escalation rather than manufacturing one.
+        """
+ALTER TABLE source_health ADD COLUMN streak_started_at TEXT;
+""",
+    ),
 )
 
 # What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
@@ -814,6 +846,39 @@ _V1_REQUIRED_COLUMNS = {
         }
     ),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class SilenceWindow:
+    """One source's current run of failures, measured two ways at once.
+
+    `consecutive_failures` is how many times we asked and got nothing. `elapsed` is how
+    long the page has actually been unavailable. They are not interchangeable, and the
+    whole reason this type exists is that the escalation rule used to treat them as if
+    they were: three failures is three weeks at a weekly cadence and three minutes in a
+    back-to-back re-run, and only the duration can tell those apart.
+
+    `started_at` is None for a streak that began before migration 8 recorded starts, and
+    `elapsed` is None with it — "unknown", never "zero", because a caller that reads an
+    unknown duration as a short one escalates nothing and a caller that reads it as a long
+    one escalates everything.
+    """
+
+    consecutive_failures: int
+    started_at: datetime | None
+    last_failure_at: datetime | None
+
+    @property
+    def elapsed(self) -> timedelta | None:
+        """Wall-clock silence, or None if we cannot say.
+
+        Derived from the two recorded timestamps rather than from a live clock: both ends
+        are facts the store observed, so the answer is the same whenever it is asked and
+        does not drift while a process sits idle.
+        """
+        if self.started_at is None or self.last_failure_at is None:
+            return None
+        return max(self.last_failure_at - self.started_at, timedelta(0))
 
 
 @dataclass(frozen=True, slots=True)
@@ -1240,34 +1305,61 @@ class SnapshotStore:
 
     # -- source health (the outage-vs-removal signal) -----------------------------
 
-    def record_failure(self, source_id: str, *, error: str, status: int | None = None) -> int:
+    def record_failure(
+        self,
+        source_id: str,
+        *,
+        error: str,
+        status: int | None = None,
+        now: datetime | None = None,
+    ) -> int:
         """Record one failed fetch and return the source's new consecutive-failure count.
 
         Returning the streak (rather than making the caller re-query it) keeps the
         increment and the threshold test in one place in `watch()`, so there is no window
         in which they can disagree.
+
+        `now` is injectable so a test can model a fortnight of weekly failures without
+        waiting a fortnight — which matters more than it sounds, because the escalation
+        rule is now partly about elapsed time and a test that cannot advance a clock can
+        only ever assert the run-count half of it.
+
+        A streak that is starting (the row is absent, or its `consecutive_failures` was
+        zero) stamps `streak_started_at`. A streak already running keeps the stamp it has,
+        because that timestamp is the answer to "how long has this been silent" and
+        refreshing it every failure would flatten every outage to zero length. A row whose
+        stamp is NULL — a streak that began before migration 8 — adopts this timestamp
+        rather than being backfilled to a start we never observed.
         """
-        now = datetime.now(UTC).isoformat()
+        stamp = (now or datetime.now(UTC)).isoformat()
         self._conn.execute(
             "INSERT INTO source_health"
-            " (source_id, consecutive_failures, last_status, last_error, last_failure_at)"
-            " VALUES (?, 1, ?, ?, ?)"
+            " (source_id, consecutive_failures, last_status, last_error, last_failure_at,"
+            "  streak_started_at)"
+            " VALUES (?, 1, ?, ?, ?, ?)"
             " ON CONFLICT (source_id) DO UPDATE SET"
             "   consecutive_failures = source_health.consecutive_failures + 1,"
             "   last_status = excluded.last_status,"
             "   last_error = excluded.last_error,"
-            "   last_failure_at = excluded.last_failure_at",
-            (source_id, status, error, now),
+            "   last_failure_at = excluded.last_failure_at,"
+            "   streak_started_at = CASE"
+            "     WHEN source_health.consecutive_failures = 0 THEN excluded.streak_started_at"
+            "     WHEN source_health.streak_started_at IS NULL THEN excluded.streak_started_at"
+            "     ELSE source_health.streak_started_at END",
+            (source_id, status, error, stamp, stamp),
         )
         self._conn.commit()
         return self.failure_streak(source_id)
 
-    def record_success(self, source_id: str) -> None:
+    def record_success(self, source_id: str, *, now: datetime | None = None) -> None:
         """Reset the streak. A single successful fetch is total exoneration: whatever was
         wrong — an outage, a WAF mood, a bad deploy — the source is answering again, and a
         source that is answering again is not a source that was taken down. Carrying any
         part of the old streak forward would let long-ago flakiness eventually escalate a
-        perfectly healthy page."""
+        perfectly healthy page.
+
+        `streak_started_at` is cleared with the count, for the same reason: a finished
+        outage has no running silence to measure."""
         self._conn.execute(
             "INSERT INTO source_health"
             " (source_id, consecutive_failures, last_success_at) VALUES (?, 0, ?)"
@@ -1275,8 +1367,9 @@ class SnapshotStore:
             "   consecutive_failures = 0,"
             "   last_error = NULL,"
             "   last_status = NULL,"
+            "   streak_started_at = NULL,"
             "   last_success_at = excluded.last_success_at",
-            (source_id, datetime.now(UTC).isoformat()),
+            (source_id, (now or datetime.now(UTC)).isoformat()),
         )
         self._conn.commit()
 
@@ -1288,6 +1381,27 @@ class SnapshotStore:
             (source_id,),
         ).fetchone()
         return int(row["consecutive_failures"]) if row else 0
+
+    def silence_window(self, source_id: str) -> SilenceWindow:
+        """How long this source has been failing, as a count AND as a duration.
+
+        The two are different measurements and the escalation needs both: the count says
+        how many times we asked, the duration says how long the page has actually been
+        unavailable. A caller that has only the count cannot tell three weekly failures
+        from three failures in an hour.
+        """
+        row = self._conn.execute(
+            "SELECT consecutive_failures, streak_started_at, last_failure_at"
+            " FROM source_health WHERE source_id = ?",
+            (source_id,),
+        ).fetchone()
+        if row is None:
+            return SilenceWindow(0, None, None)
+        return SilenceWindow(
+            consecutive_failures=int(row["consecutive_failures"]),
+            started_at=_parse_timestamp(row["streak_started_at"]),
+            last_failure_at=_parse_timestamp(row["last_failure_at"]),
+        )
 
     # -- watch runs and attempts --------------------------------------------------
 
@@ -2108,6 +2222,17 @@ def _row_to_change(row: sqlite3.Row) -> ChangeRecord:
 
 def _parse_dt(value: str) -> datetime:
     return _as_utc(datetime.fromisoformat(value))
+
+
+def _parse_timestamp(value: object) -> datetime | None:
+    """Parse a nullable stored timestamp. NULL and unparseable both read as "unknown"
+    rather than as a date, because the caller's whole job is telling those apart."""
+    if value is None:
+        return None
+    try:
+        return _parse_dt(str(value))
+    except ValueError:  # pragma: no cover - a hand-edited store, not a code path
+        return None
 
 
 def _stable_event_id(*parts: str) -> str:

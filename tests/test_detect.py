@@ -314,6 +314,115 @@ def test_check_stability_reports_an_unreachable_source_without_calling_it_unstab
     assert report.stable == []
 
 
+#: The shape `courts.michigan.gov` actually serves: a client-rendered shell whose markup and
+#: scripts strip to nothing at all. It normalizes to zero passages, so its detection hash is
+#: `sha256("")` — the digest every blind page in the registry shares.
+JS_SHELL = (
+    b'<html><head><script>var a = 1;</script></head><body><div id="root"></div></body></html>'
+)
+
+
+def test_check_stability_never_calls_a_page_with_no_text_stable(source: Source) -> None:
+    """The false all-clear this bucket exists to stop (issue #19).
+
+    A JS shell normalizes to zero passages, which hashes to `sha256("")` — and `sha256("")`
+    equals itself, so the page matched perfectly across two fetches and was reported as
+    `stable`. That is the single most reassuring word this command prints, about a page
+    `watch()` can never observe, on the check CLAUDE.md guardrail #7 makes the gate for adding
+    a source to the registry. "Nothing on this page rotates" and "there is nothing on this
+    page" are different findings.
+    """
+    fetcher = StubFetcher({source.url: (JS_SHELL, "text/html; charset=utf-8")})
+
+    report = check_stability([source], fetcher)
+
+    assert report.no_text == [(source.id, source.url)]
+    assert report.stable == []
+    assert report.unstable == []
+    assert report.unreachable == []
+
+
+def test_a_no_text_source_is_named_in_the_stability_summary(source: Source) -> None:
+    """Counted silently is the same defect as counted as stable: `--twice` prints a line only
+    for UNSTABLE and unreach, so a blind page used to pass with no output whatsoever."""
+    fetcher = StubFetcher({source.url: (JS_SHELL, "text/html; charset=utf-8")})
+
+    summary = check_stability([source], fetcher).summary()
+
+    assert "1 source(s)" in summary
+    assert "0 stable" in summary
+    assert "NO extractable text" in summary
+    assert "stability unknown" in summary
+
+
+def test_a_no_text_first_fetch_does_not_spend_a_second_request(source: Source) -> None:
+    """This command's stated cost is that it doubles the load on a government host. A page we
+    have already established we cannot read has nothing to say on a re-fetch."""
+    fetcher = StubFetcher({source.url: (JS_SHELL, "text/html; charset=utf-8")})
+
+    check_stability([source], fetcher)
+
+    assert fetcher.calls == [source.url]  # once, not twice
+
+
+def test_an_intermittently_blind_page_is_no_text_rather_than_unstable(source: Source) -> None:
+    """Readable once and blind once makes the two hashes differ — a real digest against
+    `sha256("")`. Reporting that as UNSTABLE would name a rotating widget that is not there,
+    and send a maintainer hunting for a state-fish footer on a page serving a bot-wall."""
+
+    class BlindOnSecondFetch:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def fetch(self, url: str) -> FetchResult:
+            self.calls += 1
+            body = b"<p>Apply for a licence.</p>" if self.calls == 1 else JS_SHELL
+            return FetchResult(
+                url=url,
+                ok=True,
+                status=200,
+                content_type="text/html",
+                body=body,
+                fetched_at=datetime.now(UTC),
+            )
+
+    report = check_stability([source], BlindOnSecondFetch())
+
+    assert report.no_text == [(source.id, source.url)]
+    assert report.unstable == []
+    assert report.stable == []
+
+
+def test_a_binary_source_is_still_judged_on_its_bytes(source: Source) -> None:
+    """The exemption that keeps the bucket honest. A PDF normalizes to empty text *by design*
+    — there is no extractor — but its detection hash covers the raw bytes, so comparing two
+    fetches of it is a real measurement. Routing it to `no_text` would blind the tool to every
+    PDF source in the registry, which is the opposite failure."""
+    fetcher = StubFetcher({source.url: (b"%PDF-1.7\n1 0 obj\n", "application/pdf")})
+
+    report = check_stability([source], fetcher)
+
+    assert report.stable == [source.id]
+    assert report.no_text == []
+
+
+def test_stability_no_text_uses_the_same_predicate_as_the_watch_loop(
+    source: Source, store: SnapshotStore
+) -> None:
+    """The three comparisons in this codebase must agree about what "we cannot read this" is.
+    `watch` and `check_baselines` already refused this page; `check_stability` was the one that
+    did not, so a maintainer could pass the pre-add check and then watch a source the watcher
+    reports as unmeasurable forever."""
+    fetcher = StubFetcher({source.url: (JS_SHELL, "text/html; charset=utf-8")})
+
+    stability = check_stability([source], fetcher)
+    watched = watch([source], store, fetcher)
+
+    assert stability.no_text == [(source.id, source.url)]
+    assert watched.no_text == [(source.id, source.url)]
+    assert watched.new == [] and watched.unchanged == []
+
+
 def test_a_corrected_registry_url_re_baselines_rather_than_manufacturing_drift(
     source: Source, store: SnapshotStore, fixture_before: bytes, fixture_after: bytes
 ) -> None:

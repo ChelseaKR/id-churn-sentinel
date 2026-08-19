@@ -618,11 +618,19 @@ def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
     is a defect in the registry, and the honest response is to watch a different page or to
     record the source as an unwatchable GAP. Not a gate: it is the tool a maintainer runs
     *before* adding a source, and it costs the host two fetches.
+
+    A source that served no extractable text is printed on its own line and named in its own
+    clause of the summary (issue #19). It used to be counted as `stable` and print nothing at
+    all, which made this command answer "safe to watch" about a page `watch()` can never
+    observe — the reassuring half of the sentence, on the guardrail that gates registry
+    additions.
     """
     active = fetcher or HttpFetcher()
     report = check_stability(registry.sources, active)
     for source_id, first, second in report.unstable:
         print(f"  UNSTABLE  {source_id:<28} {first[:12]} != {second[:12]} (two fetches, no wait)")
+    for source_id, url in report.no_text:
+        print(f"  NO TEXT   {source_id:<28} 0 passages — not compared, stability unknown: {url}")
     for source_id, error in report.unreachable:
         print(f"  unreach   {source_id:<28} {error}", flush=True)
     print(f"sources check --twice: {report.summary()}")
@@ -633,6 +641,16 @@ def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
             "to ignore the feed. Watch a stable page on that host, or record it as a GAP.\n"
             "Note the limit: passing this check does NOT prove a source is stable week over\n"
             "week — a widget that re-rolls hourly looks perfectly stable across two fetches."
+        )
+    if report.no_text:
+        print(
+            "\nA source that served NO extractable text was NOT judged stable or unstable —\n"
+            "it was not compared at all. A JS shell, an empty 200 and a bot-wall all normalize\n"
+            "to zero passages, which hashes to sha256('') and matches itself on every fetch,\n"
+            "so this check cannot tell you anything about it. `sentinel watch` will route it to\n"
+            "`no_text` every run and never observe it. Run `sentinel sources check` to see the\n"
+            "page's own <title> — the soft 404s and bot-walls name themselves there — then\n"
+            "watch a readable page on that host, or record the source as a GAP."
         )
     return 0  # never a gate
 

@@ -9,6 +9,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- `docs/THRESHOLD-EVIDENCE.md` (2026-08-19): the audit behind `REMOVAL_THRESHOLD`,
+  recording what observation history actually exists (one 74-minute session on
+  2026-07-13; empty per-attempt evidence tables; no failure ever observed
+  *ending*, so every outage on record is right-censored), why an outage-length
+  distribution cannot be derived from it, the units defect it did find, and the
+  retention and sampling changes required before the question is answerable.
+  Includes the caveat that a weekly sampler cannot resolve sub-weekly outages in
+  principle, however long it runs.
 - An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
   Spanish metadata scope, independent-review workflow, fail-closed English
   fallback, and 2026-11-13 target without claiming translations already exist.
@@ -192,6 +200,21 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Changed
 
+- **An escalation to `possibly_removed` now requires elapsed silence, not just a
+  count of failed fetches** (2026-08-19). `REMOVAL_THRESHOLD` counted *runs*
+  while its own documentation described *weeks*, and nothing in the code
+  connected the two. In the only observation session this repository has
+  retained, six sources reached a streak of three inside 74 minutes because the
+  watcher was run three times in one sitting — three weeks by the constant's
+  stated reasoning, three minutes in fact. Escalation now additionally requires
+  `MIN_REMOVAL_SILENCE` (14 days) of unbroken silence, `source_health` records
+  when a streak began (migration 8), the reviewer's excerpt reports the duration
+  beside the count, and a streak whose start was never recorded does not
+  escalate on the count alone. `sentinel watch --min-removal-silence-days`
+  exposes the floor. `REMOVAL_THRESHOLD` itself is unchanged at 3 and is still
+  documented as an unmeasured guess, because it still is one — see
+  `docs/THRESHOLD-EVIDENCE.md` for the audit that tried to re-derive it, the
+  reason it could not, and what has to be retained before it can be.
 - **Relicensed from MIT to AGPL-3.0-or-later** (sole-author relicense): keeps
   derivatives and network deployments open; prior released snapshots remain MIT.
 - Monitoring readiness made explicit (2026-07-17): the public site and feeds

@@ -28,7 +28,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 from unicodedata import category, normalize
@@ -211,6 +211,7 @@ class ChangeRecord:
         last_known_hash: str,
         consecutive_failures: int,
         last_error: str,
+        silent_for: timedelta | None = None,
         observed_at: datetime | None = None,
     ) -> ChangeRecord:
         """Mint a record for a source that has failed to fetch N consecutive times.
@@ -239,7 +240,7 @@ class ChangeRecord:
             observed_at=observed_at or datetime.now(UTC),
             previous_hash=last_known_hash,
             new_hash="",
-            diff_excerpt=_removal_excerpt(url, consecutive_failures, last_error),
+            diff_excerpt=_removal_excerpt(url, consecutive_failures, last_error, silent_for),
             kind=ChangeKind.POSSIBLY_REMOVED,
             significance=Significance.UNCLASSIFIED,
             review_status=ReviewStatus.UNREVIEWED,
@@ -798,18 +799,35 @@ def _canonical_event_time(
     return canonical
 
 
-def _removal_excerpt(url: str, consecutive_failures: int, last_error: str) -> str:
+def _removal_excerpt(
+    url: str,
+    consecutive_failures: int,
+    last_error: str,
+    silent_for: timedelta | None = None,
+) -> str:
     """What the reviewer reads when a source stops answering.
 
     Every word here is chosen to state the observation and refuse the conclusion. It gives
-    the reviewer the two facts that actually discriminate between the cases — the streak
-    length and the *literal* error string — and then explicitly enumerates the readings,
-    rather than picking one. `HTTP 404` and `HTTP 403` and `unreachable: timed out` are
-    three very different worlds, and the machine is not entitled to choose between them.
+    the reviewer the facts that actually discriminate between the cases — the streak
+    length, how long the silence has run, and the *literal* error string — and then
+    explicitly enumerates the readings, rather than picking one. `HTTP 404` and `HTTP 403`
+    and `unreachable: timed out` are three very different worlds, and the machine is not
+    entitled to choose between them.
+
+    The duration is reported alongside the count because they answer different questions
+    and the count was, for a while, silently standing in for both. "Three failed fetches"
+    reads as three weeks to anyone who knows the cadence; it can also be three minutes.
+    A reviewer deciding whether to open a state's website deserves to know which.
     """
+    silence = (
+        f"Silent for: {_describe_duration(silent_for)}\n"
+        if silent_for is not None
+        else "Silent for: unknown (this streak began before the tool recorded streak starts)\n"
+    )
     return (
         f"(no content diff — this source could not be fetched at all.)\n\n"
         f"Consecutive failed fetches: {consecutive_failures}\n"
+        f"{silence}"
         f"Last error: {last_error}\n"
         f"Official URL: {url}\n\n"
         f"This is NOT a detected content change, and it is NOT an assertion that the page "
@@ -824,6 +842,27 @@ def _removal_excerpt(url: str, consecutive_failures: int, last_error: str) -> st
         f"  - the host is simply DOWN or unroutable from where we run.\n"
         f"Read the last error above before deciding. The tool will not decide for you."
     )
+
+
+def _describe_duration(value: timedelta) -> str:
+    """A duration in the units a reviewer thinks in, without inventing precision.
+
+    Days for anything a watch cadence would produce, hours or minutes below that — because
+    "0 days" for a seventy-four-minute streak is exactly the kind of rounding that let a
+    count of runs pass for a length of time in the first place. Sub-two-hour spans are
+    reported in minutes for the same reason: the case this whole distinction exists to
+    catch reads "74 minutes", and "1 hour" is already most of the way back to hiding it.
+    """
+    seconds = max(int(value.total_seconds()), 0)
+    if seconds >= 172_800:  # 2 days
+        return f"{seconds // 86_400} days"
+    if seconds >= 86_400:
+        return "1 day"
+    if seconds >= 7_200:  # 2 hours
+        return f"{seconds // 3_600} hours"
+    if seconds >= 120:
+        return f"{seconds // 60} minutes"
+    return f"{seconds} seconds"
 
 
 def change_id(source_id: str, previous_hash: str, new_hash: str) -> str:

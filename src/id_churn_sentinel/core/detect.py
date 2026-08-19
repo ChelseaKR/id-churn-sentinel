@@ -36,11 +36,14 @@ wrong "no change": a government page about trans identity documents disappearing
 a policy signal (institutions do scrub this content), and answering a long silence with
 silence is the failure mode `docs/RESPONSIBLE-TECH-AUDITS.md` §A is written about.
 
-So `watch()` counts *consecutive* failures per source, persists the streak, resets it on
-any success, and after `removal_threshold` runs escalates the source to a distinct
-`possibly_removed` change record that a human must review. The escalation is emphatically
-**not** a classification: it does not say the page was removed. It says we could not fetch
-it N times running, hands over the literal error string, and names the three readings —
+So `watch()` counts *consecutive* failures per source, persists the streak and the time it
+started, resets both on any success, and escalates the source to a distinct
+`possibly_removed` change record — one a human must review — once it has failed
+`removal_threshold` times running AND been silent for at least `min_removal_silence`. Two
+conditions rather than one, because a count of attempts is not a length of time and the
+rule used to assume it was. The escalation is emphatically **not** a classification: it
+does not say the page was removed. It says we could not fetch it N times running over a
+stated interval, hands over the literal error string, and names the three readings —
 removed, blocked, or down — without choosing between them. A 404 and a 403 and a fortnight
 of timeouts all arrive here, and telling them apart is a person's job.
 
@@ -124,7 +127,7 @@ from __future__ import annotations
 import difflib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.eligibility import (
@@ -160,6 +163,7 @@ from id_churn_sentinel.core.store import (
 __all__ = [
     "DIFF_CONTEXT_LINES",
     "MAX_DIFF_EXCERPT_CHARS",
+    "MIN_REMOVAL_SILENCE",
     "REMOVAL_THRESHOLD",
     "StabilityReport",
     "WatchReport",
@@ -174,9 +178,17 @@ MAX_DIFF_EXCERPT_CHARS = 4000
 
 # Consecutive failed fetches before a source escalates to `possibly_removed`.
 #
-# Three, at the weekly cadence this tool runs at, means roughly three weeks of a source
-# answering nothing at all before a human is asked to look at it. That is the number the
-# two failure modes have to be traded off against each other:
+# STILL A GUESS. Read that first. An attempt was made in 2026-08 to re-derive this from
+# observed outage lengths, as M2 promised, and it failed for lack of data — see
+# docs/THRESHOLD-EVIDENCE.md for the audit. The short version: this repository has
+# retained exactly one observation session (2026-07-13), every source's entire history
+# spans at most 1.18 hours, and the tables that record per-attempt evidence
+# (`watch_runs`, `fetch_attempts`, `run_sources`) hold zero rows because they were created
+# the day after that session and no persisted run has happened since. You cannot measure
+# how long an outage lasts from observations that never span a second day. Three remains
+# unmeasured, and this comment will keep saying so until it isn't.
+#
+# The trade-off the number is between, which is unchanged:
 #
 #   Too low, and every routine weekend outage or WAF mood swing mints an alarm, the
 #   reviewer learns the escalations are noise, and they start closing them unread — at
@@ -188,10 +200,37 @@ MAX_DIFF_EXCERPT_CHARS = 4000
 #   exists to fix; a threshold of 12 would technically satisfy the code and defeat the
 #   purpose.
 #
-# Three is a starting guess, not a finding. M2 measures real outage lengths against real
-# government hosts, and this number should be re-derived from that data rather than
-# defended. It is a module constant and a CLI flag precisely so it is cheap to change.
+# WHAT THE AUDIT DID ESTABLISH, and it is not nothing: the units were wrong. This constant
+# counts RUNS, and the comment it replaces claimed that three runs "at the weekly cadence
+# this tool runs at" meant "roughly three weeks". Nothing in the code tied the two
+# together. In the one retained session, six sources reached a streak of three inside
+# seventy-four minutes, because `watch` was run three times in one sitting — three weeks
+# by this constant's own reasoning, three minutes in fact. A backfill, a retry loop, an
+# operator re-running `watch` to check something, or a CI matrix would each manufacture
+# escalations out of a single afternoon.
+#
+# So the count is no longer the only condition; see MIN_REMOVAL_SILENCE below.
 REMOVAL_THRESHOLD = 3
+
+# Minimum wall-clock silence before a streak may escalate, regardless of run count.
+#
+# This is NOT a measured outage length, and must not be cited as one. It is arithmetic on
+# this tool's own declared cadence: `.github/workflows/watch.yml` runs weekly, and the
+# third consecutive failure of a weekly job falls roughly fourteen days after the first.
+# The constant therefore encodes what REMOVAL_THRESHOLD was already documented to mean,
+# and makes it true whatever cadence the tool is actually run at.
+#
+# It is a floor, not a replacement. Both conditions must hold: enough failed attempts to
+# show the source is reliably not answering, and enough elapsed time that "not answering"
+# means something more than a bad afternoon. Fourteen days of silence observed twice is
+# still not an escalation, because two attempts cannot distinguish a dead page from a
+# monitor that was itself broken for a fortnight.
+#
+# A streak whose start was never recorded (`streak_started_at` NULL, i.e. it began before
+# migration 8) has an unknown duration and does not escalate on the count alone. That is
+# deliberate and it is the conservative direction: it delays an escalation by one cycle
+# rather than manufacturing one from a duration nobody observed.
+MIN_REMOVAL_SILENCE = timedelta(days=14)
 
 
 @dataclass(slots=True)
@@ -486,7 +525,9 @@ def _watch_authorized_sources(
     fetcher: Fetcher,
     *,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     run_id: str | None = None,
+    now: datetime | None = None,
 ) -> WatchReport:
     """Low-level comparison over an already-authorized source set.
 
@@ -498,6 +539,11 @@ def _watch_authorized_sources(
     `fetcher` is injected, which is what makes the whole tool testable with no network:
     the suite passes a dict-backed stub, CI passes nothing at all, and `sentinel watch`
     passes an :class:`~id_churn_sentinel.core.fetch.HttpFetcher`.
+
+    `now` is injected for the same reason, one dimension over: escalation depends on how
+    long a source has been silent, so a suite that cannot move the clock can only test the
+    run-count half of the rule. It stamps source-health timestamps only — it does not
+    backdate snapshots or run receipts.
     """
     report = WatchReport()
 
@@ -537,7 +583,9 @@ def _watch_authorized_sources(
                 result.error,
                 result.status,
                 removal_threshold,
+                min_removal_silence=min_removal_silence,
                 run_id=run_id,
+                now=now,
             )
             continue
 
@@ -559,7 +607,7 @@ def _watch_authorized_sources(
         # The source answered, so whatever was wrong is over. Reset the streak *before*
         # anything else: a source that is serving bytes is not a source that was removed,
         # and leaving a stale streak standing would let old flakiness escalate a healthy page.
-        store.record_success(source.id)
+        store.record_success(source.id, now=now)
 
         store.record_snapshot(
             source_id=source.id,
@@ -692,6 +740,7 @@ def watch_registry(
     as_of: date,
     jurisdiction: str | None = None,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     started_at: datetime | None = None,
     completed_at: datetime | None = None,
 ) -> WatchReport:
@@ -754,6 +803,7 @@ def watch_registry(
             store,
             fetcher,
             removal_threshold=removal_threshold,
+            min_removal_silence=min_removal_silence,
             run_id=run_id,
         )
     except Exception as exc:
@@ -800,6 +850,7 @@ def watch(
     *,
     jurisdiction: str | None = None,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
 ) -> WatchReport:
     """Production watcher API; eligibility is always evaluated on today's UTC date.
 
@@ -816,6 +867,7 @@ def watch(
         as_of=datetime.now(UTC).date(),
         jurisdiction=jurisdiction,
         removal_threshold=removal_threshold,
+        min_removal_silence=min_removal_silence,
     )
 
 
@@ -861,7 +913,9 @@ def _handle_failure(
     status: int | None,
     removal_threshold: int,
     *,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     run_id: str | None = None,
+    now: datetime | None = None,
 ) -> None:
     """One failed fetch: hold the baseline, count the streak, escalate if it is long enough.
 
@@ -877,15 +931,28 @@ def _handle_failure(
     documents disappearing is itself a signal; failing to surface it is a wrong "no change",
     which is the safety failure this repo is organised around (RESPONSIBLE-TECH-AUDITS §A).
 
-    So: after `removal_threshold` consecutive failures we mint a `possibly_removed` record.
-    It is unclassified, unreviewed, unpublishable, and it carries the literal error string
-    rather than a guess about what the error means.
+    So: after `removal_threshold` consecutive failures SPREAD OVER at least
+    `min_removal_silence`, we mint a `possibly_removed` record. It is unclassified,
+    unreviewed, unpublishable, and it carries the literal error string rather than a guess
+    about what the error means.
+
+    Both conditions, because the count alone was measuring the wrong thing. It counts how
+    many times we asked, not how long the page has been gone, and those come apart the
+    moment anything runs the watcher more than once a week — a re-run, a backfill, a
+    retry. See `REMOVAL_THRESHOLD` and `MIN_REMOVAL_SILENCE`.
     """
     reason = error or "unknown error"
     report.unreachable.append((source.id, reason))
 
-    streak = store.record_failure(source.id, error=reason, status=status)
+    streak = store.record_failure(source.id, error=reason, status=status, now=now)
     if streak < removal_threshold:
+        return
+
+    # Enough attempts. Now: enough *time*? A streak with no recorded start has an unknown
+    # duration, and unknown is not "long enough" — escalating on it would be exactly the
+    # count-as-duration confusion this check exists to end.
+    silence = store.silence_window(source.id)
+    if silence.elapsed is None or silence.elapsed < min_removal_silence:
         return
 
     baseline = store.latest_snapshot(source.id)
@@ -904,6 +971,7 @@ def _handle_failure(
         last_known_hash=baseline.content_sha256,
         consecutive_failures=streak,
         last_error=reason,
+        silent_for=silence.elapsed,
     )
     store.record_change(escalation, run_id=run_id)
     report.possibly_removed.append(escalation)

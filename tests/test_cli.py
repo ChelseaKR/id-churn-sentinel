@@ -198,6 +198,43 @@ def test_sources_check_twice_names_the_false_drift_sources(
     assert "learn\nto ignore the feed" in out  # the reason it matters, said in-band
 
 
+def test_sources_check_twice_never_reports_a_blind_page_as_stable(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """End to end, on the command CLAUDE.md guardrail #7 makes the gate for adding a source.
+
+    A JS shell hashes to `sha256("")` twice in a row and matched itself, so `--twice` counted
+    it as `stable` and printed no line for it at all — a silent clean pass for a page
+    `sentinel watch` can never observe. The summary now has to say so, and the page has to
+    appear on stdout.
+    """
+    stub = StubFetcher(
+        {
+            source.url: (
+                b"<html><head><script>var a=1;</script></head>"
+                b'<body><div id="root"></div></body></html>',
+                "text/html",
+            )
+        }
+    )
+
+    exit_code = main(
+        [*base_args(cli_registry, tmp_path / "s.db"), "sources", "check", "--twice"],
+        fetcher=stub,
+    )
+
+    out = capsys.readouterr().out
+    assert exit_code == 0  # still never a gate
+    assert f"NO TEXT   {source.id}" in out
+    assert "0 stable" in out
+    assert "NO extractable text" in out
+    assert "stability unknown" in out
+    assert "UNSTABLE  " not in out  # it is not false drift either — it is unread
+
+
 # -- watch -----------------------------------------------------------------------
 
 

@@ -287,21 +287,38 @@ class StabilityReport:
     """What `check_stability` saw: which sources hash the same twice, and which do not.
 
     See :func:`check_stability` for why a source that does not is a *defect in the registry*
-    rather than a finding about the world."""
+    rather than a finding about the world.
+
+    `no_text` is the same refusal `WatchReport.no_text` and `BaselineReport.no_text` make, in
+    the third and last place a comparison happens, and it is emphatically **not** a `stable`
+    result. A text/HTML fetch that normalizes to zero passages hashes to `sha256("")`, and
+    `sha256("") == sha256("")` — so a JS shell, an empty 200 and a bot-wall each match
+    themselves perfectly across two fetches and were reported as `stable`, which is the most
+    reassuring word this command prints, about the one condition it must never print it for.
+    It named nothing on stdout either, because only `UNSTABLE` and `unreach` get a line, so a
+    blind page passed the check *silently*. "Nothing rotates on this page" and "there is
+    nothing on this page" are different sentences, and only the first is a reason to add a
+    source to the registry."""
 
     stable: list[str] = field(default_factory=list)
     unstable: list[tuple[str, str, str]] = field(default_factory=list)
+    no_text: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def total(self) -> int:
-        return len(self.stable) + len(self.unstable) + len(self.unreachable)
+        return len(self.stable) + len(self.unstable) + len(self.no_text) + len(self.unreachable)
 
     def summary(self) -> str:
+        no_text = (
+            f", {len(self.no_text)} served NO extractable text (NOT compared, stability unknown)"
+            if self.no_text
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.stable)} stable, "
-            f"{len(self.unstable)} UNSTABLE (false-drift by construction), "
-            f"{len(self.unreachable)} unreachable"
+            f"{len(self.unstable)} UNSTABLE (false-drift by construction)"
+            f"{no_text}, {len(self.unreachable)} unreachable"
         )
 
 
@@ -330,6 +347,21 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
     reach a reviewer. A sentinel that cries wolf gets muted, and a muted sentinel is worse
     than none.
 
+    **And a page with no extractable text is not judged at all** — the same refusal
+    `watch()` and `check_baselines()` make (issue #19), made here because this was the one
+    comparison in the codebase still missing it. `sha256("")` is what a JS shell, an empty
+    200 and a bot-wall all normalize to, and it compares equal to itself, so every blind page
+    passed this check as `stable` — silently, since only `UNSTABLE` and `unreach` print a
+    line. That is the worst possible place for that particular false all-clear: CLAUDE.md
+    guardrail #7 makes this command the gate a maintainer runs *before* adding a source, so
+    the check said "safe to watch" about exactly the pages `watch()` can never observe. Such a
+    source is routed to `no_text` before either hash is compared, and never to `stable`: we
+    did not find that the page is stable, we found that we cannot read it.
+
+    Checked on the first fetch, which also means the second one is not spent: a page we
+    already know we cannot read has nothing to tell us on a re-fetch, and this command's
+    stated cost is that it doubles the load on the host.
+
     Two limits, stated plainly:
 
     * **A pass here is not a guarantee.** It catches per-*request* rotation. A page that
@@ -346,13 +378,29 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
         if not first.ok:
             report.unreachable.append((source.id, first.error or "unknown error"))
             continue
+
+        first_hash, first_text = content_hash(first.body, first.content_type)
+        if _is_unmeasurable(first_text, first.content_type):
+            # Refused before the second fetch, not after: the comparison this command exists
+            # to make is between two readings of a page, and there is no reading here. A
+            # second request would buy the host's bandwidth and answer nothing.
+            report.no_text.append((source.id, source.url))
+            continue
+
         second = fetcher.fetch(source.url)
         if not second.ok:
             report.unreachable.append((source.id, second.error or "unknown error"))
             continue
 
-        first_hash, _ = content_hash(first.body, first.content_type)
-        second_hash, _ = content_hash(second.body, second.content_type)
+        second_hash, second_text = content_hash(second.body, second.content_type)
+        if _is_unmeasurable(second_text, second.content_type):
+            # Readable once, blind once. The hashes necessarily differ — a real digest
+            # against `sha256("")` — and reporting that as UNSTABLE would name a rotating
+            # widget that is not there. A page that intermittently serves nothing is a page
+            # we cannot read, not a page that churns.
+            report.no_text.append((source.id, source.url))
+            continue
+
         if first_hash == second_hash:
             report.stable.append(source.id)
         else:

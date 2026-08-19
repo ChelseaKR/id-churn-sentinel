@@ -41,6 +41,28 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **`sentinel sources check --twice` reported a page with no readable text as
+  `stable`.** A JS shell, an empty 200 and a bot-wall all normalize to zero
+  passages, whose detection hash is `sha256("")` — and that digest matches
+  itself on two back-to-back fetches, so every blind page passed the check as
+  stable. It passed *silently*, too: the command prints a line only for
+  `UNSTABLE` and `unreach`, so the page appeared nowhere on stdout and only in
+  the reassuring half of the summary. That is the worst place in the codebase
+  for that particular false all-clear, because CLAUDE.md guardrail #7 makes this
+  command the gate a maintainer runs *before* adding a source — so the check
+  answered "safe to watch" about exactly the pages `sentinel watch` can never
+  observe, and which it correctly routes to `no_text` on every run. `watch()`
+  and `check_baselines()` already refused this comparison (issue #19); this was
+  the third and last comparison in the codebase still making it. Such a source
+  now lands in its own `StabilityReport.no_text` bucket, is never counted as
+  `stable` or `UNSTABLE`, gets a `NO TEXT` line and a named clause in the
+  summary, and is judged on the *first* fetch so the second request is not spent
+  on a page we already know we cannot read. A page that is readable once and
+  blind once is `no_text` as well, rather than `UNSTABLE` — the two hashes do
+  differ, but naming that as a rotating widget would send a maintainer hunting
+  for something that is not there. Binary sources are exempt, as everywhere
+  else: a PDF's empty normalized text is by design and its hash covers the raw
+  bytes, so comparing two fetches of it remains a real measurement.
 - **The install step in front of every gate could not see lockfile drift.**
   `make install` ran `uv sync --frozen --group dev`, and `make verify` depends on
   `install`, so this was the first thing every merge gate did. `--frozen`

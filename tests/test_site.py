@@ -33,9 +33,11 @@ import pytest
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import coverage
+from id_churn_sentinel.core.detect import watch_registry
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     VERIFIED,
+    FetchPolicyDecision,
     Gap,
     Registry,
     Source,
@@ -43,8 +45,10 @@ from id_churn_sentinel.core.registry import (
     load_registry,
 )
 from id_churn_sentinel.core.site import feed_slug, render_site
+from id_churn_sentinel.core.status import build_public_status
+from id_churn_sentinel.core.store import SnapshotStore
 
-from .conftest import eligible_source
+from .conftest import StubFetcher, eligible_source
 
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
@@ -374,6 +378,52 @@ def test_the_page_refuses_the_jobs_this_tool_does_not_do(site_registry: Registry
     assert "What the law is." in page
     assert "not legal advice" in page
     assert "Silence from this feed is not evidence that nothing changed." in page
+
+
+# ---- a zero denominator is not a clean sheet (issue #18) ------------------------------------
+
+
+def test_a_run_with_no_eligible_sources_does_not_render_as_a_completed_run(
+    tmp_path: Path, site_registry: Registry, source: Source
+) -> None:
+    """`attempted 0 of 0 eligible sources; 0 successful retrievals` is arithmetically true and
+    reads as a run that had nothing to do and did it perfectly. What it means is that the
+    watcher was allowed to look at nothing, and completeness over an empty denominator is not
+    a number at all."""
+    unverified = Registry(version="1.0", sources=(source,))
+    with SnapshotStore(tmp_path / "s.db") as store:
+        watch_registry(unverified, store, StubFetcher(), as_of=NOW.date(), started_at=NOW)
+        status = build_public_status(store, now=NOW)
+
+    page = render_site(unverified, coverage(unverified), (), generated_at=NOW, run_status=status)
+
+    assert "attempted 0 of 0 eligible sources" not in page
+    assert "0 successful retrievals" not in page
+    assert "no source was attempt-eligible, so this run examined nothing" in page
+    assert "there is no denominator here and the zero counts are not a measurement" in page
+
+
+def test_a_fully_verified_registry_that_watches_nothing_does_not_headline_the_verification(
+    source: Source,
+) -> None:
+    """The exact page the issue measured: every source human-verified, none attempt-eligible
+    because no fetch-policy decision has been recorded, and the strongest verification claim
+    the page can make sitting at the top of it."""
+    verified_only = Registry(
+        version="1.0",
+        sources=(
+            replace(
+                eligible_source(source),
+                fetch_policy=FetchPolicyDecision(),  # verified, but no policy decision
+            ),
+        ),
+    )
+
+    page = render_site(verified_only, coverage(verified_only), (), generated_at=NOW)
+
+    assert "Read this first: All 1 sources are human-verified" not in page
+    assert "human-verified, and 0 of them are monitored" in page
+    assert "0 of 1 registered candidates are attempt-eligible" in page
 
 
 def test_the_real_registry_renders(tmp_path: Path) -> None:

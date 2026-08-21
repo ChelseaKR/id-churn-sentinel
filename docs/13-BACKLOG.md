@@ -9,6 +9,13 @@ This ledger records landed software scope without marking external evidence comp
 - `SRC-03/04/05`: registry evidence/expiry/fetch-policy fields, derived anti-fabrication tests,
   and the shared fail-closed predicate are implemented. The 152 real verification and policy
   decisions remain human work under `SRC-01/02`.
+- `SRC-03` writers (2026-08-15, #18): the record the predicate requires can now be produced by
+  the tooling rather than only read by it. `sentinel verify` writes the verification evidence
+  reference — a receipt of the page as the human was shown it — and the recheck expiry, and
+  `sentinel sources policy` writes the dated robots/terms decision with reviewer, evidence,
+  reason and expiry. Both refuse blanks. Neither makes the decision: the policy outcome is a
+  reading of somebody else's terms and is never inferred, which is why an absent decision stays
+  `unreviewed` and keeps the source out of the attempt denominator.
 - `DATA-01`: immutable normalizer/extractor contract versions are persisted on every new
   snapshot and successful fetch attempt; a checksummed migration labels older snapshots
   `legacy-unknown`, and database triggers reject invented or missing provenance. Release-trace

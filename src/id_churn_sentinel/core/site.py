@@ -265,7 +265,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
         # a bad one: a ratio over an empty denominator reads as a score, and the reader who
         # skims it takes away a tidy row of zeroes rather than the fact that this run looked
         # at nothing. Every count in it is zero for a reason that has nothing to do with the
-        # pages being quiet. Say the reason instead of publishing the ratio.
+        # pages being quiet. Say the reason instead of publishing the ratio (issue #18).
         coverage_text = (
             "<strong>no source was attempt-eligible, so this run examined nothing</strong> — "
             "there is no denominator here and the zero counts are not a measurement of any "
@@ -327,6 +327,11 @@ def _verification_notice(report: CoverageReport, eligibility: EligibilityReport)
     """
     verified = report.verified_total
     total = report.sources_total
+    # A registry can be fully human-verified and still watch nothing, because attempt-
+    # eligibility additionally needs a dated fetch-policy decision `verify` does not write
+    # (issue #18). "All 152 sources are human-verified" is true in that state and is the most
+    # reassuring sentence this page can lead with — a reader who stops at the headline would
+    # take it for a working monitor, so the monitored count rides along whenever it is not 100%.
     monitored = len(eligibility.eligible)
     if verified == total and total > 0 and monitored == total:
         headline = f"All {total} sources are human-verified"

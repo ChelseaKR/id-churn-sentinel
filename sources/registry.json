@@ -301,11 +301,11 @@
       "id": "ny-courts-name-change",
       "jurisdiction": "NY",
       "document_class": "court_order_name_change",
-      "url": "https://www.nycourts.gov/courthelp/Family/nameChange.shtml",
+      "url": "https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics",
       "authority": "New York State Unified Court System (CourtHelp)",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 403, "reachable": false, "blocked": true },
-      "notes": "corpus-vetted. BOT-BLOCKED, NOT DEAD: HTTP 403 to our descriptive UA, to a browser UA, and from an independent vantage point. nycourts.gov appears to block non-interactive clients wholesale. The URL came from the hand-corrected corpus and is not in doubt; what is in doubt is whether we will ever be allowed to watch it."
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. MOVED (issue #10): the 2026-07-13 URL (/courthelp/Family/nameChange.shtml) is no longer reachable -- it returned 404 on one 2026-08-21 check and 403 on another, neither a clean serve. NY Courts appears to have migrated CourtHelp off the /courthelp/ path: the same site now serves the equivalent content at /help/name-change-andor-sex-designation-change/name-change-basics, confirmed reachable with real, on-topic content -- HTTP 200, title 'Name Change Basics | New York Courts', 222 normalized passages covering both name change and sex-designation change. HONEST LIMIT, found while checking this: nycourts.gov appears to rate-limit aggressively -- the new URL served 200 cleanly after a several-minute gap, then 403 on an immediate back-to-back refetch. That reads as request pacing, not instability of the page's content (the one successful fetch was real, complete, on-topic prose, not a bot-wall or empty shell), but it means this source may show as unreachable on a run that lands shortly after another nycourts.gov fetch. Same authority, same jurisdiction, same document class -- a URL correction, not a new source."
     },
     {
       "id": "ny-doh-vital-records",

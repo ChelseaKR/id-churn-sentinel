@@ -150,7 +150,7 @@ def test_a_third_partys_coverage_number_is_not_our_business(
     it is preventing. Their denominator is 51; ours is 52; the gate only reads ours."""
     (tmp_path / "README.md").write_text(
         "Namesake fully supports 2 of 51 jurisdictions. We watch 156 sources across "
-        "52 of 52 jurisdictions, with 8 named gaps, and 12 of the 156 registered sources "
+        "52 of 52 jurisdictions, with 8 named gaps, and 11 of the 156 registered sources "
         "cannot currently be fetched. 0 of 156 sources are human-verified.",
         encoding="utf-8",
     )

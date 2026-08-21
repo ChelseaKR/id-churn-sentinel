@@ -101,7 +101,7 @@ def test_drift_produces_the_passage_that_changed(
 def test_a_fetch_failure_is_never_drift(
     source: Source, store: SnapshotStore, fetcher: StubFetcher
 ) -> None:
-    """THE RULE, inherited verbatim from trans-docs-navigator/scripts/source-watch.ts:
+    """THE RULE, inherited from the earlier content-hash watcher:
     "keep the old baseline; an outage is not a content change."
 
     A 503, a WAF block, a timeout — a state's website falling over is not a state changing

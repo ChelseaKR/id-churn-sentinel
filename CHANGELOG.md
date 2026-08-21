@@ -17,6 +17,9 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   retention and sampling changes required before the question is answerable.
   Includes the caveat that a weekly sampler cannot resolve sub-weekly outages in
   principle, however long it runs.
+- An immutable v2.0.0 public standards projection, managed manifest, Renovate
+  tracking, and regression tests for projection completeness and current-tip
+  publication boundaries.
 - `sentinel review --list` (2026-08-04): the store-backed twin of `sentinel
   verify --list` — prints every change still `unreviewed` (drift and
   `possibly_removed` escalations alike), optionally filtered by
@@ -163,6 +166,9 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   watched* at a moment when the feed could not populate. Both claims are kept
   but conditioned on the sources being attempt-eligible. The run-health block no
   longer renders `attempted 0 of 0 eligible sources` as a ratio.
+- Current documentation, source comments, registry metadata, and tests no
+  longer expose private sibling repository names or source paths; existing Git
+  history remains unchanged.
 - **A source with no extractable text could be quietly baselined, then report
   `unchanged` forever** (#19). `sha256("")` is a real, stable hash — it is
   what a JS shell, an empty 200, and an HTTP-200 bot-wall all normalize to —

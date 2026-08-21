@@ -140,9 +140,9 @@ Why this is worth building carefully: **a wrong "no change" is a safety failure.
 - **Publishes something an incumbent can inspect, with no account.** A static site (`docs/index.html`), RSS (`feed.xml`), a versioned JSON feed against a [published schema](./docs/schema/changes-v2.schema.json) (`changes.json`), a versioned inventory of every registered candidate, its exact attempt eligibility, and every named gap (`sources.json`), and **one feed per jurisdiction** (`feed-us-tx.xml`, `changes-us-tx.json`). The public surface is fetchable now, but it explicitly identifies itself as a technical alpha rather than an operating monitor while the attempt denominator remains zero. No auth, email capture, tracking, or third-party request appears in the published bytes.
 - **Cannot lie about its own coverage.** Every number in this README — sources, jurisdictions, gaps, unreachable — is *derived from the registry* by `sentinel coverage`, and `sentinel coverage --check-docs` fails the build if any doc disagrees, or if a jurisdiction/document-class pair is neither watched nor a **named gap**. A project whose pitch is *"we tell you what went stale"* cannot have a stale front page. It found two silent holes on the day it was written (see below).
 
-## Prior art this builds on
+## Design lineage
 
-`trans-docs-navigator/scripts/source-watch.ts` and `policy-watch.ts` already do content-hash drift detection, and this repo's normalization approach and its "a fetch failure is never drift" discipline are lifted directly from them. What they don't do — and what this repo exists to do — is cover more than the five jurisdictions that repo carries, say *what* changed rather than *that* something did, or publish anything at all.
+This project builds on an earlier five-jurisdiction content-hash watcher. It preserves two useful disciplines — normalize visible text before hashing, and never treat a fetch failure as drift — while providing a self-contained public implementation that covers more jurisdictions, shows *what* changed, and publishes reviewed artifacts.
 
 ## Consuming it
 
@@ -205,7 +205,7 @@ The real risks are named and addressed in [`docs/RESPONSIBLE-TECH-AUDITS.md`](./
 
 ## Standards
 
-Inherits the portfolio's private engineering standards (`/STANDARDS`), fetched read-only at CI time rather than vendored. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
+The repository vendors the immutable v2.0.0 public standards projection under [`docs/standards/`](./docs/standards/). The version marker and managed manifest make every projected file reviewable and testable without access to a private checkout. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
 
 ## Standards Conformance
 

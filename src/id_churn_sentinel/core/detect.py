@@ -1,7 +1,7 @@
 """Change detection — fetch, normalize, hash, compare, and *diff*.
 
-The diff is the whole point. The prior art (`trans-docs-navigator/scripts/source-watch.ts`)
-reports "this URL changed, re-verify these records", which is genuinely useful and is
+The diff is the whole point. An earlier content-hash watcher reports "this URL changed,
+re-verify these records", which is genuinely useful and is
 where this design came from — but it hands a human a URL and a shrug. The human then has
 to eyeball a 12,000-word DMV page against their memory of it. In practice that means the
 alert gets acknowledged and the page does not actually get re-read, which is the same
@@ -16,7 +16,7 @@ Three disciplines, inherited and non-negotiable:
 
 1. **A fetch failure is never drift.** An unreachable source carries its previous hash
    forward untouched and is reported as `unreachable`. No *content* change record is ever
-   minted from a failure, at any streak length. (`source-watch.ts`: *"keep the old baseline;
+   minted from a failure, at any streak length. (Earlier watcher: *"keep the old baseline;
    an outage is not a content change"*.)
 2. **A first sighting is never drift.** With no previous snapshot there is no baseline to
    diff against, so the fetch is recorded as the baseline and reported as `new`. The same

@@ -1,7 +1,7 @@
 """Coverage is derived, and the docs cannot lie about it.
 
-This is the local mirror of `gate-count` in trans-docs-navigator, which derives the number of
-merge gates from the Makefile and fails the build if any doc states a different one. The
+This follows the earlier watcher's derived-gate pattern, which derives the number of merge
+gates from the Makefile and fails the build if any doc states a different one. The
 principle generalises: **a self-description is a fact about the artifact, so compute it from
 the artifact.** Here the artifact is `sources/registry.json` and the facts are how many
 sources there are, how many jurisdictions they cover, how many holes are named, and how many

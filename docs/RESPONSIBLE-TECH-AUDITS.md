@@ -1,6 +1,6 @@
 # Responsible Technology — ID Churn Sentinel
 
-> Instantiates `/STANDARDS` RESPONSIBLE-TECH for this repo.
+> Instantiates the pinned [`standards/RESPONSIBLE-TECH-FRAMEWORK.md`](./standards/RESPONSIBLE-TECH-FRAMEWORK.md) for this repo.
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion, per feed-schema change, and on any proposal to add classification.**
 
 This repo serves a population that is currently the subject of active, adversarial policy change in the United States. The risks below are not hypothetical externalities; they are the failure modes of *this specific tool*, and each one has either a merge-blocking gate or an honest statement of the limit.

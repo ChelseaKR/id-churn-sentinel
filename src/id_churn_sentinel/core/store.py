@@ -20,8 +20,8 @@ A classified change without a named human reviewer is **rejected by the database
 Python types make it unrepresentable; the schema makes it un-*storable*. Two independent
 enforcement points, because the failure mode this guards against — a machine asserting
 that the law substantively changed — is one where being right 99% of the time is not good
-enough. (The same doubling is why `self-osint-monitor`'s consent gate lives in both the
-`Subject` type and a `NOT NULL REFERENCES` clause.)
+enough. The same invariant-doubling pattern is useful for consent gates: enforce the rule
+in both the domain type and the database constraint.
 """
 
 from __future__ import annotations

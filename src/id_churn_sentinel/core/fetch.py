@@ -8,8 +8,8 @@ no network**, because `watch()` takes a `Fetcher` and the tests hand it a dict.
 Two rules live here, and they are the difference between a watcher and a nuisance:
 
 **A fetch failure is never drift.** This is the single most important line of discipline
-inherited from `trans-docs-navigator/scripts/source-watch.ts` ("Fetch failures are
-reported but never recorded as drift — a bot-block or outage is not a content change").
+inherited from an earlier content-hash watcher ("Fetch failures are reported but never
+recorded as drift — a bot-block or outage is not a content change").
 A 503, a TLS hiccup, a WAF that decides today we look like a bot: none of these are a
 state changing its birth-certificate policy. :class:`FetchResult` therefore separates
 `ok` from `changed` at the type level — a failed result carries no body to hash, so

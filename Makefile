@@ -71,8 +71,8 @@ sources-validate: ## [5/7] Registry gate: valid entries, no dupes, AND no doc ly
 	@# coverage number from sources/registry.json and fails if a doc disagrees — and fails if
 	@# any (state, core document class) pair is neither watched nor a NAMED GAP.
 	@#
-	@# Mirrors `gate-count` in the sibling repo trans-docs-navigator, which derives the number
-	@# of merge gates from the Makefile and red-lights any doc that states a different one. A
+	@# Derive the number of merge gates from the Makefile and red-light any doc that states a
+	@# different one. A
 	@# self-description is a fact about the artifact; compute it from the artifact.
 	uv run sentinel coverage --check-docs
 

@@ -50,6 +50,7 @@ uv run sentinel verify --list      # what is still unverified. No network, no wr
 uv run sentinel baseline check     # what moved since the committed baseline (needs no store)
 uv run sentinel watch              # fetch, normalize, hash, diff, record drift
 uv run sentinel diff <change-id>   # the changed passages
+uv run sentinel review --list      # what is still unreviewed. No network, no writes.
 uv run sentinel review <change-id> --reviewer "Your Name" --significance substantive --status confirmed
 uv run sentinel approve <change-id> --reviewer "Independent Name" --status confirmed \
   --qualification-ref governance/qualification.json --conflict-attestation-ref governance/conflict.json

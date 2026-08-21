@@ -17,6 +17,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   retention and sampling changes required before the question is answerable.
   Includes the caveat that a weekly sampler cannot resolve sub-weekly outages in
   principle, however long it runs.
+- `sentinel review --list` (2026-08-04): the store-backed twin of `sentinel
+  verify --list` — prints every change still `unreviewed` (drift and
+  `possibly_removed` escalations alike), optionally filtered by
+  `--jurisdiction`, straight from the local snapshot store. No network, no
+  prompts, no writes. For a reviewer who no longer has `watch`'s output on
+  screen or whose review-queue issue already closed, this was previously a
+  choice between re-running `watch` against live government servers or
+  reading the SQLite file by hand.
 - An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
   Spanish metadata scope, independent-review workflow, fail-closed English
   fallback, and 2026-11-13 target without claiming translations already exist.

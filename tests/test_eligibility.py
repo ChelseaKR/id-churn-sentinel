@@ -180,10 +180,10 @@ def test_registry_report_keeps_every_source_in_the_denominator(
 def test_committed_registry_reports_the_real_zero_eligible_denominator() -> None:
     report = eligibility_report(load_registry(), as_of=AS_OF)
 
-    assert len(report.decisions) == 152
+    assert len(report.decisions) == 156
     assert len(report.eligible) == 0
-    assert dict(report.reason_counts)["unverified"] == 152
-    assert dict(report.reason_counts)["fetch-policy-unreviewed"] == 152
+    assert dict(report.reason_counts)["unverified"] == 156
+    assert dict(report.reason_counts)["fetch-policy-unreviewed"] == 156
 
 
 def test_registry_parses_a_complete_policy_and_rejects_a_partial_one(tmp_path: Path) -> None:

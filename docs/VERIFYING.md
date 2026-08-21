@@ -1,7 +1,7 @@
 # Verifying the registry — the one question, and how to answer 152 of them
 
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion.**
-> Status today: **`0 of 152 sources are human-verified`.** Everything below exists to change that number.
+> Status today: **`0 of 156 sources are human-verified`.** Everything below exists to change that number.
 
 ## Read this before you start: verification is one of two decisions
 
@@ -119,6 +119,6 @@ Four fields, and all four are read by the predicate that decides whether a sourc
 
 - `sentinel coverage` prints the burn-down, derived — nobody types it.
 - The published site, `sources.json` and every feed stop saying **UNVERIFIED** next to that source and start saying **VERIFIED — confirmed by \<your name\> on \<date\>**.
-- The README's gated `N of 152 sources are human-verified` number moves by itself, and the merge gate fails any doc that disagrees with it.
+- The README's gated `N of 156 sources are human-verified` number moves by itself, and the merge gate fails any doc that disagrees with it.
 - The end of your session prints **how many sources are now attempt-eligible**. If that number is still zero, it is because the fetch-policy decisions have not been recorded — the session names the count, and `sentinel sources policy` is where they go. Verified sources with no policy decision are not watched, and the site says so on its front page rather than headlining the verification.
 - **M1 closes**, and this project can stop leading with an apology.

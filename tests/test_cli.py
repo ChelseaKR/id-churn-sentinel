@@ -198,6 +198,43 @@ def test_sources_check_twice_names_the_false_drift_sources(
     assert "learn\nto ignore the feed" in out  # the reason it matters, said in-band
 
 
+def test_sources_check_twice_never_reports_a_blind_page_as_stable(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """End to end, on the command CLAUDE.md guardrail #7 makes the gate for adding a source.
+
+    A JS shell hashes to `sha256("")` twice in a row and matched itself, so `--twice` counted
+    it as `stable` and printed no line for it at all — a silent clean pass for a page
+    `sentinel watch` can never observe. The summary now has to say so, and the page has to
+    appear on stdout.
+    """
+    stub = StubFetcher(
+        {
+            source.url: (
+                b"<html><head><script>var a=1;</script></head>"
+                b'<body><div id="root"></div></body></html>',
+                "text/html",
+            )
+        }
+    )
+
+    exit_code = main(
+        [*base_args(cli_registry, tmp_path / "s.db"), "sources", "check", "--twice"],
+        fetcher=stub,
+    )
+
+    out = capsys.readouterr().out
+    assert exit_code == 0  # still never a gate
+    assert f"NO TEXT   {source.id}" in out
+    assert "0 stable" in out
+    assert "NO extractable text" in out
+    assert "stability unknown" in out
+    assert "UNSTABLE  " not in out  # it is not false drift either — it is unread
+
+
 # -- watch -----------------------------------------------------------------------
 
 
@@ -256,9 +293,21 @@ def test_watch_escalates_a_long_dead_source_and_says_it_is_not_classified(
     )
     capsys.readouterr()
 
+    # `--min-removal-silence-days 0` because three runs in one test take milliseconds, not
+    # three weeks. The flag exists precisely so that distinction is explicit rather than
+    # accidental: without it, this loop models an afternoon and must not escalate.
     for _ in range(3):
         exit_code = main(
-            [*args, "watch", "--jurisdiction", "TX", "--removal-threshold", "3"],
+            [
+                *args,
+                "watch",
+                "--jurisdiction",
+                "TX",
+                "--removal-threshold",
+                "3",
+                "--min-removal-silence-days",
+                "0",
+            ],
             fetcher=StubFetcher({}),  # every fetch fails
         )
 
@@ -591,6 +640,123 @@ def test_baseline_check_moved_count_is_zero_when_nothing_moved(
     assert "cannot show you the passage that changed" not in out_text
 
 
+def test_baseline_check_reports_an_unreadable_page_instead_of_a_match(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A page that turns into a JS shell must not be reported as matching anything, and the
+    workflow needs its own machine-readable count: a job branching only on the MOVED count
+    treats a blind page as a quiet one, which is how a scrubbed page stays unnoticed."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    blind = StubFetcher(
+        {source.url: (b"<html><head><script>x</script></head></html>", "text/html")}
+    )
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=blind,
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-no-text-count: 1" in out_text
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "0 match the committed baseline" in out_text
+    assert (
+        f"NO EXTRACTABLE TEXT (NOT compared, no drift claimed either way): {source.id}" in out_text
+    )
+    assert "says nothing about whether those pages changed" in out_text
+
+
+def test_baseline_check_emits_a_zero_no_text_count_when_every_page_was_readable(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The count line is unconditional. A missing line is not a zero, and the workflow is
+    entitled to tell those apart rather than defaulting the absence to 'nothing wrong'."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    main([*base_args(cli_registry, db), "watch"], fetcher=stub)
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert "baseline-check-no-text-count: 0" in out_text
+    assert "NO EXTRACTABLE TEXT" not in out_text
+
+
+def test_watch_names_an_unreadable_source_and_refuses_to_call_the_run_quiet(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """What an operator actually reads at 7am. Every other source in this run is readable and
+    unchanged, so the one blind page is the only thing standing between this run and QUIET —
+    and it must be enough. The bug was that page settling into a permanently green
+    `unchanged` bucket the moment its empty fetch hashed the same as itself."""
+    db = tmp_path / "s.db"
+    blind = StubFetcher(
+        {
+            source.url: (b"<html><body></body></html>", "text/html"),
+            "https://www.dmv.ca.gov/portal/x": (fixture_before, "text/html"),
+        }
+    )
+
+    assert main([*base_args(cli_registry, db), "watch"], fetcher=blind) == 0
+    first = capsys.readouterr().out
+    assert main([*base_args(cli_registry, db), "watch"], fetcher=blind) == 0
+    second = capsys.readouterr().out
+
+    assert "0 unreachable" in first  # nothing failed; the blind page is the only shortfall
+    for output in (first, second):
+        assert "QUIET" not in output
+        assert "PARTIAL" in output
+        assert "1 served NO extractable text" in output
+        assert (
+            f"NO EXTRACTABLE TEXT (not baselined, NO drift claimed either way): {source.id}"
+            in output
+        )
+    # The second run is the one the old code got wrong: identical nothing, hashed against
+    # itself, reported as an unremarkable unchanged source.
+    assert "1 unchanged" in second  # the California page, and only it
+    assert "2 unchanged" not in second
+
+
 def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
     cli_registry: Path,
     tmp_path: Path,
@@ -635,7 +801,11 @@ def test_baseline_check_never_fetches_sources_that_fail_canonical_eligibility(
     )
 
     output = capsys.readouterr().out
-    assert exit_code == 0
+    # The property this test is named for is unchanged and still asserted below: no source
+    # that fails canonical eligibility is fetched. The exit code moved from 0 to 1, because a
+    # run that fetched nothing observed nothing — and exiting 0 was how the weekly job read
+    # "we checked no sources" as "no source moved". Nothing here is relaxed to accommodate it.
+    assert exit_code == 1
     assert stub.calls == []
     assert "0/2 selected source(s) attempt-eligible" in output
     assert "fetch-policy-unreviewed: 2" in output
@@ -750,3 +920,167 @@ def test_baseline_check_flags_a_hash_recorded_by_a_different_normalizer(
     # would page a human for every artifact on the first pass after a version bump.
     assert "baseline-check-moved-count: 1" in out
     assert "baseline-check-cross-contract-count: 1" in out
+
+
+# -- the empty attempt denominator ------------------------------------------------
+#
+# `sentinel watch` has always failed closed on this condition. `sentinel baseline check` —
+# the command the WEEKLY HOSTED JOB runs — did not: it printed "0 source(s): 0 match the
+# committed baseline, 0 MOVED", emitted `baseline-check-moved-count: 0`, and exited 0. Those
+# are the exact bytes a complete run over sources that all matched emits, so the workflow
+# concluded `needs-review=false` and went green. With the committed registry at 0/152
+# attempt-eligible that was the branch it took every single week: a monitor that observed
+# nothing, reporting as a monitor that saw no change.
+
+
+@pytest.fixture
+def ineligible_cli_registry(tmp_path: Path, source: Source) -> Path:
+    """A registry whose entries are real and whose eligibility is incomplete — the shape the
+    committed `sources/registry.json` is in today (unverified, fetch-policy-unreviewed)."""
+    path = tmp_path / "ineligible-registry.json"
+    path.write_text(
+        json.dumps(
+            {
+                "registry_version": "1.0",
+                "sources": [
+                    {
+                        "id": source.id,
+                        "jurisdiction": source.jurisdiction,
+                        "document_class": source.document_class,
+                        "url": source.url,
+                        "authority": source.authority,
+                        "verified": False,
+                        "notes": "synthetic test fixture",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_baseline_check_fails_closed_when_no_source_was_attempted(
+    ineligible_cli_registry: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A zero attempt denominator is not a clean result, and must not exit as one."""
+    committed = tmp_path / "baseline-hashes.json"
+    committed.write_text(
+        json.dumps({"baseline_version": "1.0", "baselines": {}}),
+        encoding="utf-8",
+    )
+    stub = StubFetcher()
+
+    exit_code = main(
+        [
+            *base_args(ineligible_cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(committed),
+        ],
+        fetcher=stub,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    # Nothing was fetched, so no government server was contacted for a run that could not
+    # have observed anything anyway.
+    assert stub.calls == []
+    assert "NO SOURCE WAS CHECKED" in captured.out
+    assert "not evidence that nothing changed" in captured.err
+    # The denominator marker exists and is zero, so a workflow can branch on the one number
+    # that distinguishes "nothing moved" from "nothing was looked at".
+    assert "baseline-check-attempted-count: 0" in captured.out
+
+
+def test_baseline_check_publishes_its_attempt_denominator_on_a_real_run(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The marker is not a failure-only signal: a workflow must be able to read the
+    denominator on every run, or the absence of the line is itself ambiguous."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-attempted-count: 2" in out_text
+    assert "NO SOURCE WAS CHECKED" not in out_text
+
+
+def test_baseline_check_never_counts_a_re_pointed_source_as_moved(
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    fixture_after: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The MOVED count is what a workflow alerts a human with. A source whose registry URL
+    changed was not compared against anything, so it must never reach that number."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    original = tmp_path / "registry-original.json"
+    original.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [eligible_source_entry(source)]}),
+        encoding="utf-8",
+    )
+    main(
+        [*base_args(original, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(original, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    repointed_url = "https://www.dps.texas.gov/an-entirely-different-page"
+    repointed = tmp_path / "registry-repointed.json"
+    entry = eligible_source_entry(source)
+    entry["url"] = repointed_url
+    repointed.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [entry]}), encoding="utf-8"
+    )
+
+    exit_code = main(
+        [
+            *base_args(repointed, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({repointed_url: (fixture_after, "text/html")}),
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "baseline-check-url-changed-count: 1" in out_text
+    assert "REGISTRY URL CHANGED" in out_text
+    assert f"baseline was taken from: {source.url}" in out_text
+    assert f"registry now points at:  {repointed_url}" in out_text
+    # The command must not offer the passage-diff follow-up here: there is no observed drift
+    # to read, and pointing a reviewer at one would send them looking for a record that was
+    # never minted.
+    assert "cannot show you the passage that changed" not in out_text

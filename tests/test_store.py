@@ -15,7 +15,9 @@ from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatu
 from id_churn_sentinel.core.fetch import RedirectHop
 from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
 from id_churn_sentinel.core.store import (
+    RUN_COMPLETE,
     RUN_FAILED,
+    RUN_PARTIAL,
     RUN_QUIET,
     AttemptEvidence,
     RunSourceInput,
@@ -463,6 +465,82 @@ def test_run_receipt_round_trips_exact_numerator_and_denominator(store: Snapshot
     ).fetchone()
     assert attempt is not None
     assert tuple(attempt) == (NORMALIZER_VERSION, EXTRACTOR_VERSION)
+
+
+def test_the_store_refuses_to_call_an_unreadable_run_quiet_or_complete(
+    store: SnapshotStore,
+) -> None:
+    """The second, independent enforcement point for issue #19.
+
+    `detect.py` computes `partial` for a run with an unmeasured source; this is the store
+    refusing to record `quiet` or `complete` even if a future caller computes it differently.
+    The doubling is the same one the `changes` CHECK constraint applies to machine
+    classification: the failure mode is a reassuring public sentence, and being right most of
+    the time is not good enough."""
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+    store.finish_fetch_attempt(
+        run_id,
+        source_id="eligible",
+        ok=True,
+        http_status=200,
+        content_type="text/html",
+        normalizer_version=NORMALIZER_VERSION,
+        extractor_version=EXTRACTOR_VERSION,
+        error="",
+        evidence=_ok_evidence(),
+        measured=False,
+        completed_at=NOW,
+    )
+
+    with pytest.raises(StoreError, match="quiet requires"):
+        store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+    with pytest.raises(StoreError, match="complete requires"):
+        store.finish_watch_run(run_id, state=RUN_COMPLETE, completed_at=NOW)
+
+    store.finish_watch_run(run_id, state=RUN_PARTIAL, observation_count=0, completed_at=NOW)
+    receipt = store.watch_run(run_id)
+    assert receipt.state == RUN_PARTIAL
+    # Retrieved and unreadable are both recorded, and they are different facts.
+    assert receipt.successful_source_ids == ("eligible",)
+    assert receipt.unmeasured_source_ids == ("eligible",)
+    assert receipt.observed_count == 0
+    stored = store._conn.execute(
+        "SELECT observation_outcome FROM run_sources WHERE run_id = ? AND source_id = 'eligible'",
+        (run_id,),
+    ).fetchone()
+    assert stored["observation_outcome"] == "no-text"
+
+
+def test_a_measured_run_records_no_unmeasured_sources(store: SnapshotStore) -> None:
+    """The other half: an ordinary readable page leaves the new column saying so, so
+    'unmeasured' can never be the default a caller falls into by omission."""
+    run_id = _start_run(store)
+    _finish_eligible_attempt(store, run_id, ok=True)
+    store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+
+    receipt = store.watch_run(run_id)
+    assert receipt.unmeasured_source_ids == ()
+    assert receipt.unmeasured_count == 0
+    assert receipt.observed_count == 1
+
+
+def test_a_failed_retrieval_is_not_recorded_as_an_unreadable_one(store: SnapshotStore) -> None:
+    """Failure and unreadability are distinct states and stay distinct: an outage records
+    `not-retrieved`, never `no-text`, so 'the host answered with nothing' can never be
+    inferred from 'the host did not answer'."""
+    run_id = _start_run(store)
+    _finish_eligible_attempt(store, run_id, ok=False)
+    store.finish_watch_run(run_id, state=RUN_PARTIAL, observation_count=0, completed_at=NOW)
+
+    receipt = store.watch_run(run_id)
+    assert receipt.successful_source_ids == ()
+    assert receipt.unmeasured_source_ids == ()
+    stored = store._conn.execute(
+        "SELECT observation_outcome FROM run_sources WHERE run_id = ? AND source_id = 'eligible'",
+        (run_id,),
+    ).fetchone()
+    assert stored["observation_outcome"] == "not-retrieved"
 
 
 def test_database_rejects_successful_attempt_without_representation_versions(
@@ -1085,6 +1163,14 @@ def test_legacy_attempts_are_labelled_not_backfilled(
     pre_evidence_required = dict(store_module._V1_REQUIRED_COLUMNS)
     pre_evidence_required["fetch_attempts"] = frozenset(
         pre_evidence_required["fetch_attempts"] - evidence_columns
+    )
+    # Migration 7's columns did not exist at migration 4 either, so a store rolled back to
+    # that point must not be required to have them.
+    pre_evidence_required["run_sources"] = frozenset(
+        pre_evidence_required["run_sources"] - {"observation_outcome"}
+    )
+    pre_evidence_required["watch_runs"] = frozenset(
+        pre_evidence_required["watch_runs"] - {"unmeasured_count"}
     )
     monkeypatch.setattr(store_module, "_MIGRATIONS", pre_evidence)
     monkeypatch.setattr(store_module, "_V1_REQUIRED_COLUMNS", pre_evidence_required)

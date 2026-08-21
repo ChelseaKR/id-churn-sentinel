@@ -36,10 +36,12 @@ from id_churn_sentinel.core.coverage import coverage
 from id_churn_sentinel.core.detect import watch_registry
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
+    VERIFIED,
     FetchPolicyDecision,
     Gap,
     Registry,
     Source,
+    Verification,
     load_registry,
 )
 from id_churn_sentinel.core.site import feed_slug, render_site
@@ -397,8 +399,8 @@ def test_a_run_with_no_eligible_sources_does_not_render_as_a_completed_run(
 
     assert "attempted 0 of 0 eligible sources" not in page
     assert "0 successful retrievals" not in page
-    assert "no source was eligible to attempt, so this run measured nothing" in page
-    assert "completeness is not measurable over an empty denominator" in page
+    assert "no source was attempt-eligible, so this run examined nothing" in page
+    assert "there is no denominator here and the zero counts are not a measurement" in page
 
 
 def test_a_fully_verified_registry_that_watches_nothing_does_not_headline_the_verification(
@@ -420,7 +422,7 @@ def test_a_fully_verified_registry_that_watches_nothing_does_not_headline_the_ve
     page = render_site(verified_only, coverage(verified_only), (), generated_at=NOW)
 
     assert "Read this first: All 1 sources are human-verified" not in page
-    assert "human-verified, and none of them is being watched" in page
+    assert "human-verified, and 0 of them are monitored" in page
     assert "0 of 1 registered candidates are attempt-eligible" in page
 
 
@@ -437,3 +439,55 @@ def test_the_real_registry_renders(tmp_path: Path) -> None:
         assert f'href="feed-{slug}.xml"' in page
         assert (tmp_path / f"feed-{slug}.xml").exists()
     assert "MI" in page and "NH" in page
+
+
+# -- "human-verified" is not "watched" (issue #18) ---------------------------------
+#
+# `verified` is a fact about a person opening a URL. Attempt-eligibility additionally needs an
+# evidence reference, a recheck expiry and a dated fetch-policy decision. A registry can be
+# fully verified and watch nothing — which is precisely the state a volunteer who works the
+# whole queue ends in, because `sentinel verify` writes only the first of those. The page's
+# loudest line must not read as "this registry is finished" at that moment.
+
+
+def _verified_but_unwatchable(source: Source) -> Registry:
+    """Every source human-verified by a named person, and none of them attempt-eligible —
+    exactly what burning down the verification queue produces today."""
+    return Registry(
+        version="1.0",
+        sources=(
+            replace(
+                source,
+                verified=True,
+                verification=Verification(
+                    status=VERIFIED, verifier="A Named Human", at="2026-01-01"
+                ),
+            ),
+        ),
+    )
+
+
+def test_a_fully_verified_but_unwatched_registry_does_not_headline_as_finished(
+    source: Source,
+) -> None:
+    registry = _verified_but_unwatchable(source)
+
+    page = render_site(
+        registry, coverage(registry), [], generated_at=NOW, eligibility_as_of=NOW.date()
+    )
+
+    assert "All 1 sources are human-verified" not in page
+    assert "are human-verified, and 0 of them are monitored" in page
+    assert "This public deployment is not currently an operating monitor" in page
+
+
+def test_the_completeness_headline_survives_when_it_is_actually_true(source: Source) -> None:
+    """The claim is not removed, only conditioned. A registry that really is verified AND
+    watched still says so — otherwise the page would understate on the day the work is done."""
+    registry = Registry(version="1.0", sources=(eligible_source(source),))
+
+    page = render_site(
+        registry, coverage(registry), [], generated_at=NOW, eligibility_as_of=NOW.date()
+    )
+
+    assert "All 1 sources are human-verified" in page

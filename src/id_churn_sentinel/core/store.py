@@ -30,7 +30,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from types import TracebackType
@@ -55,6 +55,9 @@ from id_churn_sentinel.errors import StoreError
 
 __all__ = [
     "DEFAULT_SNAPSHOT_RETENTION",
+    "OBSERVATION_MEASURED",
+    "OBSERVATION_NOT_RETRIEVED",
+    "OBSERVATION_NO_TEXT",
     "RUN_COMPLETE",
     "RUN_FAILED",
     "RUN_PARTIAL",
@@ -63,6 +66,7 @@ __all__ = [
     "AttemptEvidence",
     "FetchAttempt",
     "RunSourceInput",
+    "SilenceWindow",
     "Snapshot",
     "SnapshotStore",
     "WatchRun",
@@ -657,7 +661,82 @@ INSERT INTO representation_contracts (normalizer_version, extractor_version)
 VALUES ('passage-text-v2', 'none-v1');
 """,
     ),
+    (
+        7,
+        "v1-record-whether-a-source-was-measured",
+        # Issue #19. `retrieval_success` answers "did bytes arrive?", and the run receipt had
+        # no way to answer the different question "did those bytes yield anything we could
+        # compare?". A page serving a JS shell, an empty 200 or a bot-wall answers yes to the
+        # first and no to the second, and with only the first recorded, a run in which nothing
+        # was actually observed was indistinguishable from a run in which everything was
+        # observed and nothing had changed — the latter being what `quiet` publishes.
+        #
+        # Four values, because absence, measurement, unmeasurability and failure are four
+        # different facts and collapsing any of them loses the distinction this column exists
+        # to make:
+        #   ''              the source was never attempted (ineligible, or the run died first)
+        #   'measured'      bytes arrived and produced text we could compare
+        #   'no-text'       bytes arrived and produced zero passages: nothing to compare
+        #   'not-retrieved' no bytes arrived
+        #   'legacy-unknown' attempted before this column existed; we cannot say which
+        #
+        # `unmeasured_count` on the run mirrors the exact 'no-text' set for the same reason the
+        # other three counters exist: a redundant counter that disagrees with its ID set is how
+        # a tampered or half-migrated store is caught before it can publish.
+        #
+        # The attempt row's own `extraction_outcome` deliberately still reads 'text-normalized'
+        # for these fetches. That is what the extractor did — it normalized the text, and there
+        # was none — and rewriting it to a fifth extraction outcome would restate an evidence
+        # field about the *body* to carry a judgment about the *observation*.
+        """
+ALTER TABLE run_sources
+    ADD COLUMN observation_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (observation_outcome IN
+               ('', 'measured', 'no-text', 'not-retrieved', 'legacy-unknown'));
+ALTER TABLE watch_runs
+    ADD COLUMN unmeasured_count INTEGER NOT NULL DEFAULT 0 CHECK (unmeasured_count >= 0);
+
+UPDATE run_sources SET observation_outcome = 'legacy-unknown' WHERE attempted = 1;
+""",
+    ),
+    (
+        8,
+        "v1-when-the-silence-started",
+        # `source_health` could say a source had failed N times running, and when it last
+        # failed. It could not say when the streak BEGAN — so it could not answer the one
+        # question `REMOVAL_THRESHOLD` is actually about: how long has this page been
+        # silent? A count of runs is not a duration. Three failures spread over three
+        # weekly runs and three failures inside one afternoon's back-to-back runs were
+        # recorded identically, and the escalation treated them identically.
+        #
+        # That is not hypothetical. In this repository's only retained observation session
+        # (2026-07-13), six sources reached `consecutive_failures = 3` inside a
+        # seventy-four-minute window, because the tool was run three times in one sitting.
+        # Under the old rule those six were "three weeks silent". They were three minutes
+        # silent. See `REMOVAL_THRESHOLD` in core/detect.py.
+        #
+        # Recording the start of the streak is also the minimum needed to ever MEASURE an
+        # outage length. `fetch_attempts` carries the per-attempt evidence, but only for as
+        # long as a database survives; the health row is the durable per-source summary, and
+        # without this column a year of faithful weekly runs still yields no outage
+        # durations from it.
+        #
+        # NULL is meaningful and is not backfilled: it means "this streak began before the
+        # column existed, so its duration is unknown". `record_failure` adopts the current
+        # timestamp for a NULL streak on the next failure, which starts the measured window
+        # now rather than inventing a start date we never observed. The conservative
+        # direction is deliberate — it delays an escalation rather than manufacturing one.
+        """
+ALTER TABLE source_health ADD COLUMN streak_started_at TEXT;
+""",
+    ),
 )
+
+# What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
+# migration 7 for why each value exists and why none of them may be folded into another.
+OBSERVATION_MEASURED = "measured"
+OBSERVATION_NO_TEXT = "no-text"
+OBSERVATION_NOT_RETRIEVED = "not-retrieved"
 
 _V1_REQUIRED_COLUMNS = {
     "watch_runs": frozenset(
@@ -674,6 +753,7 @@ _V1_REQUIRED_COLUMNS = {
             "attempted_count",
             "successful_count",
             "observation_count",
+            "unmeasured_count",
             "error",
         }
     ),
@@ -689,6 +769,7 @@ _V1_REQUIRED_COLUMNS = {
             "eligibility_reasons",
             "attempted",
             "retrieval_success",
+            "observation_outcome",
             "outcome",
             "error",
         }
@@ -765,6 +846,39 @@ _V1_REQUIRED_COLUMNS = {
         }
     ),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class SilenceWindow:
+    """One source's current run of failures, measured two ways at once.
+
+    `consecutive_failures` is how many times we asked and got nothing. `elapsed` is how
+    long the page has actually been unavailable. They are not interchangeable, and the
+    whole reason this type exists is that the escalation rule used to treat them as if
+    they were: three failures is three weeks at a weekly cadence and three minutes in a
+    back-to-back re-run, and only the duration can tell those apart.
+
+    `started_at` is None for a streak that began before migration 8 recorded starts, and
+    `elapsed` is None with it — "unknown", never "zero", because a caller that reads an
+    unknown duration as a short one escalates nothing and a caller that reads it as a long
+    one escalates everything.
+    """
+
+    consecutive_failures: int
+    started_at: datetime | None
+    last_failure_at: datetime | None
+
+    @property
+    def elapsed(self) -> timedelta | None:
+        """Wall-clock silence, or None if we cannot say.
+
+        Derived from the two recorded timestamps rather than from a live clock: both ends
+        are facts the store observed, so the answer is the same whenever it is asked and
+        does not drift while a process sits idle.
+        """
+        if self.started_at is None or self.last_failure_at is None:
+            return None
+        return max(self.last_failure_at - self.started_at, timedelta(0))
 
 
 @dataclass(frozen=True, slots=True)
@@ -850,6 +964,12 @@ class WatchRun:
     eligible_source_ids: tuple[str, ...]
     attempted_source_ids: tuple[str, ...]
     successful_source_ids: tuple[str, ...]
+    #: Attempted sources whose retrieval succeeded and produced nothing comparable — a
+    #: text/HTML body that normalized to zero passages (issue #19). A subset of
+    #: ``successful_source_ids``: the bytes did arrive. Kept as its own set rather than
+    #: subtracted out of the successful one, because "we fetched it" and "we observed it" are
+    #: separate facts and a reader is entitled to both.
+    unmeasured_source_ids: tuple[str, ...]
     observation_count: int
     error: str
 
@@ -864,6 +984,20 @@ class WatchRun:
     @property
     def successful_count(self) -> int:
         return len(self.successful_source_ids)
+
+    @property
+    def unmeasured_count(self) -> int:
+        return len(self.unmeasured_source_ids)
+
+    @property
+    def observed_count(self) -> int:
+        """Sources this run actually managed to compare against a baseline.
+
+        Not ``successful_count``: a fetch that returned no extractable text succeeded and
+        observed nothing. This is the numerator a reader means by "how many sources did the
+        watcher actually look at this week".
+        """
+        return len(set(self.successful_source_ids) - set(self.unmeasured_source_ids))
 
     @property
     def attempt_completeness(self) -> float | None:
@@ -1171,34 +1305,61 @@ class SnapshotStore:
 
     # -- source health (the outage-vs-removal signal) -----------------------------
 
-    def record_failure(self, source_id: str, *, error: str, status: int | None = None) -> int:
+    def record_failure(
+        self,
+        source_id: str,
+        *,
+        error: str,
+        status: int | None = None,
+        now: datetime | None = None,
+    ) -> int:
         """Record one failed fetch and return the source's new consecutive-failure count.
 
         Returning the streak (rather than making the caller re-query it) keeps the
         increment and the threshold test in one place in `watch()`, so there is no window
         in which they can disagree.
+
+        `now` is injectable so a test can model a fortnight of weekly failures without
+        waiting a fortnight — which matters more than it sounds, because the escalation
+        rule is now partly about elapsed time and a test that cannot advance a clock can
+        only ever assert the run-count half of it.
+
+        A streak that is starting (the row is absent, or its `consecutive_failures` was
+        zero) stamps `streak_started_at`. A streak already running keeps the stamp it has,
+        because that timestamp is the answer to "how long has this been silent" and
+        refreshing it every failure would flatten every outage to zero length. A row whose
+        stamp is NULL — a streak that began before migration 8 — adopts this timestamp
+        rather than being backfilled to a start we never observed.
         """
-        now = datetime.now(UTC).isoformat()
+        stamp = (now or datetime.now(UTC)).isoformat()
         self._conn.execute(
             "INSERT INTO source_health"
-            " (source_id, consecutive_failures, last_status, last_error, last_failure_at)"
-            " VALUES (?, 1, ?, ?, ?)"
+            " (source_id, consecutive_failures, last_status, last_error, last_failure_at,"
+            "  streak_started_at)"
+            " VALUES (?, 1, ?, ?, ?, ?)"
             " ON CONFLICT (source_id) DO UPDATE SET"
             "   consecutive_failures = source_health.consecutive_failures + 1,"
             "   last_status = excluded.last_status,"
             "   last_error = excluded.last_error,"
-            "   last_failure_at = excluded.last_failure_at",
-            (source_id, status, error, now),
+            "   last_failure_at = excluded.last_failure_at,"
+            "   streak_started_at = CASE"
+            "     WHEN source_health.consecutive_failures = 0 THEN excluded.streak_started_at"
+            "     WHEN source_health.streak_started_at IS NULL THEN excluded.streak_started_at"
+            "     ELSE source_health.streak_started_at END",
+            (source_id, status, error, stamp, stamp),
         )
         self._conn.commit()
         return self.failure_streak(source_id)
 
-    def record_success(self, source_id: str) -> None:
+    def record_success(self, source_id: str, *, now: datetime | None = None) -> None:
         """Reset the streak. A single successful fetch is total exoneration: whatever was
         wrong — an outage, a WAF mood, a bad deploy — the source is answering again, and a
         source that is answering again is not a source that was taken down. Carrying any
         part of the old streak forward would let long-ago flakiness eventually escalate a
-        perfectly healthy page."""
+        perfectly healthy page.
+
+        `streak_started_at` is cleared with the count, for the same reason: a finished
+        outage has no running silence to measure."""
         self._conn.execute(
             "INSERT INTO source_health"
             " (source_id, consecutive_failures, last_success_at) VALUES (?, 0, ?)"
@@ -1206,8 +1367,9 @@ class SnapshotStore:
             "   consecutive_failures = 0,"
             "   last_error = NULL,"
             "   last_status = NULL,"
+            "   streak_started_at = NULL,"
             "   last_success_at = excluded.last_success_at",
-            (source_id, datetime.now(UTC).isoformat()),
+            (source_id, (now or datetime.now(UTC)).isoformat()),
         )
         self._conn.commit()
 
@@ -1219,6 +1381,27 @@ class SnapshotStore:
             (source_id,),
         ).fetchone()
         return int(row["consecutive_failures"]) if row else 0
+
+    def silence_window(self, source_id: str) -> SilenceWindow:
+        """How long this source has been failing, as a count AND as a duration.
+
+        The two are different measurements and the escalation needs both: the count says
+        how many times we asked, the duration says how long the page has actually been
+        unavailable. A caller that has only the count cannot tell three weekly failures
+        from three failures in an hour.
+        """
+        row = self._conn.execute(
+            "SELECT consecutive_failures, streak_started_at, last_failure_at"
+            " FROM source_health WHERE source_id = ?",
+            (source_id,),
+        ).fetchone()
+        if row is None:
+            return SilenceWindow(0, None, None)
+        return SilenceWindow(
+            consecutive_failures=int(row["consecutive_failures"]),
+            started_at=_parse_timestamp(row["streak_started_at"]),
+            last_failure_at=_parse_timestamp(row["last_failure_at"]),
+        )
 
     # -- watch runs and attempts --------------------------------------------------
 
@@ -1344,10 +1527,27 @@ class SnapshotStore:
         extractor_version: str,
         error: str,
         evidence: AttemptEvidence,
+        measured: bool = True,
         completed_at: datetime | None = None,
     ) -> None:
+        """Record one terminal attempt, its evidence, and whether it observed anything.
+
+        ``measured`` is the answer to a different question from ``ok``: ``ok`` says bytes
+        arrived, ``measured`` says those bytes yielded something comparable. It defaults to
+        ``True`` because that is what a successful retrieval means for every content kind
+        except the one issue #19 is about — a text/HTML body that normalizes to zero passages
+        — and a caller that fetched nothing comparable has to say so explicitly. It is ignored
+        for a failed attempt, which observed nothing by definition.
+        """
         stamp = _as_utc(completed_at or datetime.now(UTC)).isoformat()
         outcome = "success" if ok else "failure"
+        observation = (
+            OBSERVATION_NOT_RETRIEVED
+            if not ok
+            else OBSERVATION_MEASURED
+            if measured
+            else OBSERVATION_NO_TEXT
+        )
         chain = json.dumps(
             [{"status": hop.status, "url": hop.url} for hop in evidence.redirect_chain],
             separators=(",", ":"),
@@ -1393,9 +1593,10 @@ class SnapshotStore:
                     f"{run_id}/{source_id}"
                 )
             source_cursor = self._conn.execute(
-                "UPDATE run_sources SET retrieval_success = ?, outcome = ?, error = ? "
+                "UPDATE run_sources SET retrieval_success = ?, outcome = ?, "
+                "observation_outcome = ?, error = ? "
                 "WHERE run_id = ? AND source_id = ? AND attempted = 1",
-                (int(ok), outcome, error, run_id, source_id),
+                (int(ok), outcome, observation, error, run_id, source_id),
             )
             if source_cursor.rowcount != 1:
                 self._conn.rollback()
@@ -1433,8 +1634,10 @@ class SnapshotStore:
             counts = self._conn.execute(
                 "SELECT COUNT(*) AS attempted, "
                 "COALESCE(SUM(CASE WHEN retrieval_success = 1 THEN 1 ELSE 0 END), 0) "
-                "AS successful FROM run_sources WHERE run_id = ? AND attempted = 1",
-                (run_id,),
+                "AS successful, "
+                "COALESCE(SUM(CASE WHEN observation_outcome = ? THEN 1 ELSE 0 END), 0) "
+                "AS unmeasured FROM run_sources WHERE run_id = ? AND attempted = 1",
+                (OBSERVATION_NO_TEXT, run_id),
             ).fetchone()
             run = self._conn.execute(
                 "SELECT eligible_count, state FROM watch_runs WHERE run_id = ?", (run_id,)
@@ -1449,18 +1652,20 @@ class SnapshotStore:
             )
             attempted_count = int(counts["attempted"])
             successful_count = int(counts["successful"])
+            unmeasured_count = int(counts["unmeasured"])
             eligible_count = int(run["eligible_count"])
             _validate_terminal_evidence(
                 state=state,
                 eligible_count=eligible_count,
                 attempted_count=attempted_count,
                 successful_count=successful_count,
+                unmeasured_count=unmeasured_count,
                 persisted_observations=persisted_observations,
                 claimed_observations=observation_count,
             )
             cursor = self._conn.execute(
                 "UPDATE watch_runs SET completed_at = ?, state = ?, attempted_count = ?, "
-                "successful_count = ?, observation_count = ?, error = ? "
+                "successful_count = ?, observation_count = ?, unmeasured_count = ?, error = ? "
                 "WHERE run_id = ? AND state = 'running'",
                 (
                     _as_utc(completed_at or datetime.now(UTC)).isoformat(),
@@ -1468,6 +1673,7 @@ class SnapshotStore:
                     attempted_count,
                     successful_count,
                     persisted_observations,
+                    unmeasured_count,
                     error,
                     run_id,
                 ),
@@ -1519,14 +1725,19 @@ class SnapshotStore:
 
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
         source_rows = self._conn.execute(
-            "SELECT source_id, eligible, attempted, retrieval_success FROM run_sources "
-            "WHERE run_id = ? ORDER BY source_id",
+            "SELECT source_id, eligible, attempted, retrieval_success, observation_outcome "
+            "FROM run_sources WHERE run_id = ? ORDER BY source_id",
             (row["run_id"],),
         ).fetchall()
         eligible = tuple(str(source["source_id"]) for source in source_rows if source["eligible"])
         attempted = tuple(str(source["source_id"]) for source in source_rows if source["attempted"])
         successful = tuple(
             str(source["source_id"]) for source in source_rows if source["retrieval_success"] == 1
+        )
+        unmeasured = tuple(
+            str(source["source_id"])
+            for source in source_rows
+            if source["observation_outcome"] == OBSERVATION_NO_TEXT
         )
         persisted_observation_count = int(
             self._conn.execute(
@@ -1542,8 +1753,15 @@ class SnapshotStore:
             int(row["attempted_count"]),
             int(row["successful_count"]),
             int(row["observation_count"]),
+            int(row["unmeasured_count"]),
         )
-        actual = (len(eligible), len(attempted), len(successful), persisted_observation_count)
+        actual = (
+            len(eligible),
+            len(attempted),
+            len(successful),
+            persisted_observation_count,
+            len(unmeasured),
+        )
         if row["state"] != RUN_RUNNING and expected != actual:
             raise StoreError(
                 f"watch run {row['run_id']} count/set mismatch: stored={expected}, exact={actual}"
@@ -1560,6 +1778,7 @@ class SnapshotStore:
             eligible_source_ids=eligible,
             attempted_source_ids=attempted,
             successful_source_ids=successful,
+            unmeasured_source_ids=unmeasured,
             observation_count=int(row["observation_count"]),
             error=str(row["error"]),
         )
@@ -2005,6 +2224,17 @@ def _parse_dt(value: str) -> datetime:
     return _as_utc(datetime.fromisoformat(value))
 
 
+def _parse_timestamp(value: object) -> datetime | None:
+    """Parse a nullable stored timestamp. NULL and unparseable both read as "unknown"
+    rather than as a date, because the caller's whole job is telling those apart."""
+    if value is None:
+        return None
+    try:
+        return _parse_dt(str(value))
+    except ValueError:  # pragma: no cover - a hand-edited store, not a code path
+        return None
+
+
 def _stable_event_id(*parts: str) -> str:
     """Content-address one immutable operator event without leaking its text."""
 
@@ -2030,27 +2260,40 @@ def _validate_terminal_evidence(
     eligible_count: int,
     attempted_count: int,
     successful_count: int,
+    unmeasured_count: int,
     persisted_observations: int,
     claimed_observations: int | None,
 ) -> None:
+    """Refuse to persist a terminal state the run's own receipt does not support.
+
+    ``unmeasured_count`` — sources whose retrieval succeeded and produced nothing comparable
+    (issue #19) — blocks ``quiet`` and ``complete`` for the same reason a failed retrieval
+    does. Both states publish sentences that begin "the latest watch completed for every
+    eligible source", and a source we fetched but could not read is not one we completed.
+    """
     if state != RUN_FAILED and (eligible_count == 0 or attempted_count != eligible_count):
         raise StoreError(
             f"cannot mark run {state}: attempted {attempted_count} of "
             f"{eligible_count} eligible sources"
         )
-    if state == RUN_QUIET and (persisted_observations != 0 or successful_count != eligible_count):
-        raise StoreError(
-            "quiet requires zero observations and successful retrieval of every eligible source"
-        )
-    if state == RUN_COMPLETE and (
-        persisted_observations == 0 or successful_count != eligible_count
+    if state == RUN_QUIET and (
+        persisted_observations != 0 or successful_count != eligible_count or unmeasured_count
     ):
         raise StoreError(
-            "complete requires at least one observation and successful retrieval of every "
-            "eligible source"
+            "quiet requires zero observations, successful retrieval of every eligible source, "
+            "and a comparable observation for each of them"
         )
-    if state == RUN_PARTIAL and successful_count >= eligible_count:
-        raise StoreError("partial requires at least one failed eligible-source retrieval")
+    if state == RUN_COMPLETE and (
+        persisted_observations == 0 or successful_count != eligible_count or unmeasured_count
+    ):
+        raise StoreError(
+            "complete requires at least one observation, successful retrieval of every "
+            "eligible source, and a comparable observation for each of them"
+        )
+    if state == RUN_PARTIAL and successful_count >= eligible_count and unmeasured_count == 0:
+        raise StoreError(
+            "partial requires at least one eligible source that was not retrieved or not measured"
+        )
     if claimed_observations is not None and claimed_observations != persisted_observations:
         raise StoreError(
             "watch-run observation count does not match persisted run observations: "

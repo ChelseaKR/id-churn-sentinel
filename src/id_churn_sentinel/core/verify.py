@@ -65,14 +65,14 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from id_churn_sentinel.core.eligibility import evaluate_source
+from id_churn_sentinel.core.eligibility import evaluate_source, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, FetchResult
 from id_churn_sentinel.core.normalize import content_hash, excerpt, page_title
 from id_churn_sentinel.core.registry import (
@@ -100,9 +100,11 @@ __all__ = [
     "recheck_date",
     "record_fetch_policy",
     "reject",
+    "residual_ineligibility",
     "review_card",
     "run_verification",
     "today",
+    "unwatchable_after_confirmation",
     "write_verification_receipt",
 ]
 
@@ -278,6 +280,54 @@ def pending(
 
     queue.sort(key=sort_key)
     return tuple(queue[:limit] if limit else queue)
+
+
+def residual_ineligibility(source: Source, *, as_of: date | None = None) -> tuple[str, ...]:
+    """What would STILL keep this source out of the attempt denominator after a confirmation.
+
+    Derived, never listed by hand: the block :func:`_block` would actually write is applied to
+    a copy of the source and run through the canonical predicate, so this cannot drift from
+    what the predicate enforces.
+
+    This exists because working the whole queue does not make the tool watch anything, and
+    nothing told the person who did the work (issue #18). `confirm()` writes `status`,
+    `verifier`, `at` and `note` — by design; it is the only writer of `verified: true`. The
+    predicate additionally requires a verification `evidence` reference and a recheck
+    `expires_at`, plus a dated fetch-policy decision that nothing in `src/` writes at all. So a
+    volunteer can burn down all 152, watch the site render "All 152 sources are human-verified",
+    and still have an attempt denominator of zero and a feed that will stay empty.
+
+    The predicate is behaving exactly as designed and is not relaxed here by one inch. What is
+    added is the sentence the tooling owed the volunteer: *this is not the last step, and here
+    is what is left.* A queue that cannot tell you it is not the last step wastes an afternoon.
+    """
+    confirmed = replace(
+        source,
+        verified=True,
+        verification=Verification(
+            status=VERIFIED,
+            verifier=source.verification.verifier or "a named human",
+            at=source.verification.at or today(),
+            note=source.verification.note,
+            evidence=source.verification.evidence,
+            expires_at=source.verification.expires_at,
+        ),
+    )
+    decision = evaluate_source(confirmed, as_of=as_of or parse_as_of(today()))
+    return decision.reasons
+
+
+def unwatchable_after_confirmation(
+    sources: Iterable[Source], *, as_of: date | None = None
+) -> dict[str, int]:
+    """Reason → how many of `sources` a confirmation alone would leave blocked. Empty when
+    confirming really is the last step, so the warning disappears by itself on the day it
+    stops being true rather than being switched off by hand."""
+    counts: dict[str, int] = {}
+    for source in sources:
+        for reason in residual_ineligibility(source, as_of=as_of):
+            counts[reason] = counts.get(reason, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def review_card(candidate: Candidate, *, position: int, total: int) -> str:

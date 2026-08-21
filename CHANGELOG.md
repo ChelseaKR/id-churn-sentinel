@@ -9,6 +9,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- `docs/THRESHOLD-EVIDENCE.md` (2026-08-19): the audit behind `REMOVAL_THRESHOLD`,
+  recording what observation history actually exists (one 74-minute session on
+  2026-07-13; empty per-attempt evidence tables; no failure ever observed
+  *ending*, so every outage on record is right-censored), why an outage-length
+  distribution cannot be derived from it, the units defect it did find, and the
+  retention and sampling changes required before the question is answerable.
+  Includes the caveat that a weekly sampler cannot resolve sub-weekly outages in
+  principle, however long it runs.
 - An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
   Spanish metadata scope, independent-review workflow, fail-closed English
   fallback, and 2026-11-13 target without claiming translations already exist.
@@ -67,6 +75,86 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   perfectly; completeness over an empty denominator is not a number and is now
   reported as not measurable. A registry in which every source is verified and
   none is attempt-eligible no longer headlines the verification.
+- **`sentinel sources check --twice` reported a page with no readable text as
+  `stable`.** A JS shell, an empty 200 and a bot-wall all normalize to zero
+  passages, whose detection hash is `sha256("")` — and that digest matches
+  itself on two back-to-back fetches, so every blind page passed the check as
+  stable. It passed *silently*, too: the command prints a line only for
+  `UNSTABLE` and `unreach`, so the page appeared nowhere on stdout and only in
+  the reassuring half of the summary. That is the worst place in the codebase
+  for that particular false all-clear, because CLAUDE.md guardrail #7 makes this
+  command the gate a maintainer runs *before* adding a source — so the check
+  answered "safe to watch" about exactly the pages `sentinel watch` can never
+  observe, and which it correctly routes to `no_text` on every run. `watch()`
+  and `check_baselines()` already refused this comparison (issue #19); this was
+  the third and last comparison in the codebase still making it. Such a source
+  now lands in its own `StabilityReport.no_text` bucket, is never counted as
+  `stable` or `UNSTABLE`, gets a `NO TEXT` line and a named clause in the
+  summary, and is judged on the *first* fetch so the second request is not spent
+  on a page we already know we cannot read. A page that is readable once and
+  blind once is `no_text` as well, rather than `UNSTABLE` — the two hashes do
+  differ, but naming that as a rotating widget would send a maintainer hunting
+  for something that is not there. Binary sources are exempt, as everywhere
+  else: a PDF's empty normalized text is by design and its hash covers the raw
+  bytes, so comparing two fetches of it remains a real measurement.
+- **The install step in front of every gate could not see lockfile drift.**
+  `make install` ran `uv sync --frozen --group dev`, and `make verify` depends on
+  `install`, so this was the first thing every merge gate did. `--frozen`
+  installs from `uv.lock` without reading `pyproject.toml`; it cannot notice the
+  two disagree and exits 0 on a drifted lock, so a dependency added or bumped
+  without relocking would have installed cleanly and passed all seven stages
+  while the test environment quietly stopped matching the declared dependencies.
+  Now `uv sync --locked`, which re-resolves and exits 1 on drift. That matters
+  more here than elsewhere: with an Actions spending limit in play, local
+  `make verify` is the gate that always exists, so it has to be the strict one.
+  `CONTRIBUTING.md` and the `verify` help text are updated to match.
+- **Four standards were undeclared in the README conformance table**, which the
+  section's own preamble promises states the position honestly: Performance, AI
+  Development Measurement, Incident Response, and Data Governance. All four are
+  now declared with their current state, each pointing at the artifact that
+  already carries the work (`docs/10-OPERATIONS-SRE.md` for the runbooks and the
+  freshness gates, `docs/05-DATA-AND-EVIDENCE.md` for the evidence and retention
+  plan) and naming what has not been done.
+
+- **`sentinel baseline check` reported a run that examined nothing as a clean
+  run.** With an empty attempt denominator it printed `0 source(s): 0 match the
+  committed baseline, 0 MOVED`, emitted `baseline-check-moved-count: 0`, and
+  exited 0 — byte-for-byte what a complete run over sources that all matched
+  emits. `watch.yml` branches on those numbers, so it concluded
+  `needs-review=false` and went green. With the registry at 0/152
+  attempt-eligible that is the branch it took on every weekly run to date, all
+  four of which reported success while checking zero sources. The command now
+  emits `baseline-check-attempted-count:` on every run, says `NO SOURCE WAS
+  CHECKED`, and exits 1 when the denominator is empty; the workflow branches on
+  the denominator first, files a review issue that says what actually happened,
+  and only then goes red. Drift and unreachable sources still exit 0 — a state
+  website being down is the tool working.
+- **A committed baseline hash could be compared against a page it was never
+  taken from.** `write_baselines` records each hash's URL; `load_baselines`
+  dropped it, so re-pointing a source in the registry turned page A's hash into
+  "page B MOVED" — a false change, filed by the weekly job as *a watched
+  official source is no longer what the committed baseline says it was*.
+  `watch()` has always refused this comparison and re-baselined instead; the
+  loader now keeps the URL so `baseline check` can make the same refusal, in its
+  own `url_changed` bucket and its own count, never folded into MOVED or into a
+  match. A test pins that no committed entry cites a page the registry no longer
+  watches.
+- **A redirect walked past both of the fetcher's guards.** The https-only check
+  and the robots check applied to the URL the module was handed and to no other,
+  while `HTTPRedirectHandler` follows `http` as happily as `https` and never
+  reconsults a policy — so a page that 301'd to cleartext was read in cleartext,
+  and a page that redirected to another host was read without that host's
+  robots.txt ever being fetched. Both are now refused before any body is read,
+  with the hops taken beforehand kept as evidence. A host's declared
+  `Crawl-delay` is also honoured now when it exceeds the 2s floor; a shorter one
+  does not speed us up.
+- **Two published surfaces read as "finished" while the tool watched nothing.**
+  `index.html` headlined *All N sources are human-verified* and every RSS
+  channel description carried *All N sources in TX are HUMAN-VERIFIED* whenever
+  the verification flag was set — true of the flag, and read as *and therefore
+  watched* at a moment when the feed could not populate. Both claims are kept
+  but conditioned on the sources being attempt-eligible. The run-health block no
+  longer renders `attempted 0 of 0 eligible sources` as a ratio.
 - **A source with no extractable text could be quietly baselined, then report
   `unchanged` forever** (#19). `sha256("")` is a real, stable hash — it is
   what a JS shell, an empty 200, and an HTTP-200 bot-wall all normalize to —
@@ -82,11 +170,29 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   honest behaviour, not this failure. `sentinel sources check` also now
   prints each reachable text/HTML source's passage count and `<title>`, so
   the same trap is visible before a source is added, without a second
-  command or opening the URL by hand. Does not change the persisted run
-  `state`: a run containing only `no_text` sources and no real drift still
-  records as `quiet` at the database level — see the comment at the state
-  computation in `core/detect.py::watch_registry` for why, and what a full
-  fix would require.
+  command or opening the URL by hand.
+- **And the three things that bucket did not fix** (#19, second pass). Routing
+  the fetch to a bucket happened *after* it was written to the snapshot store,
+  so `sha256("")` still became the source's latest snapshot — which is its
+  baseline: the row `sentinel baseline write` commits, and the row next week's
+  fetch is compared against. Measured on an injected fetcher: a page that went
+  blank for one run and came back **byte-identical** was reported as `changed`,
+  with a diff claiming the whole page had just been added; six blank runs
+  evicted the last readable snapshot through retention, destroying the evidence
+  a diff is reproduced from. Now: the check happens before any write, so no
+  snapshot row is created, the last real baseline stands untouched, and a
+  recovered page reports `unchanged`. The failure streak is no longer reset by
+  such a fetch either — `record_success` means "the source answered", and a
+  bot-wall has not. The run `state` gap named in the entry above is closed:
+  a run holding an unmeasured source records as `partial`, never `quiet`, and
+  `finish_watch_run` refuses `quiet`/`complete` independently of the detector.
+  `status.json` (schema 1.1) and the site now carry `unmeasured_source_ids`,
+  `unmeasured_count` and `observed_source_count` beside the successful
+  retrievals, `sentinel baseline check` reports unreadable pages in their own
+  bucket and emits `baseline-check-no-text-count:` for CI, and the weekly
+  workflow files the review-queue issue on that count as well as on MOVED.
+  `baseline write` refuses to commit a hash of nothing even from an older
+  store, and `load_baselines` refuses to load one.
 - Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
   `</script foo="bar">` are all valid ways to close an element and every
   browser honours them, but the strip regexes required the tight `</script>`
@@ -137,6 +243,21 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Changed
 
+- **An escalation to `possibly_removed` now requires elapsed silence, not just a
+  count of failed fetches** (2026-08-19). `REMOVAL_THRESHOLD` counted *runs*
+  while its own documentation described *weeks*, and nothing in the code
+  connected the two. In the only observation session this repository has
+  retained, six sources reached a streak of three inside 74 minutes because the
+  watcher was run three times in one sitting — three weeks by the constant's
+  stated reasoning, three minutes in fact. Escalation now additionally requires
+  `MIN_REMOVAL_SILENCE` (14 days) of unbroken silence, `source_health` records
+  when a streak began (migration 8), the reviewer's excerpt reports the duration
+  beside the count, and a streak whose start was never recorded does not
+  escalate on the count alone. `sentinel watch --min-removal-silence-days`
+  exposes the floor. `REMOVAL_THRESHOLD` itself is unchanged at 3 and is still
+  documented as an unmeasured guess, because it still is one — see
+  `docs/THRESHOLD-EVIDENCE.md` for the audit that tried to re-derive it, the
+  reason it could not, and what has to be retained before it can be.
 - **Relicensed from MIT to AGPL-3.0-or-later** (sole-author relicense): keeps
   derivatives and network deployments open; prior released snapshots remain MIT.
 - Monitoring readiness made explicit (2026-07-17): the public site and feeds

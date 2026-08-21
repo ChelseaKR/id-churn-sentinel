@@ -19,7 +19,7 @@ Offline, like everything else here: the fetcher and the prompt are both injected
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -27,19 +27,21 @@ import pytest
 from id_churn_sentinel.cli import main
 from id_churn_sentinel.core.eligibility import eligibility_report, evaluate_source
 from id_churn_sentinel.core.normalize import excerpt, page_title
-from id_churn_sentinel.core.registry import REJECTED, VERIFIED, load_registry
+from id_churn_sentinel.core.registry import REJECTED, VERIFIED, Source, load_registry
 from id_churn_sentinel.core.verify import (
     Candidate,
     confirm,
     pending,
     record_fetch_policy,
     reject,
+    residual_ineligibility,
     review_card,
     run_verification,
+    unwatchable_after_confirmation,
 )
 from id_churn_sentinel.errors import RegistryError, VerificationError
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source
 
 PAGE = b"""<!doctype html><html><head><title>Office of Vital Statistics | Kansas</title></head>
 <body><h1>Office of Vital Statistics</h1>
@@ -734,6 +736,10 @@ def test_the_session_reports_that_verification_alone_watches_nothing(
     """The sentence the volunteer never got. Finishing the queue and being told '2 confirmed,
     0 still unverified' is a report about effort; the number they came for is how many sources
     the watcher will now attempt."""
+    # `run_verification` stamps each confirmation with the real wall-clock date (`today()`,
+    # not injectable), so `as_of` here has to track it rather than a fixed past date — a
+    # verification whose `at` is later than `as_of` is itself `verification-not-yet-effective`.
+    today = datetime.now(UTC).date()
     outcome = run_verification(
         load_registry(registry_file),
         registry_file,
@@ -742,7 +748,7 @@ def test_the_session_reports_that_verification_alone_watches_nothing(
         lambda _line: None,
         verifier="A Named Human",
         evidence_dir=tmp_path / "evidence",
-        as_of=date(2026, 8, 15),
+        as_of=today,
     )
 
     assert outcome.confirmed == 2
@@ -761,6 +767,9 @@ def test_both_decisions_together_put_a_source_in_the_attempt_denominator(
     """End to end, and the point of the issue: the queue is workable and the denominator moves
     off zero. Asserted through the shared predicate the watcher itself uses, never through a
     count of decisions recorded."""
+    # Same reasoning as the test above: `run_verification` stamps `today()` (real wall-clock),
+    # so every `as_of`/`at` here has to track it rather than a fixed past date.
+    today = datetime.now(UTC).date()
     run_verification(
         load_registry(registry_file),
         registry_file,
@@ -769,7 +778,7 @@ def test_both_decisions_together_put_a_source_in_the_attempt_denominator(
         lambda _line: None,
         verifier="A Named Human",
         evidence_dir=tmp_path / "evidence",
-        as_of=date(2026, 8, 15),
+        as_of=today,
     )
     for source_id in ("ks-kdhe-vital-statistics", "us-passport-sex-markers"):
         record_fetch_policy(
@@ -779,10 +788,10 @@ def test_both_decisions_together_put_a_source_in_the_attempt_denominator(
             reviewer="A Policy Reviewer",
             reason="robots.txt allows this path; terms permit one weekly request",
             evidence="var/evidence/fetch-policy/2026-08-15-robots.txt",
-            at="2026-08-15",
+            at=today.isoformat(),
         )
 
-    report = eligibility_report(load_registry(registry_file), as_of=date(2026, 8, 15))
+    report = eligibility_report(load_registry(registry_file), as_of=today)
 
     assert len(report.eligible) == 2
     assert sorted(report.attempt_source_ids) == [
@@ -833,6 +842,43 @@ def test_verify_list_says_what_the_registry_actually_watches(
     assert "attempt-eligible today: 0 of 2 registered source(s)" in out
     assert "fetch-policy-unreviewed: 2" in out
     assert "sentinel sources policy" in out
+
+
+# -- `residual_ineligibility` / `unwatchable_after_confirmation` as reusable primitives --------
+#
+# The two functions the CLI's eligibility messaging above is built from, exercised directly:
+# what would still block THIS source if it were confirmed right now, and the same question
+# summed across a queue. Kept even though the CLI no longer prints their older "CONFIRMING IS
+# NOT THE LAST STEP" framing verbatim — superseded by `_print_eligibility_after_verification`
+# above, which reports the same predicate against the real, on-disk eligibility state rather
+# than a hypothetical post-confirmation one — because the primitives themselves are still
+# correct and still worth pinning.
+
+
+def test_a_confirmation_alone_leaves_a_source_out_of_the_denominator(source: Source) -> None:
+    """The trap, stated as a fact about the predicate rather than as prose in a doc."""
+    remaining = residual_ineligibility(source, as_of=date(2026, 8, 16))
+
+    assert "unverified" not in remaining  # confirming does clear this one
+    assert "verification-evidence-missing" in remaining
+    assert "verification-expiry-missing" in remaining
+    assert "fetch-policy-unreviewed" in remaining
+
+
+def test_a_fully_evidenced_source_has_nothing_left_to_report(source: Source) -> None:
+    """The warning has to be derived, so it disappears by itself on the day it stops being
+    true rather than being switched off by hand."""
+    assert residual_ineligibility(eligible_source(source), as_of=date(2026, 8, 16)) == ()
+    assert unwatchable_after_confirmation([eligible_source(source)], as_of=date(2026, 8, 16)) == {}
+
+
+def test_the_counts_are_aggregated_across_the_queue(source: Source, arizona_source: Source) -> None:
+    counts = unwatchable_after_confirmation(
+        [source, arizona_source, eligible_source(source)], as_of=date(2026, 8, 16)
+    )
+
+    assert counts["fetch-policy-unreviewed"] == 2
+    assert counts["verification-evidence-missing"] == 2
 
 
 def test_the_cli_confirm_path_writes_a_receipt_and_a_recheck_date(

@@ -1,7 +1,7 @@
 {
   "registry_version": "1.0",
   "_README": [
-    "SEEDED AND MACHINE-CHECKED, BUT NOT HUMAN-VERIFIED. 0 of 152 sources are human-verified.",
+    "SEEDED AND MACHINE-CHECKED, BUT NOT HUMAN-VERIFIED. 0 of 156 sources are human-verified.",
     "Every entry below ships `verified: false`, and no machine in this codebase decides that",
     "flag — only a named human who has loaded the URL and confirmed it is the official page it",
     "claims to be. `sentinel verify` is the one writer; it REFUSES to record a verification",
@@ -17,7 +17,7 @@
     "published artifact therefore carries a `verification_status` field on every source, and a",
     "merge-blocking gate asserts on the published bytes that none of them travels without it.",
     "Burn it down:  sentinel verify --verifier 'Your Name' --federal-first  (docs/VERIFYING.md;",
-    "about 3.5 hours for all 152).",
+    "about 3.5 hours for all 151).",
     "",
     "`sentinel sources validate` prints the unverified count on every run, and it will keep",
     "printing it until someone does the work.",
@@ -37,8 +37,9 @@
     "how long it takes, or whether anyone qualifies. This tool watches URLs; it does not",
     "interpret law.",
     "",
-    "COVERAGE: 52 of 52 jurisdictions, 152 sources (2026-07-13). Every URL here was actually",
-    "fetched — with the tool's own fetcher, its own TLS stack and its own descriptive",
+    "COVERAGE: 52 of 52 jurisdictions, 156 sources (2026-08-21; was 152 at 2026-07-13 seed).",
+    "Every URL here was actually fetched — with the tool's own fetcher, its own TLS stack",
+    "and its own descriptive",
     "User-Agent — and its <title>/<h1> read, before it was added. Nothing was seeded from a",
     "guess. A large share of the plausible-looking deep links that a generator would have",
     "invented (dmv.nv.gov/dlnamechange.htm, mva.maryland.gov/Pages/change-name.aspx,",
@@ -50,7 +51,7 @@
     "RI were each missing an entire document class that no paragraph mentioned and nothing",
     "could have caught. `sentinel coverage --check-docs` now derives every published number",
     "from this file and FAILS THE BUILD if a doc disagrees — or if any (state, core document",
-    "class) pair is neither watched nor a named gap. There are 12 named gaps. The feed's",
+    "class) pair is neither watched nor a named gap. There are 8 named gaps. The feed's",
     "silence about any of them means nothing at all.",
     "",
     "A WORD ON LANDING PAGES. Many states publish no statewide page for the document class at",
@@ -99,28 +100,6 @@
   ],
   "gaps": [
     {
-      "jurisdiction": "AK",
-      "document_class": "drivers_license",
-      "reason": "blocked-403",
-      "hosts": [
-        "dmv.alaska.gov",
-        "doa.alaska.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Both Alaska DMV hosts 403 our descriptive User-Agent. We do not spoof a browser UA. The Alaska statutes/admin-code site (akleg.gov) answers us, but publishes only a table of contents whose deep links are #fragments — a fragment cannot scope a fetch, so watching it would claim a precision we do not have."
-    },
-    {
-      "jurisdiction": "AR",
-      "document_class": "drivers_license",
-      "reason": "tls-unverifiable",
-      "hosts": [
-        "dfa.arkansas.gov",
-        "mydmv.arkansas.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Both present a chain our trust store cannot verify. We do not disable certificate verification. Arkansas does not publish its Code as state-hosted HTML (it is licensed to a commercial publisher), so there is no alternative official surface for this document class."
-    },
-    {
       "jurisdiction": "AR",
       "document_class": "court_order_name_change",
       "reason": "tls-unverifiable",
@@ -163,16 +142,6 @@
       "detail": "jud.ct.gov completes no TLS handshake with the tool's OpenSSL 3.5 (SSLV3_ALERT_HANDSHAKE_FAILURE) while answering a legacy OpenSSL 1.1.1 client with 200 — 'it loads in my browser' is not evidence that this tool can watch it. The obvious alternative, the General Assembly's own site (cga.ct.gov), presents a chain our trust store cannot verify. Connecticut's court name-change process therefore has no honestly watchable official surface."
     },
     {
-      "jurisdiction": "DC",
-      "document_class": "court_order_name_change",
-      "reason": "blocked-403",
-      "hosts": [
-        "dccourts.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "dccourts.gov 403s our descriptive UA on every path including the site root. NEWLY NAMED: this hole existed before today and was NOT in the old GAP list — the coverage gate now derives the gap list from the registry, so a silent thin spot fails the build instead of sitting there."
-    },
-    {
       "jurisdiction": "FL",
       "document_class": "court_order_name_change",
       "reason": "robots-disallowed",
@@ -184,18 +153,6 @@
       "detail": "flcourts.gov is a client-rendered SPA AND its robots.txt disallows our UA from the form-download paths where the name-change forms live — either one alone would end it. The alternative official surface, the Legislature's statute page for Fla. Stat. 68.07, renders TODAY'S DATE into the page: it would produce a change record every single day, forever, whose diff is the date. `--twice` does not catch that (it is stable across two back-to-back fetches on the same day); reading the normalized text does, which is why we read it."
     },
     {
-      "jurisdiction": "LA",
-      "document_class": "drivers_license",
-      "reason": "spa-no-text",
-      "hosts": [
-        "expresslane.la.gov",
-        "expresslane.org",
-        "dps.louisiana.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "The Office of Motor Vehicles' public site is a JavaScript shell that normalizes to 2 passages — hashing it would watch a loading spinner, not a policy. dps.louisiana.gov's robots.txt disallows us. Louisiana's court name-change statute WAS recovered (see la-rs-13-4751); the OMV's licensing rules have no equivalent state-hosted HTML surface."
-    },
-    {
       "jurisdiction": "OK",
       "document_class": "court_order_name_change",
       "reason": "robots-disallowed",
@@ -203,20 +160,8 @@
         "oscn.net",
         "oklegislature.gov"
       ],
-      "checked": "2026-07-13",
-      "detail": "oscn.net — which is where Oklahoma publishes BOTH its court information and its statutes — serves `User-agent: * / Disallow: /`. It forbids all automated access to the entire site, and we honour that without appeal. The Legislature's own site (oklegislature.gov) presents a chain our trust store cannot verify. Removed, not spoofed."
-    },
-    {
-      "jurisdiction": "SD",
-      "document_class": "drivers_license",
-      "reason": "spa-no-text",
-      "hosts": [
-        "sd.gov",
-        "dps.sd.gov",
-        "sdlegislature.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Every South Dakota surface for this document class is client-rendered: sd.gov/dps is a 940KB ServiceNow portal whose text is 'Loading…', dps.sd.gov normalizes to 4 passages, and sdlegislature.gov (which would have been the statutory alternative) serves a page whose title is literally 'Loading...' and whose text is 6 passages. There is nothing here a hash can honestly watch."
+      "checked": "2026-08-21",
+      "detail": "oscn.net — which is where Oklahoma publishes BOTH its court information and its statutes — serves `User-agent: * / Disallow: /`. It forbids all automated access to the entire site, and we honour that without appeal. The Legislature's own site (oklegislature.gov) presents a chain our trust store cannot verify. Removed, not spoofed. Reverified 2026-08-21: oscn.net/robots.txt itself is blocked by the same blanket disallow it declares (fetching it returns the robots-disallowed error, not robots.txt content) -- confirmed by direct fetch. oklegislature.gov confirmed via `openssl s_client`: server presents only its leaf certificate, no intermediate (Verify return code: 21). Same findings as 2026-07-13; no fix available yet."
     },
     {
       "jurisdiction": "VT",
@@ -227,8 +172,18 @@
         "vtrans.vermont.gov",
         "legislature.vermont.gov"
       ],
-      "checked": "2026-07-13",
-      "detail": "The DMV and its parent agency both 403 our UA, and the Legislature's site — the alternative statutory surface — presents a chain our trust store cannot verify. Three hosts, three honest refusals, one gap."
+      "checked": "2026-08-21",
+      "detail": "The DMV and its parent agency both 403 our UA, and the Legislature's site — the alternative statutory surface — presents a chain our trust store cannot verify. Three hosts, three honest refusals, one gap. Reverified 2026-08-21: legislature.vermont.gov confirmed via `openssl s_client`: server presents only its leaf certificate, no intermediate (Verify return code: 21) -- the identical signature this registry already documents for jud.ct.gov, cdph.ca.gov and (as of this same pass) two Michigan legislature PDFs. Same findings as 2026-07-13; no fix available yet."
+    },
+    {
+      "jurisdiction": "MI",
+      "document_class": "court_order_name_change",
+      "reason": "robots-disallowed",
+      "hosts": [
+        "courts.michigan.gov"
+      ],
+      "checked": "2026-08-21",
+      "detail": "REGRESSION, found 2026-08-21 by a live `sentinel sources check` run: courts.michigan.gov served the SCAO-approved PC 51 name-change petition PDF reachably as of 2026-07-13 (mi-scao-pc51-name-change-petition). As of 2026-08-21, its robots.txt reads exactly \"User-agent: *\\nDisallow: /\" — confirmed by a direct fetch of https://www.courts.michigan.gov/robots.txt, which returns HTTP 200 with that literal body: a site-wide disallow covering every path, not one scoped to /siteassets/. No alternate host was found for the same form. Per CLAUDE.md guardrail #4, the source is removed rather than kept as a dead entry. Michigan's other two 'closing the map' citations (the MCL birth-certificate and license-application PDFs, on legislature.mi.gov, a different host) are a separate, TLS-related regression — see their own `notes`, not this gap."
     }
   ],
   "sources": [
@@ -239,8 +194,8 @@
       "url": "https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
       "authority": "U.S. Department of State, Bureau of Consular Affairs",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "slow": true },
-      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. MACHINE FACT worth keeping: travel.state.gov is SLOW and erratically so — measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal."
+      "checked": { "at": "2026-08-21", "status": 403, "reachable": false, "slow": true },
+      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. REGRESSION, found 2026-08-21 by a live `sentinel sources check` run: travel.state.gov now answers this URL with a Cloudflare \"Just a moment...\" JS challenge page (HTTP 403, `Server: cloudflare`), confirmed by a direct fetch showing the literal challenge HTML and a `cf-ray` response header. Previously reachable (200) but slow, as of 2026-07-13. STILL THE CORRECT CITATION — kept as a registered source, not a gap: a Cloudflare JS challenge is not necessarily a deliberate, permanent block the way a robots.txt disallow is, and reclassifying the registry's single highest-value federal source is a bigger call than this pass should make unilaterally (flagged in issue #10 for a human). MACHINE FACT worth keeping: travel.state.gov was SLOW and erratically so — measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal."
     },
     {
       "id": "us-passport-change-correct",
@@ -249,8 +204,8 @@
       "url": "https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html",
       "authority": "U.S. Department of State, Bureau of Consular Affairs",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
-      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it."
+      "checked": { "at": "2026-08-21", "status": 403, "reachable": false },
+      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it. REGRESSION, found 2026-08-21: travel.state.gov now answers this URL with the same Cloudflare JS-challenge page as us-passport-sex-markers (HTTP 403, `Server: cloudflare`). Kept as a registered source, not a gap; flagged in issue #10."
     },
     {
       "id": "us-ssa-ss5-form",
@@ -873,6 +828,16 @@
       "notes": "live-fetched. HTTP 200, h1 'Alaska Court System Self-Help'. The plausible /shc/name/ deep links 404; this is the live self-help hub."
     },
     {
+      "id": "ak-akleg-as-28-15-drivers-license",
+      "jurisdiction": "AK",
+      "document_class": "drivers_license",
+      "url": "https://www.akleg.gov/basis/statutes.asp?media=print&secStart=28.15&secEnd=28.15",
+      "authority": "Alaska State Legislature — Alaska Statutes, Title 28, Chapter 15 (Drivers' Licenses)",
+      "verified": false,
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. GAP FIX: dmv.alaska.gov and doa.alaska.gov both 403 our descriptive UA (unchanged as of 2026-08-21). The prior attempt at akleg.gov used a `#28` URL fragment, which a server never sees, so it always returns the same undifferentiated statutes index -- not a scoped fetch. akleg.gov's print view takes `secStart`/`secEnd` as real query parameters that change the response server-side: `secStart=28.15&secEnd=28.15` returns only Chapter 15, Drivers' Licenses (575 passages, e.g. AS 28.15.011 'Drivers must be licensed'), not the whole Title 28 traffic code. Stable across two fetches 3s apart. Statutory surface, not the DMV's own process page."
+    },
+    {
       "id": "az-adhs-vital-records",
       "jurisdiction": "AZ",
       "document_class": "birth_certificate",
@@ -911,6 +876,16 @@
       "verified": false,
       "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Certificates & Records'. Arkansas's DL and courts hosts both ship broken TLS chains — see the KNOWN GAPS block."
+    },
+    {
+      "id": "ar-dfa-mydmv",
+      "jurisdiction": "AR",
+      "document_class": "drivers_license",
+      "url": "https://www.dfa.arkansas.gov/office/mydmv/",
+      "authority": "Arkansas Department of Finance and Administration, Office of Motor Vehicle",
+      "verified": false,
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. GAP FIX: dfa.arkansas.gov and mydmv.arkansas.gov (which now redirects here) both presented a TLS chain this tool's fetcher could not verify as of the 2026-07-13 baseline (recorded gap reason tls-unverifiable). Reverified 2026-08-21 with a clean chain using the exact call this tool's fetcher makes (bare `urllib.request.urlopen`, no context override) -- the server-side defect has apparently been fixed since. 245 passages, real driver's-license/ID service content ('driver's license or id replacement', 'get a federally compliant driver's license or id'), stable across two fetches 3s apart. Arkansas's Code is still not published as state-hosted HTML (licensed to a commercial publisher), so this agency page -- not a statute -- is the source."
     },
     {
       "id": "ct-dph-vital-records",
@@ -1039,8 +1014,8 @@
       "url": "https://ldh.la.gov/vital-records",
       "authority": "Louisiana Department of Health, Center for Vital Records and Statistics",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
-      "notes": "live-fetched. HTTP 200, h1 'Center for Vital Records and Statistics'."
+      "checked": { "at": "2026-08-21", "status": 403, "reachable": false },
+      "notes": "live-fetched. HTTP 200, h1 'Center for Vital Records and Statistics', as of 2026-07-13. REGRESSION, found 2026-08-21 by a live `sentinel sources check` run: ldh.la.gov now returns a genuine Cloudflare 403 (WAF block, not a JS challenge) to every request this tool made, including a direct fetch of /robots.txt itself, which also 403s rather than serving robots.txt content — a broad, domain-wide block, not a path-specific or robots.txt-declared one. Kept as a registered source, not a gap: this is the correct authority and citation, and a WAF block configured against automated clients generally may not be permanent or specific to this tool. Flagged in issue #10 for a human's judgment."
     },
     {
       "id": "la-ldh-vital-record-amendments",
@@ -1049,8 +1024,8 @@
       "url": "https://ldh.la.gov/page/vital-record-amendments",
       "authority": "Louisiana Department of Health, Center for Vital Records and Statistics",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
-      "notes": "live-fetched. HTTP 200, h1 'Vital Record Amendments'. The high-signal Louisiana target: amendment policy is what governs whether a sex designation can be corrected at all, and it is the page a reversal would land on."
+      "checked": { "at": "2026-08-21", "status": 403, "reachable": false },
+      "notes": "live-fetched. HTTP 200, h1 'Vital Record Amendments', as of 2026-07-13. The high-signal Louisiana target: amendment policy is what governs whether a sex designation can be corrected at all, and it is the page a reversal would land on. REGRESSION, found 2026-08-21: ldh.la.gov now returns a genuine Cloudflare 403 to every request, including /robots.txt itself — see la-ldh-vital-records for the same finding on the sibling page. Kept as a registered source, not a gap; flagged in issue #10."
     },
     {
       "id": "me-cdc-vital-records",
@@ -1549,8 +1524,8 @@
       "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf",
       "authority": "Michigan Legislature — Public Health Code (administered by MDHHS Vital Records)",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "content_type": "application/pdf" },
-      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute — 'New certificate of birth; establishment; requirements' — and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page — the entry claims only that this is an official Michigan page for this document class."
+      "checked": { "at": "2026-08-21", "status": null, "reachable": false },
+      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute — 'New certificate of birth; establishment; requirements' — and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. REGRESSION, found 2026-08-21: this PDF now fails TLS verification — `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate` — the same incomplete-chain signature this registry already documents for jud.ct.gov and other hosts: a server that does not send its intermediate certificate, which a browser silently repairs by chasing the AIA extension and this fetcher does not (it does not relax verification to compensate, and it never will). Was reachable (200) as of 2026-07-13. Kept as a registered source, not a gap — a fetch failure is never drift; flagged in issue #10. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff."
     },
     {
       "id": "mi-mcl-257-307-license-application",
@@ -1559,18 +1534,8 @@
       "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf",
       "authority": "Michigan Legislature — Michigan Vehicle Code (administered by Michigan Secretary of State)",
       "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "content_type": "application/pdf" },
-      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff."
-    },
-    {
-      "id": "mi-scao-pc51-name-change-petition",
-      "jurisdiction": "MI",
-      "document_class": "court_order_name_change",
-      "url": "https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf",
-      "authority": "Michigan Supreme Court, State Court Administrative Office (SCAO)",
-      "verified": false,
-      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "content_type": "application/pdf" },
-      "notes": "live-fetched. GAP FIX: courts.michigan.gov's name-change landing page is a client-rendered SPA that normalizes to ZERO passages — hashing it would watch a template, not a policy. The SCAO-approved form PC 51 ('Petition for Name Change') is the operative document a Michigan name-change actually runs on, it is served as a static PDF by the same official host, and it answers us with 200. A revision to the form is exactly the change a legal-aid clinic needs to know about. Hashed as raw bytes (no passage diff)."
+      "checked": { "at": "2026-08-21", "status": null, "reachable": false },
+      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff. REGRESSION, found 2026-08-21: same TLS `CERTIFICATE_VERIFY_FAILED` incomplete-chain failure as its sibling mi-mcl-333-2831-new-birth-certificate (same host, same finding). Was reachable (200) as of 2026-07-13. Kept as a registered source, not a gap; flagged in issue #10."
     },
     {
       "id": "nh-rsa-5c-87-birth-record-amendment",
@@ -1751,6 +1716,36 @@
       "verified": false,
       "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Texas Constitution and Statutes'. GAP FIX, with the limit stated: Texas publishes NO statewide name-change instructions — the process is county-level, which is why this jurisdiction/document-class pair was previously a gap 'in the world rather than in the crawler'. What IS statewide is Family Code Chapter 45 ('Change of Name'), the statute every Texas county court applies, and that is what this entry watches. It does not claim to watch a county's filing process, and it is not a substitute for one. 83 passages, ZERO volatile lines; stable."
+    },
+    {
+      "id": "la-rs32-ch2-drivers-license",
+      "jurisdiction": "LA",
+      "document_class": "drivers_license",
+      "url": "https://legis.la.gov/Legis/Law.aspx?d=88370",
+      "authority": "Louisiana State Legislature — Louisiana Revised Statutes (administered by the Louisiana OMV)",
+      "verified": false,
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. HTTP 200, title 'Louisiana Laws - Louisiana State Legislature'. GAP FIX, 2026-08-21: the Louisiana OMV's own site is a client-rendered page with no extractable policy text (spa-no-text). RS 32, Chapter 2 ('Driver's License Law') is the operative statute chapter on the Louisiana Legislature's own host — a different host from the JS-shell OMV site. 149 passages of static statutory text; no session ticker, no live date, no rotating widget observed. Statutory surface, not the OMV's own process page."
+    },
+    {
+      "id": "dc-code-16-2501-name-change",
+      "jurisdiction": "DC",
+      "document_class": "court_order_name_change",
+      "url": "https://code.dccouncil.gov/us/dc/council/code/sections/16-2501",
+      "authority": "Council of the District of Columbia — D.C. Law Library (D.C. Official Code, Title 16, Chapter 25 \"Change of Name or Gender\")",
+      "verified": false,
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. GAP FIX: dccourts.gov 403s our descriptive UA on every path including the site root (unchanged as of 2026-08-21). D.C. Official Code § 16-2501 is the operative name-change application statute -- who may file, and where -- under Chapter 25, titled 'Change of Name or Gender'. 28 passages, real statutory text, stable across two fetches 3s apart; the only date-like tokens are the statute's own 1963/1970 enactment citations, not a live date. Statutory surface, not the court's own process page."
+    },
+    {
+      "id": "sd-sdlrc-32-12-drivers-license",
+      "jurisdiction": "SD",
+      "document_class": "drivers_license",
+      "url": "https://www.sdlegislature.gov/api/Statutes/32-12.html",
+      "authority": "South Dakota Legislative Research Council — SD Codified Laws (administered by SD Dept. of Public Safety)",
+      "verified": false,
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
+      "notes": "live-fetched. HTTP 200, title 'SDLRC - Codified Law 32-12 - DRIVER LICENSES AND PERMITS'. GAP FIX, 2026-08-21: South Dakota DPS's own site is a client-rendered page with no extractable policy text (spa-no-text). SDCL Chapter 32-12 (Driver Licenses and Permits) is the operative statute chapter, on the Legislature's own host — a different host from the JS-shell DPS site. IMPORTANT: the human-facing sdlegislature.gov/Statutes/32-12 URL is ITSELF a JavaScript SPA shell ('doesn't work properly without javascript enabled') — the same trap as the original DPS gap, just on a different host. This entry instead uses the /api/Statutes/32-12.html path, the server-rendered endpoint the SPA itself fetches client-side: same official Legislature domain, real static HTML. 157 passages, real statutory section list (32-12-1 Definitions, 32-12-2 Payment of fee, 32-12-3 Contents of application, ...); no session ticker, no live date, no rotating widget observed; stable across two fetches 4s apart. Statutory surface, not the DPS's own process page."
     }
   ]
 }

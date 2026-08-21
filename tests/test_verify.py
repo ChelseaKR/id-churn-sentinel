@@ -602,7 +602,7 @@ def test_the_committed_registry_is_still_entirely_unverified(
         "work with `sentinel verify`, update this count and the gated docs; if a machine did "
         "it, revert it."
     )
-    assert len(registry.unverified) == 156
+    assert len(registry.unverified) == 152
 
 
 # ---- working the queue has to move the attempt denominator (issue #18) ----------------------

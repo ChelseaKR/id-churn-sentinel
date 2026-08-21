@@ -1,7 +1,7 @@
-# Verifying the registry — the one question, and how to answer 156 of them
+# Verifying the registry — the one question, and how to answer 152 of them
 
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion.**
-> Status today: **`0 of 156 sources are human-verified`.** Everything below exists to change that number.
+> Status today: **`0 of 152 sources are human-verified`.** Everything below exists to change that number.
 
 ## Read this before you start: verification is one of two decisions
 
@@ -93,7 +93,7 @@ When you answer `n` you are asked for a reason, and then which of two things is 
 - **Flag for repair** (the default). The entry stays in the registry carrying its rejection, your name, and your reason, and is published **as `rejected`** — so nobody picks it up in the window before it is fixed. A wrong entry that is *known* to be wrong is far safer than one quietly deleted, because deleting it takes the finding with it.
 - **Record as a gap** (`--gap`). Use this when there is no right page to substitute — the state simply does not publish one. The entry leaves the source list and becomes a **named gap** with reason `wrong-page`, which is what the gap list is for: *"we do not watch this, and here is why."* The tool refuses this if another source still watches the same (jurisdiction, document class) pair, because a gap that claims we are blind to something we can see is a false confession.
 
-## How long 156 takes
+## How long 152 takes
 
 Measured against the real thing, honestly:
 
@@ -101,7 +101,7 @@ Measured against the real thing, honestly:
 - The **hard ones are two to five minutes**: a statute page where you have to satisfy yourself that the chapter really is the one governing this document class; a landing page where you have to decide whether a deeper page exists; anything our crawler could not fetch, where you have to open a browser.
 - Roughly a **fifth of them are hard**. So: **≈ 30 easy per 10 minutes, ≈ 30 hard at 3 minutes each.**
 
-**Call it three and a half hours for all 156**, in sittings, resumable — the tool writes each decision to `sources/registry.json` immediately, so a crash or a `q` at source 90 costs nothing.
+**Call it three and a half hours for all 152**, in sittings, resumable — the tool writes each decision to `sources/registry.json` immediately, so a crash or a `q` at source 90 costs nothing.
 
 **Do the federal ones first** (`--federal-first`): passport, Social Security, Selective Service. They are six sources, they are the entries every jurisdiction's readers depend on, and they are twenty minutes.
 
@@ -119,6 +119,6 @@ Four fields, and all four are read by the predicate that decides whether a sourc
 
 - `sentinel coverage` prints the burn-down, derived — nobody types it.
 - The published site, `sources.json` and every feed stop saying **UNVERIFIED** next to that source and start saying **VERIFIED — confirmed by \<your name\> on \<date\>**.
-- The README's gated `N of 156 sources are human-verified` number moves by itself, and the merge gate fails any doc that disagrees with it.
+- The README's gated `N of 152 sources are human-verified` number moves by itself, and the merge gate fails any doc that disagrees with it.
 - The end of your session prints **how many sources are now attempt-eligible**. If that number is still zero, it is because the fetch-policy decisions have not been recorded — the session names the count, and `sentinel sources policy` is where they go. Verified sources with no policy decision are not watched, and the site says so on its front page rather than headlining the verification.
 - **M1 closes**, and this project can stop leading with an apology.

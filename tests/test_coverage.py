@@ -149,9 +149,9 @@ def test_a_third_partys_coverage_number_is_not_our_business(
     rewriting a citation to make our own arithmetic work, which is a worse sin than the drift
     it is preventing. Their denominator is 51; ours is 52; the gate only reads ours."""
     (tmp_path / "README.md").write_text(
-        "Namesake fully supports 2 of 51 jurisdictions. We watch 156 sources across "
-        "52 of 52 jurisdictions, with 8 named gaps, and 12 of the 156 registered sources "
-        "cannot currently be fetched. 0 of 156 sources are human-verified.",
+        "Namesake fully supports 2 of 51 jurisdictions. We watch 152 sources across "
+        "52 of 52 jurisdictions, with 12 named gaps, and 6 of the 152 registered sources "
+        "cannot currently be fetched. 0 of 152 sources are human-verified.",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -175,7 +175,7 @@ def test_the_cli_prints_the_derived_numbers_and_exits_zero(
 
     out = capsys.readouterr().out
     assert "jurisdictions:  52 of 52" in out
-    assert "named gaps:     8" in out
+    assert "named gaps:     12" in out
 
 
 def test_the_cli_check_docs_gate_passes_on_the_committed_repo(
@@ -193,7 +193,7 @@ def test_the_cli_emits_machine_readable_coverage(capsys: pytest.CaptureFixture[s
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["jurisdictions_covered"] == 52
-    assert payload["named_gaps"] == 8
+    assert payload["named_gaps"] == 12
     assert payload["human_verified"] == 0
-    assert payload["unverified"] == 156
+    assert payload["unverified"] == 152
     assert payload["rejected_by_a_human"] == 0

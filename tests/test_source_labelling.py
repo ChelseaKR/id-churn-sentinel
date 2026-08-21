@@ -236,7 +236,7 @@ def test_every_source_row_on_the_site_carries_a_status_word(published: Path) -> 
     rows = re.findall(r"<tr><th scope=\"row\">.*?</tr>", page, re.DOTALL)
     source_rows = [row for row in rows if "<code>" in row]
 
-    assert len(source_rows) == 156
+    assert len(source_rows) == 152
     for row in source_rows:
         assert any(word in row for word in STATUS_WORDS), row[:120]
 

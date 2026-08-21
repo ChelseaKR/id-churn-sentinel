@@ -249,13 +249,39 @@ def _run_status_section(status: PublicRunStatus) -> str:
         completed = (
             attempted.completed_at.isoformat() if attempted.completed_at else "not completed"
         )
+        # A retrieval that returned no readable text is stated on this line, not left to be
+        # inferred from the gap between two counters (issue #19). "N successful retrievals"
+        # alone reads as "N pages watched", and for a JS shell or a bot-wall that is the one
+        # thing it does not mean.
+        unmeasured_text = (
+            f" <strong>{attempted.unmeasured_count} of those retrievals returned no "
+            f"extractable text and were not compared against a baseline</strong>, so this run "
+            f"is not evidence of no change for them; {attempted.observed_count} source(s) were "
+            f"actually compared."
+            if attempted.unmeasured_count
+            else ""
+        )
+        # "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and
+        # a bad one: a ratio over an empty denominator reads as a score, and the reader who
+        # skims it takes away a tidy row of zeroes rather than the fact that this run looked
+        # at nothing. Every count in it is zero for a reason that has nothing to do with the
+        # pages being quiet. Say the reason instead of publishing the ratio.
+        coverage_text = (
+            "<strong>no source was attempt-eligible, so this run examined nothing</strong> — "
+            "there is no denominator here and the zero counts are not a measurement of any "
+            "page"
+            if attempted.eligible_count == 0
+            else (
+                f"attempted {attempted.attempted_count} of {attempted.eligible_count} "
+                f"eligible sources; {attempted.successful_count} successful retrievals"
+            )
+        )
         attempted_text = (
             f"Latest attempt <code>{_esc(attempted.run_id)}</code>: "
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
-            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; attempted "
-            f"{attempted.attempted_count} of {attempted.eligible_count} eligible sources; "
-            f"{attempted.successful_count} successful retrievals."
+            f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; "
+            f"{coverage_text}.{unmeasured_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."
@@ -279,7 +305,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<p>{attempted_text}</p>",
             f"<p>{successful_text}</p>",
             '<p><a href="status.json">status.json</a> carries the exact eligible, attempted, '
-            "and successful source ID sets.</p>",
+            "successful, and unmeasured source ID sets.</p>",
             "</section>",
         ]
     )
@@ -301,8 +327,17 @@ def _verification_notice(report: CoverageReport, eligibility: EligibilityReport)
     """
     verified = report.verified_total
     total = report.sources_total
-    if verified == total and total > 0:
+    monitored = len(eligibility.eligible)
+    if verified == total and total > 0 and monitored == total:
         headline = f"All {total} sources are human-verified"
+    elif verified == total and total > 0:
+        # Human-verified and still not watched. `verified` is a fact about a person opening a
+        # URL; attempt-eligibility additionally needs an evidence reference, a recheck expiry
+        # and a dated fetch-policy decision (issue #18). Claiming completeness on the flag
+        # alone puts the page's loudest line — the one a reader skims and stops at — one word
+        # away from "this registry is finished and we are watching it", at a moment when the
+        # feed cannot populate. The two facts are stated together or not at all.
+        headline = f"all {total} sources are human-verified, and {monitored} of them are monitored"
     elif verified == 0:
         # The sentence a reader must not be able to skim past, and it is the true one today.
         headline = f"no human has confirmed any of these {total} sources"

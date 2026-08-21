@@ -8,10 +8,13 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from id_churn_sentinel.core.changes import (
     ChangeRecord,
     ReviewStatus,
     Significance,
+    _describe_duration,
     change_id,
 )
 
@@ -143,3 +146,56 @@ def test_to_dict_serializes_review_timestamps(confirmed_change: ChangeRecord) ->
 def test_enums_render_as_their_wire_values() -> None:
     assert str(Significance.SUBSTANTIVE) == "substantive"
     assert str(ReviewStatus.UNREVIEWED) == "unreviewed"
+
+
+# -- how a silence is described to the reviewer ------------------------------------
+#
+# The count of failed fetches only means something next to a duration, and the duration
+# only means something if it is not rounded into uselessness. "0 days" for a 74-minute
+# streak is precisely the rounding that let a count of runs pass for a length of time —
+# see docs/THRESHOLD-EVIDENCE.md.
+
+
+@pytest.mark.parametrize(
+    ("delta", "expected"),
+    [
+        (timedelta(days=21), "21 days"),
+        (timedelta(days=14), "14 days"),
+        (timedelta(days=2), "2 days"),
+        (timedelta(days=1, hours=5), "1 day"),
+        (timedelta(hours=5), "5 hours"),
+        (timedelta(hours=1, minutes=30), "90 minutes"),
+        (timedelta(minutes=74), "74 minutes"),  # the 2026-07-13 session, exactly
+        (timedelta(minutes=2), "2 minutes"),
+        (timedelta(seconds=40), "40 seconds"),
+        (timedelta(0), "0 seconds"),
+        (
+            timedelta(seconds=-5),
+            "0 seconds",
+        ),  # a clock that went backwards is not a negative outage
+    ],
+)
+def test_a_silence_is_described_in_units_a_reviewer_thinks_in(
+    delta: timedelta, expected: str
+) -> None:
+    assert _describe_duration(delta) == expected
+
+
+def test_an_escalation_with_no_known_start_says_unknown_rather_than_zero() -> None:
+    """A streak recorded before the tool tracked streak starts has an unknown duration.
+    Printing "0 seconds" would tell the reviewer the page just went down, which is the
+    opposite of what an unmeasurable streak means."""
+    record = ChangeRecord.possibly_removed(
+        source_id="tx-dps",
+        jurisdiction="TX",
+        document_class="drivers_license",
+        url="https://example.gov/x",
+        last_known_hash="a" * 64,
+        consecutive_failures=9,
+        last_error="HTTP 403",
+        silent_for=None,
+    )
+
+    assert "Silent for: unknown" in record.diff_excerpt
+    assert "0 seconds" not in record.diff_excerpt
+    assert "Consecutive failed fetches: 9" in record.diff_excerpt

@@ -39,6 +39,7 @@ the specific sources it applies to and nowhere else. The remedy is one command
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -49,7 +50,10 @@ from id_churn_sentinel.core.fetch import Fetcher
 from id_churn_sentinel.core.normalize import (
     CURRENT_CONTRACT,
     UNRECORDED_CONTRACT,
+    ContentKind,
     content_hash,
+    kind_for_content_type,
+    passages,
     representation_contract,
 )
 from id_churn_sentinel.core.registry import Registry, Source
@@ -58,8 +62,10 @@ from id_churn_sentinel.errors import RegistryError
 
 __all__ = [
     "BASELINE_VERSION",
+    "EMPTY_CONTENT_SHA256",
     "BaselineEntry",
     "BaselineReport",
+    "BaselineWriteReport",
     "check_baselines",
     "default_baseline_path",
     "load_baselines",
@@ -67,6 +73,14 @@ __all__ = [
 ]
 
 BASELINE_VERSION = "1.0"
+
+# The sha256 of nothing at all. It is a perfectly valid digest and that is exactly the
+# problem: it is what a JS shell, an empty 200 and a bot-wall all hash to once markup and
+# scripts are stripped, so two unrelated blind sources share it (issue #19). Committed as a
+# baseline it would make `sentinel baseline check` report a page nobody can read as one that
+# "matches the committed baseline" — the most reassuring sentence this file can print, about
+# the one condition it must never print it for. A hash of nothing is not a baseline.
+EMPTY_CONTENT_SHA256 = hashlib.sha256(b"").hexdigest()
 
 _README = [
     "COMMITTED BASELINE HASHES — the sha256 of the NORMALIZED TEXT each watched source",
@@ -90,6 +104,19 @@ _README = [
     "A SOURCE WE CANNOT FETCH HAS NO BASELINE, and is listed under `unreachable` rather than",
     "given a fake one. A hash we did not observe is not a hash.",
     "",
+    "A SOURCE THAT ANSWERS WITH NO READABLE TEXT ALSO HAS NO BASELINE, and is listed under",
+    "`unmeasurable`. sha256 of an empty normalized text is a real digest that every blind",
+    "page shares — a JS shell, an empty 200, a bot-wall — so committing it would make",
+    "`baseline check` report a page nobody can read as one that MATCHES. Two different facts,",
+    "two different lists: `unreachable` means nothing answered; `unmeasurable` means",
+    "something answered and there was nothing in it.",
+    "",
+    "EVERY HASH CARRIES THE URL IT WAS TAKEN FROM, and `sentinel baseline check` compares it",
+    "against the registry's current URL for that source id before it compares any hashes. If a",
+    "maintainer re-points a source at a different page, the committed hash describes a document",
+    "the check never fetched — reporting that as MOVED would be a change record about a page",
+    "that may not have changed. That source is re-baselined and reported separately instead.",
+    "",
     "EVERY HASH CARRIES THE NORMALIZER THAT PRODUCED IT (`normalizer_version` /",
     "`extractor_version`). A hash is only comparable against another hash from the same pair,",
     "and this file holds no bytes to re-normalize — so `sentinel baseline check` reports a",
@@ -104,26 +131,73 @@ _README = [
 
 @dataclass(frozen=True, slots=True)
 class BaselineEntry:
-    """One committed hash, with the representation contract that produced it.
+    """One committed hash, with the URL and the representation contract that produced it.
 
     The contract is carried rather than assumed because assuming it is the bug: two hashes
     from different normalizers are not comparable, and a file that records only the hash
     makes that impossible to notice. `UNRECORDED_CONTRACT` is what an entry written before
     this field existed loads as — an honest "we cannot tell", not a guess at v1.
+
+    `url` is carried for the same class of reason, and it closes the same class of hole.
+    `write_baselines` has always recorded which page each hash was taken from, and the loader
+    used to drop it — which made the one check that matters impossible downstream: whether the
+    registry still points this source id at the page the hash describes. Without it, a
+    maintainer correcting a URL turns page A's committed hash into "page B MOVED", and the
+    weekly job files that as *a watched official source is no longer what the baseline says it
+    was*. `watch()` refuses that exact comparison and re-baselines instead; this file could
+    not, because it had thrown away the fact it needed. An empty string is what an entry
+    written before the field loads as — again an honest "we cannot tell", never a guess.
     """
 
     sha256: str
     contract: str = UNRECORDED_CONTRACT
+    url: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineWriteReport:
+    """What `baseline write` put in the file, and what it refused to.
+
+    Three counts rather than one, because the caller has to be able to say *why* a source
+    carries no hash. "146 of 152 written" alone reads as a shortfall of the same kind in every
+    case; it is not. `unreachable` is a host that never answered and `unmeasurable` is a host
+    that answered with nothing readable, and an operator chasing the first when it is the
+    second is looking at the wrong end of the wire.
+    """
+
+    written: int
+    unreachable: int
+    unmeasurable: int
 
 
 @dataclass(slots=True)
 class BaselineReport:
-    """What one `baseline check` pass saw, against the committed hashes."""
+    """What one `baseline check` pass saw, against the committed hashes.
+
+    `no_text` is not a drift bucket and not a match bucket (issue #19). A text/HTML source
+    that fetches to zero passages has not been compared against anything: the comparison
+    would be between the hash of nothing and whatever is committed, which answers no question
+    a reader is asking. It is reported on its own, and it is deliberately *not* folded into
+    `matched` — the case that made this necessary is a page whose committed baseline is
+    itself a hash of nothing, where folding would print "matches the committed baseline" for
+    a source nobody can read.
+    """
 
     matched: list[str] = field(default_factory=list)
     moved: list[tuple[str, str, str]] = field(default_factory=list)
     unbaselined: list[str] = field(default_factory=list)
+    no_text: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
+    #: `(source_id, url the hash was taken from, url the registry points at now)`. The
+    #: registry has been re-pointed at a different page since the baseline was written, so the
+    #: committed hash describes a document this run never fetched. Subtracting one page from
+    #: an unrelated one is not drift detection, and reporting it as MOVED is a *false change* —
+    #: the feed's second failure mode, and the one that makes a reader believe something was
+    #: taken from them that was not. `watch()` has always refused this comparison and
+    #: re-baselined instead (`WatchReport.rebaselined`); this is the same refusal, made where
+    #: it was previously impossible. Its own bucket, never folded into `matched`: "we cannot
+    #: make this comparison" and "the page is unchanged" are different sentences.
+    url_changed: list[tuple[str, str, str]] = field(default_factory=list)
     #: `source_id → the contract its committed hash was recorded under`, for the MOVED
     #: sources only, and only where that contract is not the one this build computes under.
     #: Never a bucket of its own: a MOVED hash is still reported, because refusing to report
@@ -132,19 +206,50 @@ class BaselineReport:
 
     @property
     def total(self) -> int:
-        return len(self.matched) + len(self.moved) + len(self.unbaselined) + len(self.unreachable)
+        return (
+            len(self.matched)
+            + len(self.moved)
+            + len(self.unbaselined)
+            + len(self.no_text)
+            + len(self.unreachable)
+            + len(self.url_changed)
+        )
 
     def summary(self) -> str:
+        if not self.total:
+            # A pass over no sources at all. Every count below is zero, and each zero is
+            # ambiguous in exactly the direction that hurts: "0 MOVED" is what a clean,
+            # complete, everything-matched run prints, and it is also what a run that
+            # examined nothing prints. The registry is 0/152 attempt-eligible today, so this
+            # is the branch the weekly job actually takes — and the sentence it printed was
+            # the reassuring one. A failure to observe is never a finding of no change.
+            return (
+                "NO SOURCE WAS CHECKED — 0 source(s) were attempted, so this run compared "
+                "nothing against the committed baseline. It is NOT evidence that nothing "
+                "moved; it is the absence of evidence either way."
+            )
         qualified = (
             f", {len(self.moved_across_contracts)} of them compared against a hash from a "
             f"different normalizer (may be a normalization artifact, not drift)"
             if self.moved_across_contracts
             else ""
         )
+        no_text = (
+            f", {len(self.no_text)} served NO extractable text (NOT compared, no drift claimed "
+            f"either way)"
+            if self.no_text
+            else ""
+        )
+        url_changed = (
+            f", {len(self.url_changed)} pointed at a DIFFERENT page than the baseline was "
+            f"taken from (NOT compared, no drift claimed either way)"
+            if self.url_changed
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.matched)} match the committed baseline, "
             f"{len(self.moved)} MOVED{qualified}, {len(self.unbaselined)} have no committed "
-            f"baseline, {len(self.unreachable)} unreachable (not drift)"
+            f"baseline{no_text}{url_changed}, {len(self.unreachable)} unreachable (not drift)"
         )
 
 
@@ -159,20 +264,33 @@ def write_baselines(
     path: Path,
     *,
     now: datetime | None = None,
-) -> int:
+) -> BaselineWriteReport:
     """Export the store's latest hash per source into the committed baseline file.
 
     Only sources the store has actually *seen* get a hash. A source that has never been
     fetched successfully — `ssa.gov`, which 403s us — is recorded by name under
     `unreachable`, with no hash, because inventing one would be a lie the rest of the
     pipeline would faithfully propagate.
+
+    A source whose latest snapshot hashes to :data:`EMPTY_CONTENT_SHA256` gets no hash either,
+    and is named under `unmeasurable` (issue #19). Today's watcher refuses to record such a
+    snapshot at all, so this is a second, independent refusal covering stores written before
+    that fix and any future writer that forgets — the same doubling the `changes` CHECK
+    constraint applies to machine classification. It is a separate list from `unreachable`
+    because the two facts are different: `unreachable` means nothing answered, `unmeasurable`
+    means something answered and it was not readable, and a reader given one when the other is
+    true will draw the wrong conclusion about which end of the pipe is broken.
     """
     baselines: dict[str, dict[str, str]] = {}
     unreachable: list[str] = []
+    unmeasurable: list[str] = []
     for source in registry.sources:
         snapshot = store.latest_snapshot(source.id)
         if snapshot is None:
             unreachable.append(source.id)
+            continue
+        if snapshot.content_sha256 == EMPTY_CONTENT_SHA256:
+            unmeasurable.append(source.id)
             continue
         baselines[source.id] = {
             "url": snapshot.url,
@@ -192,11 +310,16 @@ def write_baselines(
         "generated_at": (now or datetime.now(UTC)).isoformat(),
         "registry_sources": len(registry),
         "unreachable": sorted(unreachable),
+        "unmeasurable": sorted(unmeasurable),
         "baselines": dict(sorted(baselines.items())),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return len(baselines)
+    return BaselineWriteReport(
+        written=len(baselines),
+        unreachable=len(unreachable),
+        unmeasurable=len(unmeasurable),
+    )
 
 
 def load_baselines(path: Path | None = None) -> dict[str, BaselineEntry]:
@@ -232,6 +355,18 @@ def load_baselines(path: Path | None = None) -> dict[str, BaselineEntry]:
     for source_id, entry in entries.items():
         if not isinstance(entry, dict) or not isinstance(entry.get("sha256"), str):
             raise RegistryError(f"baseline file: {source_id!r} has no sha256")
+        if entry["sha256"] == EMPTY_CONTENT_SHA256:
+            # Loudly, rather than by dropping the entry. A committed hash of nothing is a
+            # false statement about a page in a file whose whole job is to be believed, and
+            # every quieter handling of it ends with the check reporting something reassuring:
+            # keep it and a blind page "matches"; drop it and the same page reads as merely
+            # "no committed baseline", which is what an unwatched-but-fine source looks like.
+            raise RegistryError(
+                f"baseline file: {source_id!r} records the sha256 of empty content "
+                f"({EMPTY_CONTENT_SHA256[:12]}…), which is not a baseline — it is what a page "
+                "with no readable text hashes to. Remove the entry, or re-derive the file with "
+                "`sentinel watch && sentinel baseline write`."
+            )
         normalizer = entry.get("normalizer_version")
         extractor = entry.get("extractor_version")
         contract = (
@@ -239,7 +374,12 @@ def load_baselines(path: Path | None = None) -> dict[str, BaselineEntry]:
             if isinstance(normalizer, str) and isinstance(extractor, str)
             else UNRECORDED_CONTRACT
         )
-        loaded[source_id] = BaselineEntry(sha256=entry["sha256"], contract=contract)
+        recorded_url = entry.get("url")
+        loaded[source_id] = BaselineEntry(
+            sha256=entry["sha256"],
+            contract=contract,
+            url=recorded_url if isinstance(recorded_url, str) else "",
+        )
     return loaded
 
 
@@ -263,6 +403,18 @@ def check_baselines(
     hash that *matches* across two contracts needs no caveat, because two normalizers
     producing the same digest produced the same text.
 
+    And a fifth: **a hash is only comparable against a fetch of the page it was taken from.**
+    Each committed entry records its URL, and if the registry has since been re-pointed at a
+    different page, the two describe different documents. Comparing them would report MOVED
+    for a page that may never have moved — a false change, which in this feed costs a reader a
+    filing they could have made. Refused and re-baselined, exactly as `watch()` does.
+
+    And a fourth, added with issue #19: **a page with no extractable text is not compared at
+    all.** `watch` refuses that comparison because a hash of nothing means nothing; this
+    command refuses it for the same reason and reports the source in its own `no_text` bucket.
+    Checked before the committed hash is even consulted, so no outcome — match, move, or
+    missing baseline — can be reported about a page we could not read.
+
     What this cannot do is show you the passage that changed — the previous text is not in
     the baseline file, only its hash. `sentinel watch` is the command that answers that, and
     the report says so rather than pretending.
@@ -274,12 +426,28 @@ def check_baselines(
             report.unreachable.append((source.id, result.error or "unknown error"))
             continue
 
+        current, normalized = content_hash(result.body, result.content_type)
+        if kind_for_content_type(result.content_type) != ContentKind.BINARY and not passages(
+            normalized
+        ):
+            report.no_text.append((source.id, source.url))
+            continue
+
         committed = baselines.get(source.id)
         if committed is None:
             report.unbaselined.append(source.id)
             continue
 
-        current, _ = content_hash(result.body, result.content_type)
+        if committed.url and committed.url != source.url:
+            # The registry now points this source id at a different page than the one the
+            # committed hash was taken from. Checked BEFORE the hashes are compared, because
+            # the comparison is the bug: it would subtract page A's digest from page B's
+            # content and report the difference as MOVED — a change record about a page that
+            # may not have changed at all, in a feed whose false positives cost a reader a
+            # filing they could have made. The same refusal `watch()` makes for the same fact.
+            report.url_changed.append((source.id, committed.url, source.url))
+            continue
+
         if current == committed.sha256:
             report.matched.append(source.id)
             continue

@@ -15,7 +15,11 @@
     "last_successful_run"
   ],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0", "1.1"],
+      "description": "1.1 (issue #19) adds unmeasured_source_ids, unmeasured_count and observed_source_count to every run, so a retrieval that returned no readable text can no longer be counted among the pages we watched. Every document this build writes is 1.1; 1.0 is still accepted because the currently published status.json was written before the change and is republished on the next `sentinel publish`, not by an edit to a generated file."
+    },
     "generated_at": { "type": "string", "format": "date-time" },
     "state": {
       "type": "string",
@@ -47,9 +51,12 @@
         "eligible_source_ids",
         "attempted_source_ids",
         "successful_source_ids",
+        "unmeasured_source_ids",
         "eligible_count",
         "attempted_count",
         "successful_retrieval_count",
+        "unmeasured_count",
+        "observed_source_count",
         "attempt_completeness",
         "observation_count",
         "has_internal_error"
@@ -83,9 +90,16 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
+        "unmeasured_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
         "eligible_count": { "type": "integer", "minimum": 0 },
         "attempted_count": { "type": "integer", "minimum": 0 },
         "successful_retrieval_count": { "type": "integer", "minimum": 0 },
+        "unmeasured_count": { "type": "integer", "minimum": 0 },
+        "observed_source_count": { "type": "integer", "minimum": 0 },
         "attempt_completeness": {
           "oneOf": [
             { "type": "number", "minimum": 0, "maximum": 1 },

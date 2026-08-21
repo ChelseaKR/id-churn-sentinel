@@ -1,0 +1,30 @@
+# FUNDING configuration: id-churn-sentinel takes no money, on purpose.
+#
+# The reader of this project is often a trans person checking whether the
+# document pathway they are about to rely on has changed, sometimes under time
+# pressure and sometimes having taken a day off work to do it. A donation
+# prompt on that page asks the wrong thing of the wrong person at the wrong
+# moment.
+#
+# It would also contradict this repository's own statement that the project has
+# no customers, sponsors, or revenue. That statement is load bearing: it is why
+# a reader can trust that no funder's interest shaped which sources are watched
+# or how a change is reported.
+#
+# Every platform key below is present and explicitly empty. With no active
+# entries GitHub renders no Sponsor button, and this file overrides the
+# organisation-wide default in ChelseaKR/.github rather than merging with it.
+
+github:           # no GitHub Sponsors
+patreon:          # not used
+open_collective:  # not used
+ko_fi:            # not used
+tidelift:         # not used
+community_bridge: # not used
+liberapay:        # not used
+issuehunt:        # not used
+lfx_crowdfunding: # not used
+polar:            # not used
+buy_me_a_coffee:  # not used
+thanks_dev:       # not used
+custom:           # no external donation links

@@ -19,17 +19,26 @@ Offline, like everything else here: the fetcher and the prompt are both injected
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 from id_churn_sentinel.cli import main
 from id_churn_sentinel.core.normalize import excerpt, page_title
-from id_churn_sentinel.core.registry import REJECTED, VERIFIED, load_registry
-from id_churn_sentinel.core.verify import Candidate, confirm, pending, reject, review_card
+from id_churn_sentinel.core.registry import REJECTED, VERIFIED, Source, load_registry
+from id_churn_sentinel.core.verify import (
+    Candidate,
+    confirm,
+    pending,
+    reject,
+    residual_ineligibility,
+    review_card,
+    unwatchable_after_confirmation,
+)
 from id_churn_sentinel.errors import RegistryError, VerificationError
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, eligible_source
 
 PAGE = b"""<!doctype html><html><head><title>Office of Vital Statistics | Kansas</title></head>
 <body><h1>Office of Vital Statistics</h1>
@@ -570,3 +579,78 @@ def test_the_committed_registry_is_still_entirely_unverified(
         "it, revert it."
     )
     assert len(registry.unverified) == 152
+
+
+# -- what a confirmation does NOT accomplish (issue #18) ---------------------------
+#
+# Working the whole 152-source queue leaves the attempt denominator at zero, and nothing told
+# the person who did the work. `confirm()` writes status/verifier/date — by design; it is the
+# only writer of `verified: true`. The predicate additionally wants a verification evidence
+# reference and a recheck expiry, plus a dated fetch-policy decision that nothing in `src/`
+# writes at all. So a volunteer could burn the queue down, watch the site render its strongest
+# verification claim, and still have a feed that would stay empty forever.
+
+
+def test_a_confirmation_alone_leaves_a_source_out_of_the_denominator(source: Source) -> None:
+    """The trap, stated as a fact about the predicate rather than as prose in a doc."""
+    remaining = residual_ineligibility(source, as_of=date(2026, 8, 16))
+
+    assert "unverified" not in remaining  # confirming does clear this one
+    assert "verification-evidence-missing" in remaining
+    assert "verification-expiry-missing" in remaining
+    assert "fetch-policy-unreviewed" in remaining
+
+
+def test_a_fully_evidenced_source_has_nothing_left_to_report(source: Source) -> None:
+    """The warning has to be derived, so it disappears by itself on the day it stops being
+    true rather than being switched off by hand."""
+    assert residual_ineligibility(eligible_source(source), as_of=date(2026, 8, 16)) == ()
+    assert unwatchable_after_confirmation([eligible_source(source)], as_of=date(2026, 8, 16)) == {}
+
+
+def test_the_counts_are_aggregated_across_the_queue(source: Source, arizona_source: Source) -> None:
+    counts = unwatchable_after_confirmation(
+        [source, arizona_source, eligible_source(source)], as_of=date(2026, 8, 16)
+    )
+
+    assert counts["fetch-policy-unreviewed"] == 2
+    assert counts["verification-evidence-missing"] == 2
+
+
+def test_list_warns_that_confirming_is_not_the_last_step(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The volunteer is told before the afternoon, not after (issue #18)."""
+    assert main(["--registry", str(registry_file), "verify", "--list"]) == 0
+
+    out = capsys.readouterr().out
+    assert "CONFIRMING IS NOT THE LAST STEP" in out
+    assert "fetch-policy-unreviewed" in out
+    assert "verification-evidence-missing" in out
+    assert "sentinel sources eligibility" in out
+
+
+def test_a_scripted_confirmation_says_what_it_did_not_accomplish(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The single-source path records a real confirmation and then declines to let the caller
+    believe that source is now being watched."""
+    code = main(
+        [
+            "--registry",
+            str(registry_file),
+            "verify",
+            "--source-id",
+            "us-passport-sex-markers",
+            "--confirm",
+            "--verifier",
+            "A Named Human",
+        ]
+    )
+
+    out = capsys.readouterr().out
+    assert code == 0
+    # The confirmation itself is real and is still reported as such.
+    assert load_registry(registry_file).by_id("us-passport-sex-markers").verified
+    assert "CONFIRMING IS NOT THE LAST STEP" in out
+    assert "fetch-policy-unreviewed: 1" in out

@@ -36,11 +36,14 @@ wrong "no change": a government page about trans identity documents disappearing
 a policy signal (institutions do scrub this content), and answering a long silence with
 silence is the failure mode `docs/RESPONSIBLE-TECH-AUDITS.md` §A is written about.
 
-So `watch()` counts *consecutive* failures per source, persists the streak, resets it on
-any success, and after `removal_threshold` runs escalates the source to a distinct
-`possibly_removed` change record that a human must review. The escalation is emphatically
-**not** a classification: it does not say the page was removed. It says we could not fetch
-it N times running, hands over the literal error string, and names the three readings —
+So `watch()` counts *consecutive* failures per source, persists the streak and the time it
+started, resets both on any success, and escalates the source to a distinct
+`possibly_removed` change record — one a human must review — once it has failed
+`removal_threshold` times running AND been silent for at least `min_removal_silence`. Two
+conditions rather than one, because a count of attempts is not a length of time and the
+rule used to assume it was. The escalation is emphatically **not** a classification: it
+does not say the page was removed. It says we could not fetch it N times running over a
+stated interval, hands over the literal error string, and names the three readings —
 removed, blocked, or down — without choosing between them. A 404 and a 403 and a fortnight
 of timeouts all arrive here, and telling them apart is a person's job.
 
@@ -76,6 +79,47 @@ change record, and its diff is a like-for-like diff rather than a normalization 
 The one case where re-derivation is impossible — retained bytes that cannot reproduce the
 recorded baseline — claims no drift, re-baselines, and is reported in its own bucket, because
 "we cannot make this comparison valid" must never be dressed up as "the page changed".
+
+**And a third, for the same reason: its absence was a safety gap (issue #19).**
+`sha256("")` is a legitimate detection hash — it is what a JS shell, an empty 200, or a
+bot-wall serves once its markup and scripts are stripped, and two *different* sources with
+no page text share that one hash. Nothing before this discipline distinguished it from a real,
+stable measurement: a source that first serves no text is quietly baselined as `new`, and every
+week it keeps serving no text, the (identical) hash matches and it reports `unchanged` — the
+loudest possible silence, forever, about a page nobody has actually watched. `unchanged` and
+`new` both mean "we have a comparison and it means something"; neither is true of a page with
+no extractable text, and the discipline that protects a corrected URL and a version bump
+applies here too: refuse to conclude *anything* from that comparison, and say so every single
+time, not once. So a text/HTML fetch that normalizes to zero passages is checked and routed to
+its own bucket, `no_text`, before baselining or comparison — win, lose, or draw, that source's
+result this run is "we could not measure this," reported loudly, every run, for as long as it
+persists. (Binary content is exempt: an *opaque* zero-length normalized text is its documented,
+honest behaviour, not a symptom — see :func:`normalize.content_evidence`.)
+
+**Three consequences of that discipline, each of which was still a live defect after the
+bucket existed**, because a bucket in a report is not the same thing as a refusal to record:
+
+1. **Nothing is written to the snapshot store.** The bucket alone left the empty fetch being
+   recorded as a snapshot first and *then* routed, so `sha256("")` still became the source's
+   latest snapshot — which is to say its baseline, the thing `sentinel baseline write` commits
+   and the thing next week's fetch is compared against. Three lies followed from that one row:
+   the committed baseline file gained a hash of nothing; a page that recovered its text was
+   reported as `changed` against nothing, minting drift out of a recovery; and five blind runs
+   evicted the last real bytes through snapshot retention, destroying the evidence that would
+   have made the comparison possible again. So the check now happens *before* `record_snapshot`,
+   and an unmeasurable fetch leaves the last real baseline exactly where it was.
+2. **The failure streak is not reset.** `record_success` means "this source answered, so
+   whatever was wrong is over". A page serving a bot-wall has not answered in any sense this
+   tool cares about, and exonerating it would let a source sit permanently blind with a clean
+   health record. Nor is a failure recorded: we did reach the host, and inventing a fetch
+   failure would eventually escalate a `possibly_removed` record whose stated evidence — N
+   consecutive *failed fetches* — never happened. The streak is left exactly as it was, which
+   is the only honest option: this run neither confirms nor clears anything.
+3. **The run is not `quiet`.** `quiet` is the state that publishes as "the latest watch
+   completed for every eligible source and created no observations", and that sentence is
+   false for a run that could not measure a source at all. A run with an unmeasurable source
+   is `partial` — the state that already exists for "we did not get a comparable observation
+   for every eligible source" — and the store now refuses to record it as anything else.
 """
 
 from __future__ import annotations
@@ -83,7 +127,7 @@ from __future__ import annotations
 import difflib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.eligibility import (
@@ -97,8 +141,10 @@ from id_churn_sentinel.core.normalize import (
     EXTRACTOR_VERSION,
     NORMALIZER_VERSION,
     ContentEvidence,
+    ContentKind,
     content_evidence,
     content_hash,
+    kind_for_content_type,
     passages,
     representation_contract,
 )
@@ -117,6 +163,7 @@ from id_churn_sentinel.core.store import (
 __all__ = [
     "DIFF_CONTEXT_LINES",
     "MAX_DIFF_EXCERPT_CHARS",
+    "MIN_REMOVAL_SILENCE",
     "REMOVAL_THRESHOLD",
     "StabilityReport",
     "WatchReport",
@@ -131,9 +178,17 @@ MAX_DIFF_EXCERPT_CHARS = 4000
 
 # Consecutive failed fetches before a source escalates to `possibly_removed`.
 #
-# Three, at the weekly cadence this tool runs at, means roughly three weeks of a source
-# answering nothing at all before a human is asked to look at it. That is the number the
-# two failure modes have to be traded off against each other:
+# STILL A GUESS. Read that first. An attempt was made in 2026-08 to re-derive this from
+# observed outage lengths, as M2 promised, and it failed for lack of data — see
+# docs/THRESHOLD-EVIDENCE.md for the audit. The short version: this repository has
+# retained exactly one observation session (2026-07-13), every source's entire history
+# spans at most 1.18 hours, and the tables that record per-attempt evidence
+# (`watch_runs`, `fetch_attempts`, `run_sources`) hold zero rows because they were created
+# the day after that session and no persisted run has happened since. You cannot measure
+# how long an outage lasts from observations that never span a second day. Three remains
+# unmeasured, and this comment will keep saying so until it isn't.
+#
+# The trade-off the number is between, which is unchanged:
 #
 #   Too low, and every routine weekend outage or WAF mood swing mints an alarm, the
 #   reviewer learns the escalations are noise, and they start closing them unread — at
@@ -145,10 +200,37 @@ MAX_DIFF_EXCERPT_CHARS = 4000
 #   exists to fix; a threshold of 12 would technically satisfy the code and defeat the
 #   purpose.
 #
-# Three is a starting guess, not a finding. M2 measures real outage lengths against real
-# government hosts, and this number should be re-derived from that data rather than
-# defended. It is a module constant and a CLI flag precisely so it is cheap to change.
+# WHAT THE AUDIT DID ESTABLISH, and it is not nothing: the units were wrong. This constant
+# counts RUNS, and the comment it replaces claimed that three runs "at the weekly cadence
+# this tool runs at" meant "roughly three weeks". Nothing in the code tied the two
+# together. In the one retained session, six sources reached a streak of three inside
+# seventy-four minutes, because `watch` was run three times in one sitting — three weeks
+# by this constant's own reasoning, three minutes in fact. A backfill, a retry loop, an
+# operator re-running `watch` to check something, or a CI matrix would each manufacture
+# escalations out of a single afternoon.
+#
+# So the count is no longer the only condition; see MIN_REMOVAL_SILENCE below.
 REMOVAL_THRESHOLD = 3
+
+# Minimum wall-clock silence before a streak may escalate, regardless of run count.
+#
+# This is NOT a measured outage length, and must not be cited as one. It is arithmetic on
+# this tool's own declared cadence: `.github/workflows/watch.yml` runs weekly, and the
+# third consecutive failure of a weekly job falls roughly fourteen days after the first.
+# The constant therefore encodes what REMOVAL_THRESHOLD was already documented to mean,
+# and makes it true whatever cadence the tool is actually run at.
+#
+# It is a floor, not a replacement. Both conditions must hold: enough failed attempts to
+# show the source is reliably not answering, and enough elapsed time that "not answering"
+# means something more than a bad afternoon. Fourteen days of silence observed twice is
+# still not an escalation, because two attempts cannot distinguish a dead page from a
+# monitor that was itself broken for a fortnight.
+#
+# A streak whose start was never recorded (`streak_started_at` NULL, i.e. it began before
+# migration 8) has an unknown duration and does not escalate on the count alone. That is
+# deliberate and it is the conservative direction: it delays an escalation by one cycle
+# rather than manufacturing one from a duration nobody observed.
+MIN_REMOVAL_SILENCE = timedelta(days=14)
 
 
 @dataclass(slots=True)
@@ -164,7 +246,16 @@ class WatchReport:
     `unchanged`: a source whose baseline was recorded under an older representation contract
     lands in one of them only when the re-derived comparison found no content change. A
     source whose content really did change lands in `changed`, whatever contract its baseline
-    was recorded under."""
+    was recorded under.
+
+    `no_text` is the third non-drift bucket (issue #19): a successful text/HTML fetch whose
+    normalized text has zero passages. It preempts `new`/`unchanged`/`changed`/`renormalized`
+    entirely — no snapshot is recorded, no baseline is written or overwritten, no comparison is
+    made, and no drift is claimed either way, for as long as the condition holds. Unlike
+    `unrenormalizable`, this is not a one-time transition; a source that keeps serving no text
+    lands here on *every* run, which is the point: the old behaviour let identical "nothing"
+    hash-match itself into a permanently silent `unchanged`. A run containing one is `partial`,
+    never `quiet`."""
 
     changed: list[ChangeRecord] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
@@ -172,6 +263,7 @@ class WatchReport:
     rebaselined: list[tuple[str, str, str]] = field(default_factory=list)
     renormalized: list[tuple[str, str, str]] = field(default_factory=list)
     unrenormalizable: list[tuple[str, str]] = field(default_factory=list)
+    no_text: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
     possibly_removed: list[ChangeRecord] = field(default_factory=list)
     run_id: str = ""
@@ -188,6 +280,7 @@ class WatchReport:
             + len(self.rebaselined)
             + len(self.renormalized)
             + len(self.unrenormalizable)
+            + len(self.no_text)
             + len(self.unreachable)
         )
 
@@ -214,11 +307,17 @@ class WatchReport:
             if self.unrenormalizable
             else ""
         )
+        no_text = (
+            f", {len(self.no_text)} served NO extractable text (not baselined, no drift "
+            f"claimed — see below)"
+            if self.no_text
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.changed)} changed, "
             f"{len(self.unchanged)} unchanged, {len(self.new)} new baseline, "
             f"{len(self.unreachable)} unreachable (not drift)"
-            f"{rebaselined}{renormalized}{unrenormalizable}{escalated}"
+            f"{rebaselined}{renormalized}{unrenormalizable}{no_text}{escalated}"
         )
 
 
@@ -227,21 +326,38 @@ class StabilityReport:
     """What `check_stability` saw: which sources hash the same twice, and which do not.
 
     See :func:`check_stability` for why a source that does not is a *defect in the registry*
-    rather than a finding about the world."""
+    rather than a finding about the world.
+
+    `no_text` is the same refusal `WatchReport.no_text` and `BaselineReport.no_text` make, in
+    the third and last place a comparison happens, and it is emphatically **not** a `stable`
+    result. A text/HTML fetch that normalizes to zero passages hashes to `sha256("")`, and
+    `sha256("") == sha256("")` — so a JS shell, an empty 200 and a bot-wall each match
+    themselves perfectly across two fetches and were reported as `stable`, which is the most
+    reassuring word this command prints, about the one condition it must never print it for.
+    It named nothing on stdout either, because only `UNSTABLE` and `unreach` get a line, so a
+    blind page passed the check *silently*. "Nothing rotates on this page" and "there is
+    nothing on this page" are different sentences, and only the first is a reason to add a
+    source to the registry."""
 
     stable: list[str] = field(default_factory=list)
     unstable: list[tuple[str, str, str]] = field(default_factory=list)
+    no_text: list[tuple[str, str]] = field(default_factory=list)
     unreachable: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def total(self) -> int:
-        return len(self.stable) + len(self.unstable) + len(self.unreachable)
+        return len(self.stable) + len(self.unstable) + len(self.no_text) + len(self.unreachable)
 
     def summary(self) -> str:
+        no_text = (
+            f", {len(self.no_text)} served NO extractable text (NOT compared, stability unknown)"
+            if self.no_text
+            else ""
+        )
         return (
             f"{self.total} source(s): {len(self.stable)} stable, "
-            f"{len(self.unstable)} UNSTABLE (false-drift by construction), "
-            f"{len(self.unreachable)} unreachable"
+            f"{len(self.unstable)} UNSTABLE (false-drift by construction)"
+            f"{no_text}, {len(self.unreachable)} unreachable"
         )
 
 
@@ -270,6 +386,21 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
     reach a reviewer. A sentinel that cries wolf gets muted, and a muted sentinel is worse
     than none.
 
+    **And a page with no extractable text is not judged at all** — the same refusal
+    `watch()` and `check_baselines()` make (issue #19), made here because this was the one
+    comparison in the codebase still missing it. `sha256("")` is what a JS shell, an empty
+    200 and a bot-wall all normalize to, and it compares equal to itself, so every blind page
+    passed this check as `stable` — silently, since only `UNSTABLE` and `unreach` print a
+    line. That is the worst possible place for that particular false all-clear: CLAUDE.md
+    guardrail #7 makes this command the gate a maintainer runs *before* adding a source, so
+    the check said "safe to watch" about exactly the pages `watch()` can never observe. Such a
+    source is routed to `no_text` before either hash is compared, and never to `stable`: we
+    did not find that the page is stable, we found that we cannot read it.
+
+    Checked on the first fetch, which also means the second one is not spent: a page we
+    already know we cannot read has nothing to tell us on a re-fetch, and this command's
+    stated cost is that it doubles the load on the host.
+
     Two limits, stated plainly:
 
     * **A pass here is not a guarantee.** It catches per-*request* rotation. A page that
@@ -286,13 +417,29 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
         if not first.ok:
             report.unreachable.append((source.id, first.error or "unknown error"))
             continue
+
+        first_hash, first_text = content_hash(first.body, first.content_type)
+        if _is_unmeasurable(first_text, first.content_type):
+            # Refused before the second fetch, not after: the comparison this command exists
+            # to make is between two readings of a page, and there is no reading here. A
+            # second request would buy the host's bandwidth and answer nothing.
+            report.no_text.append((source.id, source.url))
+            continue
+
         second = fetcher.fetch(source.url)
         if not second.ok:
             report.unreachable.append((source.id, second.error or "unknown error"))
             continue
 
-        first_hash, _ = content_hash(first.body, first.content_type)
-        second_hash, _ = content_hash(second.body, second.content_type)
+        second_hash, second_text = content_hash(second.body, second.content_type)
+        if _is_unmeasurable(second_text, second.content_type):
+            # Readable once, blind once. The hashes necessarily differ — a real digest
+            # against `sha256("")` — and reporting that as UNSTABLE would name a rotating
+            # widget that is not there. A page that intermittently serves nothing is a page
+            # we cannot read, not a page that churns.
+            report.no_text.append((source.id, source.url))
+            continue
+
         if first_hash == second_hash:
             report.stable.append(source.id)
         else:
@@ -404,13 +551,31 @@ def _comparable_baseline(
     return _ComparableBaseline(evidence.detection_sha256, evidence.normalized_text, recorded)
 
 
+def _is_unmeasurable(normalized_text: str, content_type: str | None) -> bool:
+    """True when a successful fetch produced nothing this tool can compare (issue #19).
+
+    Binary content is excluded, and the exclusion is not a special case bolted on: an opaque
+    body's normalized text is empty *by design* (`EXTRACTOR_VERSION = "none-v1"` — there is no
+    PDF extractor), its detection hash covers the raw bytes rather than the empty string, and
+    comparing those hashes week to week is a real, honest measurement. A text/HTML body that
+    normalizes to zero passages is the opposite: the hash covers nothing, every page with no
+    text shares it, and comparing it to itself proves only that we are still not reading
+    anything.
+    """
+    if kind_for_content_type(content_type) == ContentKind.BINARY:
+        return False
+    return not passages(normalized_text)
+
+
 def _watch_authorized_sources(
     sources: Iterable[Source],
     store: SnapshotStore,
     fetcher: Fetcher,
     *,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     run_id: str | None = None,
+    now: datetime | None = None,
 ) -> WatchReport:
     """Low-level comparison over an already-authorized source set.
 
@@ -422,6 +587,11 @@ def _watch_authorized_sources(
     `fetcher` is injected, which is what makes the whole tool testable with no network:
     the suite passes a dict-backed stub, CI passes nothing at all, and `sentinel watch`
     passes an :class:`~id_churn_sentinel.core.fetch.HttpFetcher`.
+
+    `now` is injected for the same reason, one dimension over: escalation depends on how
+    long a source has been silent, so a suite that cannot move the clock can only test the
+    run-count half of the rule. It stamps source-health timestamps only — it does not
+    backdate snapshots or run receipts.
     """
     report = WatchReport()
 
@@ -432,6 +602,12 @@ def _watch_authorized_sources(
         evidence: ContentEvidence | None = None
         if result.ok:
             evidence = content_evidence(result.body, result.content_type)
+        # Decided here, before anything is stored, because every write below depends on it:
+        # a fetch that produced no comparable observation must not reach the snapshot table,
+        # must not clear the health streak, and must not let the run finish `quiet`.
+        measured = evidence is not None and not _is_unmeasurable(
+            evidence.normalized_text, result.content_type
+        )
         if run_id is not None:
             store.finish_fetch_attempt(
                 run_id,
@@ -443,6 +619,7 @@ def _watch_authorized_sources(
                 extractor_version=EXTRACTOR_VERSION if result.ok else "",
                 error=result.error or "",
                 evidence=_attempt_evidence(result, evidence),
+                measured=measured,
                 completed_at=result.fetched_at,
             )
 
@@ -454,19 +631,31 @@ def _watch_authorized_sources(
                 result.error,
                 result.status,
                 removal_threshold,
+                min_removal_silence=min_removal_silence,
                 run_id=run_id,
+                now=now,
             )
             continue
 
         if evidence is None:  # pragma: no cover - guarded by result.ok above
             raise AssertionError("successful fetch did not produce normalized content")
+
+        if not measured:
+            # Zero passages out of a page that promised text. There is nothing here to
+            # baseline and nothing to compare, on the first sighting or the hundredth, so
+            # this source's run ends here — before `record_success` (which would exonerate a
+            # source we did not observe) and before `record_snapshot` (which would overwrite
+            # the last real baseline with a hash of nothing). Reported every run it recurs.
+            report.no_text.append((source.id, source.url))
+            continue
+
         new_hash, normalized = evidence.detection_sha256, evidence.normalized_text
         previous = store.latest_snapshot(source.id)
 
         # The source answered, so whatever was wrong is over. Reset the streak *before*
         # anything else: a source that is serving bytes is not a source that was removed,
         # and leaving a stale streak standing would let old flakiness escalate a healthy page.
-        store.record_success(source.id)
+        store.record_success(source.id, now=now)
 
         store.record_snapshot(
             source_id=source.id,
@@ -507,12 +696,16 @@ def _compare_against_baseline(
     observed_at: datetime,
     run_id: str | None,
 ) -> None:
-    """One successful fetch against its baseline: the only place drift is ever concluded.
+    """One *measured* fetch against its baseline: the only place drift is ever concluded.
 
     Every early return here is a refusal to conclude drift, and each one is a different
     reason the comparison in front of us would not mean what a change record claims it
     means. The sibling of :func:`_handle_failure`, which refuses for the one remaining
     reason (there were no bytes at all).
+
+    A fetch with no extractable text never reaches this function: the caller routes it to
+    `no_text` before recording anything, because that case must be refused *upstream* of the
+    snapshot store rather than downstream of it (issue #19).
     """
     if previous is None:
         report.new.append(source.id)
@@ -595,6 +788,7 @@ def watch_registry(
     as_of: date,
     jurisdiction: str | None = None,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     started_at: datetime | None = None,
     completed_at: datetime | None = None,
 ) -> WatchReport:
@@ -657,6 +851,7 @@ def watch_registry(
             store,
             fetcher,
             removal_threshold=removal_threshold,
+            min_removal_silence=min_removal_silence,
             run_id=run_id,
         )
     except Exception as exc:
@@ -673,7 +868,16 @@ def watch_registry(
         raise
 
     observation_count = len(report.changed) + len(report.possibly_removed)
-    state = RUN_PARTIAL if report.unreachable else RUN_COMPLETE if observation_count else RUN_QUIET
+    # `partial` covers both ways a run can fail to produce a comparable observation for every
+    # eligible source: a retrieval that failed, and a retrieval that succeeded and yielded no
+    # text to compare (issue #19). Neither may finish `quiet`, whose published sentence is
+    # "completed for every eligible source and created no observations" — a claim that a run
+    # which could not measure a source has not earned. The store enforces the same rule
+    # independently: `finish_watch_run` refuses `quiet` or `complete` while any attempted
+    # source is recorded as unmeasured, so a future caller cannot re-introduce the silence by
+    # computing this line differently.
+    unmeasured = bool(report.unreachable or report.no_text)
+    state = RUN_PARTIAL if unmeasured else RUN_COMPLETE if observation_count else RUN_QUIET
     store.finish_watch_run(
         run_id,
         state=state,
@@ -694,6 +898,7 @@ def watch(
     *,
     jurisdiction: str | None = None,
     removal_threshold: int = REMOVAL_THRESHOLD,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
 ) -> WatchReport:
     """Production watcher API; eligibility is always evaluated on today's UTC date.
 
@@ -710,6 +915,7 @@ def watch(
         as_of=datetime.now(UTC).date(),
         jurisdiction=jurisdiction,
         removal_threshold=removal_threshold,
+        min_removal_silence=min_removal_silence,
     )
 
 
@@ -755,7 +961,9 @@ def _handle_failure(
     status: int | None,
     removal_threshold: int,
     *,
+    min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     run_id: str | None = None,
+    now: datetime | None = None,
 ) -> None:
     """One failed fetch: hold the baseline, count the streak, escalate if it is long enough.
 
@@ -771,15 +979,28 @@ def _handle_failure(
     documents disappearing is itself a signal; failing to surface it is a wrong "no change",
     which is the safety failure this repo is organised around (RESPONSIBLE-TECH-AUDITS §A).
 
-    So: after `removal_threshold` consecutive failures we mint a `possibly_removed` record.
-    It is unclassified, unreviewed, unpublishable, and it carries the literal error string
-    rather than a guess about what the error means.
+    So: after `removal_threshold` consecutive failures SPREAD OVER at least
+    `min_removal_silence`, we mint a `possibly_removed` record. It is unclassified,
+    unreviewed, unpublishable, and it carries the literal error string rather than a guess
+    about what the error means.
+
+    Both conditions, because the count alone was measuring the wrong thing. It counts how
+    many times we asked, not how long the page has been gone, and those come apart the
+    moment anything runs the watcher more than once a week — a re-run, a backfill, a
+    retry. See `REMOVAL_THRESHOLD` and `MIN_REMOVAL_SILENCE`.
     """
     reason = error or "unknown error"
     report.unreachable.append((source.id, reason))
 
-    streak = store.record_failure(source.id, error=reason, status=status)
+    streak = store.record_failure(source.id, error=reason, status=status, now=now)
     if streak < removal_threshold:
+        return
+
+    # Enough attempts. Now: enough *time*? A streak with no recorded start has an unknown
+    # duration, and unknown is not "long enough" — escalating on it would be exactly the
+    # count-as-duration confusion this check exists to end.
+    silence = store.silence_window(source.id)
+    if silence.elapsed is None or silence.elapsed < min_removal_silence:
         return
 
     baseline = store.latest_snapshot(source.id)
@@ -798,6 +1019,7 @@ def _handle_failure(
         last_known_hash=baseline.content_sha256,
         consecutive_failures=streak,
         last_error=reason,
+        silent_for=silence.elapsed,
     )
     store.record_change(escalation, run_id=run_id)
     report.possibly_removed.append(escalation)

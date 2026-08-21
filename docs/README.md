@@ -28,6 +28,7 @@ Do not hand-edit the generated files. `make publish` overwrites them, and a hand
 | `status.json` — persisted watch health; generation time is not success | `schema/status-v1.schema.json` — the normative status contract |
 | `feed-us-xx.xml` / `changes-us-xx.json` — one pair per jurisdiction | `VERIFYING.md` — the human verification runbook |
 | `.nojekyll` — see below | `schema/changes-v2.schema.json` — the normative shape of `changes.json` |
+| | `THRESHOLD-EVIDENCE.md` — what the removal threshold is and is not measured from |
 
 The rule is simply that **`make publish` owns exactly the filenames in the left column** and touches nothing else. Any other `.md` in this directory is prose, written by a person, and safe to edit.
 

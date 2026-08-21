@@ -216,15 +216,72 @@ def test_a_review_cannot_reset_the_status_to_unreviewed(observed_change: ChangeR
         )
 
 
-def test_the_cli_cannot_review_without_a_reviewer() -> None:
-    """Layer 4. `--reviewer` is `required=True`, so argparse exits 2 rather than recording
-    an anonymous classification."""
+def test_the_cli_review_command_needs_a_reviewer_before_the_parser_will_even_run_it() -> None:
+    """Layer 4, argument shape. `--significance` and `--status` are `choices=`-constrained,
+    so a bogus value is still refused at parse time (exit 2) before anything is touched —
+    only `--reviewer` moved off `required=True` (to `verify`'s own `--verifier` pattern:
+    `default=""`, checked before the store is touched) so `review --list` can share the
+    command with no reviewer at all."""
     parser = build_parser()
     with pytest.raises(SystemExit) as exit_info:
         parser.parse_args(
-            ["review", "abc123", "--significance", "substantive", "--status", "confirmed"]
+            [
+                "review",
+                "abc123",
+                "--reviewer",
+                "A Human",
+                "--significance",
+                "not-a-real-significance",
+                "--status",
+                "confirmed",
+            ]
         )
     assert exit_info.value.code == 2
+
+
+def test_the_cli_refuses_to_review_without_a_reviewer(
+    tmp_path: Path, source: Source, fixture_before: bytes, fixture_after: bytes
+) -> None:
+    """Layer 4, end to end. `--reviewer` is no longer `required=True` in argparse — it must
+    not be, so `review --list` (the store-backed twin of `verify --list`) can run with no
+    reviewer at all — but the CLI still refuses to record anything without one: the check
+    now lives in `_cmd_review`, runs *before* the store is touched, and this proves it holds
+    over the real command, not just the parser's declared shape."""
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps({"registry_version": "1.0", "sources": [eligible_source_entry(source)]}),
+        encoding="utf-8",
+    )
+    db = tmp_path / "cli.db"
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+    argv = ["--registry", str(registry_path), "--db", str(db), "watch"]
+    main(argv, fetcher=stub)
+    stub.set(source.url, fixture_after)
+    main(argv, fetcher=stub)
+    with SnapshotStore(db) as store:
+        change_id = store.changes(review_status=ReviewStatus.UNREVIEWED)[0].id
+
+    exit_code = main(
+        [
+            "--registry",
+            str(registry_path),
+            "--db",
+            str(db),
+            "review",
+            change_id,
+            "--significance",
+            "substantive",
+            "--status",
+            "confirmed",
+        ]
+    )
+
+    assert exit_code == 1
+    with SnapshotStore(db) as store:
+        recorded = store.get_change(change_id)
+        assert recorded.review_status is ReviewStatus.UNREVIEWED
+        assert recorded.significance is Significance.UNCLASSIFIED
+        assert recorded.reviewer is None
 
 
 def test_the_cli_watch_command_leaves_everything_unreviewed(

@@ -11,6 +11,7 @@
     sentinel baseline write                        commit the store's hashes to sources/
     sentinel baseline check                        drift vs the COMMITTED baseline (no store)
     sentinel diff <change-id>                      the full diff for one change
+    sentinel review --list [--jurisdiction TX]     the pending REVIEW queue (no network, no writes)
     sentinel review <change-id> --reviewer ...     the human gate on a CHANGE
     sentinel publish --out docs/                   the site, the feeds, the inventory
 
@@ -52,6 +53,7 @@ from id_churn_sentinel.core.changes import (
     DEFAULT_PUBLIC_COPY,
     LIFECYCLE_REASONS,
     ChangeKind,
+    ChangeRecord,
     IndependentReviewStatus,
     PublicationStatus,
     ReviewStatus,
@@ -368,21 +370,37 @@ def build_parser() -> argparse.ArgumentParser:
     diff_cmd.add_argument("change_id")
 
     review_cmd = sub.add_parser("review", help="record a HUMAN review of one change")
-    review_cmd.add_argument("change_id")
+    review_cmd.add_argument(
+        "change_id", nargs="?", default=None, help="the change to review (omit with --list)"
+    )
+    review_cmd.add_argument(
+        "--list",
+        action="store_true",
+        help=(
+            "print the pending REVIEW queue (unreviewed changes already in the local store) "
+            "and exit. No network, no prompts, no writes — the store-backed twin of "
+            "`verify --list`, for a reviewer coming back after `watch`'s output has scrolled "
+            "away or a review-queue issue has closed."
+        ),
+    )
+    review_cmd.add_argument(
+        "--jurisdiction", help="with --list: only this jurisdiction, e.g. TX or US"
+    )
     review_cmd.add_argument(
         "--reviewer",
-        required=True,
-        help="the name of the human doing the review — required, and not optional by accident",
+        default="",
+        help=(
+            "the name of the human doing the review — required to record anything, and not "
+            "optional by accident"
+        ),
     )
     review_cmd.add_argument(
         "--significance",
-        required=True,
         choices=[str(s) for s in Significance],
         help="the human's judgment; the tool never sets this itself",
     )
     review_cmd.add_argument(
         "--status",
-        required=True,
         choices=[str(ReviewStatus.CONFIRMED), str(ReviewStatus.DISMISSED)],
     )
     review_cmd.add_argument(
@@ -941,19 +959,9 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             continue  # printed below, louder
         print(f"  ⚠️  unreachable (previous hash held, NOT drift): {source_id} — {error}")
     for gone in report.possibly_removed:
-        # A source that has stopped answering for long enough that "it'll be back" is no
-        # longer the most likely explanation. Not a content change, and NOT an assertion
-        # that it was taken down — an escalation that a human is required to resolve.
-        print(f"  ⛔ POSSIBLY REMOVED: {gone.source_id}  {gone.jurisdiction}/{gone.document_class}")
-        print(f"      {gone.url}")
-        print("      unreachable for too many consecutive runs — this is NOT auto-classified")
-        print("      as a policy change. A human must decide: removed, blocked, or down?")
-        print(f"      sentinel diff {gone.id}")
+        _print_pending_change(gone)
     for change in report.changed:
-        print(f"  ✎ drift: {change.id}  {change.jurisdiction}/{change.document_class}")
-        print(f"      {change.url}")
-        print("      unreviewed — a human must review it before it can be published:")
-        print(f"      sentinel diff {change.id}")
+        _print_pending_change(change)
     pending = len(report.changed) + len(report.possibly_removed)
     if pending:
         print(
@@ -961,6 +969,29 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             f"Nothing reaches the feed until a named human reviews it."
         )
     return 0
+
+
+def _print_pending_change(change: ChangeRecord) -> None:
+    """One line block for a change still waiting on a human. Shared by `watch` (fresh off the
+    fetch) and `review --list` (re-read from the store later) so a reviewer sees the identical
+    wording — and the same `sentinel diff` prompt — no matter which command told them about it.
+    """
+    if change.kind is ChangeKind.POSSIBLY_REMOVED:
+        # A source that has stopped answering for long enough that "it'll be back" is no
+        # longer the most likely explanation. Not a content change, and NOT an assertion
+        # that it was taken down — an escalation that a human is required to resolve.
+        print(
+            f"  ⛔ POSSIBLY REMOVED: {change.source_id}  {change.jurisdiction}/{change.document_class}"
+        )
+        print(f"      {change.url}")
+        print("      unreachable for too many consecutive runs — this is NOT auto-classified")
+        print("      as a policy change. A human must decide: removed, blocked, or down?")
+        print(f"      sentinel diff {change.id}")
+    else:
+        print(f"  ✎ drift: {change.id}  {change.jurisdiction}/{change.document_class}")
+        print(f"      {change.url}")
+        print("      unreviewed — a human must review it before it can be published:")
+        print(f"      sentinel diff {change.id}")
 
 
 def _print_renormalized_sources(renormalized: list[tuple[str, str, str]]) -> None:
@@ -1243,11 +1274,33 @@ def _cmd_diff(args: argparse.Namespace) -> int:
 def _cmd_review(args: argparse.Namespace) -> int:
     """The human-in-the-loop gate, at the command line.
 
-    `--reviewer` is required by argparse, non-empty by `ChangeRecord.reviewed_by`, and
-    non-null-when-classified by the store's SQL CHECK. Three layers, because "the tool
-    decided Texas substantively changed its policy" is a sentence that must never be true.
+    `--reviewer` is checked here (empty is refused), again by `ChangeRecord.reviewed_by`
+    (non-empty), and again by the store's SQL CHECK (non-null-when-classified). Three layers,
+    because "the tool decided Texas substantively changed its policy" is a sentence that must
+    never be true.
+
+    `--list` is the store-backed twin of `verify --list`: it answers "what still needs me"
+    from what `watch` has already recorded, with no fetch and no write, for a reviewer who
+    does not still have this morning's `watch` output on their screen.
     """
     with SnapshotStore(args.db) as store:
+        if args.list:
+            queue = store.changes(
+                review_status=ReviewStatus.UNREVIEWED, jurisdiction=args.jurisdiction
+            )
+            for change in queue:
+                _print_pending_change(change)
+            print(f"review --list: {len(queue)} change(s) pending human review")
+            return 0
+
+        if not args.change_id or not args.reviewer or not args.significance or not args.status:
+            print(
+                "error: review needs a change id, --reviewer, --significance and --status "
+                "(or `review --list` to see what is pending)",
+                file=sys.stderr,
+            )
+            return 1
+
         change = store.get_change(args.change_id)
         reviewed = change.reviewed_by(
             reviewer=args.reviewer,

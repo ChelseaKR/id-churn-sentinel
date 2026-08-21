@@ -20,6 +20,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 - An immutable v2.0.0 public standards projection, managed manifest, Renovate
   tracking, and regression tests for projection completeness and current-tip
   publication boundaries.
+- `sentinel review --list` (2026-08-04): the store-backed twin of `sentinel
+  verify --list` — prints every change still `unreviewed` (drift and
+  `possibly_removed` escalations alike), optionally filtered by
+  `--jurisdiction`, straight from the local snapshot store. No network, no
+  prompts, no writes. For a reviewer who no longer has `watch`'s output on
+  screen or whose review-queue issue already closed, this was previously a
+  choice between re-running `watch` against live government servers or
+  reading the SQLite file by hand.
 - An owned internationalization declaration (`docs/I18N.md`) now fixes the V1
   Spanish metadata scope, independent-review workflow, fail-closed English
   fallback, and 2026-11-13 target without claiming translations already exist.
@@ -52,6 +60,32 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **Working the whole verification queue left the attempt denominator at
+  zero** (#18). `verify.confirm()` was the only writer of a verification in the
+  codebase and wrote `status`, `verifier`, `at` and `note`, while
+  `core/eligibility.py` also requires an evidence reference and an in-date
+  recheck expiry — and nothing in `src/` could write a fetch-policy decision at
+  all, so the only path to one was hand-editing `sources/registry.json`, which
+  `docs/VERIFYING.md` never mentioned. Measured: confirming all 152 sources
+  published a site headlining *all 152 sources are human-verified* next to
+  `attempt_eligible: 0`, a feed that would stay empty, and nothing anywhere
+  saying a second step existed. Now a confirmation records all four fields: the
+  evidence reference points at a receipt `sentinel verify` writes at the moment
+  of the decision (URL, fetch time, HTTP status, the page's own title, the
+  excerpt the human read, and the content hash — and for a source we cannot
+  fetch, a receipt that says so and claims no title or text), and the expiry is
+  dated 180 days forward. `sentinel sources policy` records the dated
+  robots/terms decision (`SRC-03`) from a named reviewer with evidence, reason
+  and expiry, and refuses blanks and `unreviewed`. `verify --list`, the end of
+  a `verify` session, and `sources policy` each print how many sources are
+  attempt-eligible and what is blocking the rest, and the first screen of
+  `docs/VERIFYING.md` says both decisions are required.
+- **A zero attempt denominator no longer renders as a clean run** (#18). The
+  site said *attempted 0 of 0 eligible sources; 0 successful retrievals*, which
+  is arithmetically true and reads as a run that had nothing to do and did it
+  perfectly; completeness over an empty denominator is not a number and is now
+  reported as not measurable. A registry in which every source is verified and
+  none is attempt-eligible no longer headlines the verification.
 - **`sentinel sources check --twice` reported a page with no readable text as
   `stable`.** A JS shell, an empty 200 and a bot-wall all normalize to zero
   passages, whose detection hash is `sha256("")` — and that digest matches
@@ -125,11 +159,6 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   with the hops taken beforehand kept as evidence. A host's declared
   `Crawl-delay` is also honoured now when it exceeds the 2s floor; a shorter one
   does not speed us up.
-- **Working the whole verification queue left the attempt denominator at zero,
-  silently** (#18). `sentinel verify --list`, the end of a verify session, and a
-  scripted `--confirm` now print what would still block each source, derived
-  from the same predicate the watcher enforces so the warning silences itself
-  when it stops being true. `docs/VERIFYING.md` says it on the first screen.
 - **Two published surfaces read as "finished" while the tool watched nothing.**
   `index.html` headlined *All N sources are human-verified* and every RSS
   channel description carried *All N sources in TX are HUMAN-VERIFIED* whenever

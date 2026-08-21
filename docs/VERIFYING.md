@@ -3,38 +3,24 @@
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion.**
 > Status today: **`0 of 152 sources are human-verified`.** Everything below exists to change that number.
 
-## Read this before you start: confirming is not the last step
+## Read this before you start: verification is one of two decisions
 
-**Working this entire queue does not, by itself, make the tool watch anything.** That is worth
-knowing before you spend an afternoon on it rather than after.
+A source is fetched by the watcher only when **both** of these exist for it:
 
-`sentinel verify` records one thing: that a named human opened a URL and confirmed it is the
-official page. That is the judgment only a person can make, and it is the whole point of this
-document. But the watcher's eligibility predicate requires two further records that `verify`
-does not write:
+1. **A human verification** — you, answering the question below, with your name, the date, a receipt of what you were shown, and a recheck date. `sentinel verify` writes all four.
+2. **A dated fetch-policy decision** — a named human's reading of that host's robots.txt and terms of service, saying we may watch it, on what evidence, for what reason, and until when. `sentinel sources policy` records it. **Nothing infers it**, and a source without it stays `fetch-policy-unreviewed` and is never fetched.
 
-- **a verification evidence reference and a recheck expiry** — `verify` writes the status, your
-  name and the date, and nothing else;
-- **a dated fetch-policy decision** (reviewer, date, evidence, reason, expiry) — *no command in
-  this tool writes one at all* yet. Today it has to be edited into `sources/registry.json` by
-  hand.
-
-Until both exist for a source, that source stays out of the attempt denominator: the watcher
-will not fetch it, and the feed stays empty. The predicate is fail-closed by design and is not
-going to be relaxed — a source nobody has fully signed off is a source this tool declines to
-speak about. What was missing was anyone *telling* you. `sentinel verify --list` and the end of
-every verify session now print exactly what would still be blocking, derived from the same
-predicate the watcher uses, and:
+They are separate on purpose: one is a judgment about whether a page is the right page, the other is a judgment about whether we are allowed to fetch it at all. But they are both required, so **working this queue alone does not make the tool watch anything**. It used to be possible to finish all 152 and be told "152 confirmed, 0 still unverified" while the attempt denominator stayed at zero. Both commands now end by printing how many sources are attempt-eligible and what is blocking the rest, and `sentinel verify --list` prints the same thing before you start.
 
 ```sh
-uv run sentinel sources eligibility   # the exact reasons and their counts, any time
-```
+# what the registry actually watches right now, and what is stopping the rest
+uv run sentinel verify --list
 
-This is tracked as issue #18 and `SRC-03` in `docs/13-BACKLOG.md`. **None of it makes your
-verification worth less.** It is the step that cannot be automated, it is the blocker on
-everything else, and it is genuinely the most valuable thing anyone can do for this repo. It is
-just not the only step, and you should hear that from the tooling rather than from an empty
-feed three weeks later.
+# the other decision, once a human has read the host's robots.txt and terms
+uv run sentinel sources policy --source-id ks-kdhe-vital-statistics --outcome allow \
+    --reviewer "Your Name" --reason "robots.txt allows this path; terms permit one weekly request" \
+    --evidence "var/evidence/fetch-policy/2026-08-15-kdhe-robots.txt"
+```
 
 ## The question you are answering
 
@@ -119,9 +105,20 @@ Measured against the real thing, honestly:
 
 **Do the federal ones first** (`--federal-first`): passport, Social Security, Selective Service. They are six sources, they are the entries every jurisdiction's readers depend on, and they are twenty minutes.
 
+## What a confirmation actually writes
+
+Four fields, and all four are read by the predicate that decides whether a source is ever fetched. `sentinel verify` writes all four, so you never have to know this — but you should know what it did in your name:
+
+| Field | What it is | Where it comes from |
+|---|---|---|
+| `verifier` · `at` | Who looked, and when. | You. Refused if blank. |
+| `evidence` | A receipt of **what you were shown** — the URL, the fetch time, the HTTP status, the page's own title, the excerpt you read, and the hash of the bytes behind it. Written to `var/evidence/verification/` (untracked, because raw evidence is never automatically public) and cited by the registry entry. | Written for you at the moment you answer. For a source our crawler cannot fetch, the receipt says so and claims no title or text: the evidence is yours, from your browser, and it must not read as a page we saw and found blank. |
+| `expires_at` | When this falls due for a recheck, 180 days out by default (`--expires` to change it). | A verification that cannot go stale can never be re-checked, and government URLs move. |
+
 ## What changes when you finish
 
 - `sentinel coverage` prints the burn-down, derived — nobody types it.
 - The published site, `sources.json` and every feed stop saying **UNVERIFIED** next to that source and start saying **VERIFIED — confirmed by \<your name\> on \<date\>**.
 - The README's gated `N of 152 sources are human-verified` number moves by itself, and the merge gate fails any doc that disagrees with it.
+- The end of your session prints **how many sources are now attempt-eligible**. If that number is still zero, it is because the fetch-policy decisions have not been recorded — the session names the count, and `sentinel sources policy` is where they go. Verified sources with no policy decision are not watched, and the site says so on its front page rather than headlining the verification.
 - **M1 closes**, and this project can stop leading with an apology.

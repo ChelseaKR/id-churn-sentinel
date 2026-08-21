@@ -33,7 +33,7 @@ So, plainly:
 | **What a consumer may rely on** | The machine observation, named change-review receipt, explicit source-verification status, and honesty of the gaps list—not source authority unless `source_verification.status` is `verified` and in date |
 | **What a consumer may NOT rely on** | The registry as a directory of official pages. It is a list of **candidates**. Every artifact carries a machine-readable `verification_status` per source; today every one of them reads `unverified` |
 
-The fix is not a disclaimer, it is the work: **`sentinel verify`** is the review aid that makes it cheap — it fetches each source, shows a human the page's own title and an excerpt of its text, asks one question, and records the answer **with the verifier's name and the date**. It refuses to record a verification without a name, and the registry will not even *load* a `verified: true` entry that has no human behind it. See [`docs/VERIFYING.md`](./docs/VERIFYING.md) — it is about three and a half hours of work for all 152, and it is the most valuable three and a half hours anyone could spend on this repo.
+The fix is not a disclaimer, it is the work: **`sentinel verify`** is the review aid that makes it cheap — it fetches each source, shows a human the page's own title and an excerpt of its text, asks one question, and records the answer **with the verifier's name and the date**. It refuses to record a verification without a name, and the registry will not even *load* a `verified: true` entry that has no human behind it. See [`docs/VERIFYING.md`](./docs/VERIFYING.md) — it is about three and a half hours of work for all 152, and it is the most valuable three and a half hours anyone could spend on this repo. **Verification is one of two decisions a source needs before it is ever fetched.** The other is a named human's dated reading of the host's robots.txt and terms, recorded with `sentinel sources policy`; a source with only one of the two stays out of the attempt denominator, and both commands say which is missing rather than letting an afternoon's work end in an empty feed.
 
 ## Quickstart
 
@@ -50,6 +50,7 @@ uv run sentinel verify --list      # what is still unverified. No network, no wr
 uv run sentinel baseline check     # what moved since the committed baseline (needs no store)
 uv run sentinel watch              # fetch, normalize, hash, diff, record drift
 uv run sentinel diff <change-id>   # the changed passages
+uv run sentinel review --list      # what is still unreviewed. No network, no writes.
 uv run sentinel review <change-id> --reviewer "Your Name" --significance substantive --status confirmed
 uv run sentinel approve <change-id> --reviewer "Independent Name" --status confirmed \
   --qualification-ref governance/qualification.json --conflict-attestation-ref governance/conflict.json

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from hashlib import sha256
 from pathlib import Path
 
@@ -34,15 +35,32 @@ EXPECTED_STANDARDS_SHA256 = {
 
 
 def _current_project_text() -> list[tuple[Path, str]]:
+    """Every file that would actually reach the public repo — git-tracked content, not the
+    working directory.
+
+    A raw `ROOT.rglob("*")` walk previously scanned the working tree wholesale, which means it
+    also scanned build artifacts no publication boundary applies to: `coverage.xml` embeds the
+    absolute path pytest-cov ran from, and on a checkout at `/Users/<name>/...` that is a false
+    "local absolute path" finding this test cannot tell apart from a real one, on a file that
+    is `.gitignore`d and never committed. `git ls-files` is what a clone actually receives, so
+    it is the correct universe for a test about what a reader of this public repo can see —
+    and it fixes the false positive as a side effect, on any contributor's machine, not just
+    one whose home directory happens to collide with the check.
+    """
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z"],  # noqa: S607 — repo-relative `git`, not attacker-controlled
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8")
     documents: list[tuple[Path, str]] = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file():
+    for name in tracked.split("\0"):
+        if not name:
             continue
-        relative = path.relative_to(ROOT)
-        if relative.parts[0] in {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv"}:
-            continue
+        relative = Path(name)
         if relative.parts[:2] == ("docs", "standards"):
             continue
+        path = ROOT / relative
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:

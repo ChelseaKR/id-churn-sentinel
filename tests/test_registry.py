@@ -16,6 +16,7 @@ from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
     JURISDICTIONS,
     default_registry_path,
+    dump_registry_text,
     load_registry,
 )
 from id_churn_sentinel.errors import RegistryError
@@ -77,6 +78,67 @@ def test_no_committed_entry_claims_a_verification_nobody_signed() -> None:
                 f"this flag exists to not be."
             )
             assert source.verification.at, f"{source.id} is verified on no date"
+
+
+def test_committed_registry_is_written_in_the_canonical_style() -> None:
+    """The committed file must be byte-identical to what `dump_registry_text` produces.
+
+    This is a formatting test that earns its place, and it is here because the regression
+    it catches has already happened twice. `dump_registry_text` re-collapses each
+    `checked`/`verification`/`fetch_policy` block onto one line; a plain
+    `json.dumps(indent=2)` does not, and explodes the file from ~1750 lines to ~2400.
+    Both times, a two-field edit arrived as a ~960-line diff.
+
+    That is not a cosmetic complaint. `sentinel verify` REWRITES this file once per source,
+    up to 156 times, and the whole value of that audit trail is that each rewrite is a
+    one-line diff naming a human. A writer that reflows the file buries the verifier's name
+    under 800 lines of whitespace, and a diff nobody can read is a diff nobody reviews —
+    which is exactly the review this repo refuses to do without.
+    """
+    path = default_registry_path()
+    committed = path.read_text(encoding="utf-8")
+    expected = dump_registry_text(json.loads(committed))
+
+    assert committed == expected, (
+        "sources/registry.json is not in the committed canonical style. It was almost "
+        "certainly written with `json.dumps(indent=2)` instead of `dump_registry_text`. "
+        "Rewrite it through `dump_registry_text` — do not reformat by hand."
+    )
+
+
+def test_no_committed_entry_renders_a_failed_fetch_as_a_reachable_one() -> None:
+    """A source we could not fetch may never carry `reachable: true`.
+
+    This is the repo's own issue #10 expressed as an invariant over the committed data.
+    `Source.reachable` defaults to True when a `checked` block is absent — deliberately,
+    because an unchecked entry is not evidence of unreachability. But once a block IS
+    present, it records what a socket actually saw, and a block that pairs an error status
+    with `reachable: true` is the failure mode this whole project is organised against:
+    absence rendered as a value, a blocked fetch published as a healthy one.
+
+    A missing `status` (None) is a fetch that never got an HTTP response at all — a TLS
+    failure, a timeout, a refused connection. That is the *least* reachable a source can
+    be, and it must never be recorded as reachable either.
+    """
+    registry = load_registry(default_registry_path())
+
+    for source in registry.sources:
+        if not source.checked:
+            continue
+        status = source.checked.get("status")
+        claims_reachable = bool(source.checked.get("reachable", True))
+
+        if status is None:
+            assert not claims_reachable, (
+                f"{source.id} records no HTTP status at all — nothing answered — yet claims "
+                f"reachable: true. A fetch that never got a response is not a reachable source."
+            )
+        elif int(status) >= 400:
+            assert not claims_reachable, (
+                f"{source.id} records HTTP {status} yet claims reachable: true. A blocked or "
+                f"missing page counted as reachable is counted as unchanged, which is a wrong "
+                f"'no change' — the exact harm issue #10 was filed about."
+            )
 
 
 def test_committed_registry_covers_the_federal_bucket() -> None:

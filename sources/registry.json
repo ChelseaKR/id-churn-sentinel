@@ -194,13 +194,8 @@
       "url": "https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
       "authority": "U.S. Department of State, Bureau of Consular Affairs",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "slow": true
-      },
-      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. MACHINE FACT worth keeping: travel.state.gov is SLOW and erratically so — measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal."
+      "checked": { "at": "2026-08-22", "status": 403, "reachable": false, "blocked": true, "slow": true },
+      "notes": "corpus-vetted. The operative federal page for sex markers on a US passport. This is the single highest-churn federal source in the registry: it has been rewritten under multiple administrations, and its content is the reason a change-detection layer exists at all. MACHINE FACT worth keeping: travel.state.gov is SLOW and erratically so — measured at 3s, 17s and 44s on three consecutive requests on 2026-07-13. It was intermittently reporting as `unreachable` against the fetcher's original 20s timeout, i.e. the most important source in the registry was being silently skipped roughly half the time because a CDN was slow. The timeout is now 45s (core/fetch.py). If this source starts flapping again, suspect latency before suspecting removal. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still HTTP 403."
     },
     {
       "id": "us-passport-change-correct",
@@ -209,12 +204,8 @@
       "url": "https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html",
       "authority": "U.S. Department of State, Bureau of Consular Affairs",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
-      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it."
+      "checked": { "at": "2026-08-22", "status": 403, "reachable": false, "blocked": true },
+      "notes": "corpus-vetted. Name/data corrections on an existing passport. Distinct from the sex-marker page and changes independently of it. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still HTTP 403."
     },
     {
       "id": "us-ssa-ss5-form",
@@ -223,12 +214,7 @@
       "url": "https://www.ssa.gov/forms/ss-5.pdf",
       "authority": "U.S. Social Security Administration",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 403,
-        "reachable": false,
-        "blocked": true
-      },
+      "checked": { "at": "2026-07-13", "status": 403, "reachable": false, "blocked": true },
       "notes": "corpus-vetted. Form SS-5 (Application for a Social Security Card). A PDF: hashed as raw bytes, so drift here reports 'the form changed, open it' with no text diff — see core/normalize.py. BOT-BLOCKED, NOT DEAD: ssa.gov returns HTTP 403 to our descriptive UA, to a browser UA, and from two independent network vantage points — an edge WAF, not a missing file. A 403 is a fetch failure, and a fetch failure is never drift. Kept: the URL is right, the block is theirs. Expect this source to accrue a failure streak (see `possibly_removed` escalation in core/detect.py); the escalation record carries the literal error, so a reviewer can tell a block from a removal at a glance."
     },
     {
@@ -238,12 +224,7 @@
       "url": "https://www.ssa.gov/number-card",
       "authority": "U.S. Social Security Administration",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 403,
-        "reachable": false,
-        "blocked": true
-      },
+      "checked": { "at": "2026-07-13", "status": 403, "reachable": false, "blocked": true },
       "notes": "SSA's SSN-card landing page, where name-change instructions live. Same ssa.gov WAF block as us-ssa-ss5-form: HTTP 403 to every client we tried, from every vantage point we tried. NOT confirmed alive and NOT confirmed dead — we simply cannot see it. A human with a browser must open this one; that is precisely the job `verified` exists to record."
     },
     {
@@ -253,11 +234,7 @@
       "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&order=newest&per_page=20&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=document_number&fields%5B%5D=html_url&fields%5B%5D=agencies",
       "authority": "Office of the Federal Register (National Archives)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "REPAIRED 2026-07-13. The previous URL was the Federal Register's HTML search page (/documents/search?...), which federalregister.gov's robots.txt explicitly Disallows. Our fetcher honours robots.txt without appeal, so that entry was not merely noisy — it was UNFETCHABLE BY CONSTRUCTION and would have failed silently forever. Replaced with the public JSON API, which robots.txt does not disallow and which returns 200. This is the swap docs/ROADMAP.md M3 anticipated. LIMIT, stated plainly: the API returns single-line JSON, so it normalizes to one passage and a diff shows the whole line changing rather than a tidy per-rule delta. It still names the new rule titles in the diff, which is the signal that matters, and it is strictly better than a source we could never legally fetch."
     },
     {
@@ -267,11 +244,7 @@
       "url": "https://www.sss.gov/register/",
       "authority": "U.S. Selective Service System",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "Registration requirements. In scope because Selective Service registration status is sex-assigned-at-birth-linked and gates federal benefits and some state licenses, which makes it a real, frequently-missed step for trans people — and a document class the incumbents mostly omit."
     },
     {
@@ -281,11 +254,7 @@
       "url": "https://selfhelp.courts.ca.gov/name-change",
       "authority": "Judicial Council of California (California Courts Self-Help)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted."
     },
     {
@@ -295,11 +264,7 @@
       "url": "https://selfhelp.courts.ca.gov/gender-recognition",
       "authority": "Judicial Council of California (California Courts Self-Help)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted. In California the gender-recognition petition is the route to an amended birth certificate, so the operative page is a court page, not a vital-records one. This is exactly the kind of jurisdiction-specific routing that makes a generic 'state vital records' registry wrong."
     },
     {
@@ -309,11 +274,7 @@
       "url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/updating-information-on-your-driver-license-or-identification-dl-id-card/",
       "authority": "California Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted."
     },
     {
@@ -323,12 +284,7 @@
       "url": "https://www.cdph.ca.gov/Programs/CHSI/Pages/Vital-Records.aspx",
       "authority": "California Department of Public Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": null,
-        "reachable": false,
-        "tls_chain_broken": true
-      },
+      "checked": { "at": "2026-07-13", "status": null, "reachable": false, "tls_chain_broken": true },
       "notes": "The issuing office for the amended certificate the court order produces. THE URL IS CORRECT AND THE PAGE IS LIVE, but www.cdph.ca.gov SERVES A BROKEN CERTIFICATE CHAIN: its leaf is issued by 'Sectigo Public Server Authentication CA OV R36' while the chain it presents contains a different, stale intermediate ('Sectigo RSA Organization Validation Secure Server CA'). Browsers and curl paper over this by chasing the AIA extension to fetch the missing intermediate; Python/OpenSSL does not, so our fetcher gets CERTIFICATE_VERIFY_FAILED. Proven on 2026-07-13: supplying the AIA intermediate by hand makes the same request return 200. WE DO NOT DISABLE TLS VERIFICATION TO WORK AROUND THIS — a watcher serving people in hostile jurisdictions does not accept unverifiable TLS, and a source we cannot fetch safely is one we report as unreachable. The fix belongs to CDPH's server operators."
     },
     {
@@ -338,27 +294,18 @@
       "url": "https://dmv.ny.gov/driver-license/change-information-on-dmv-photo-documents",
       "authority": "New York State Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted."
     },
     {
       "id": "ny-courts-name-change",
       "jurisdiction": "NY",
       "document_class": "court_order_name_change",
-      "url": "https://www.nycourts.gov/courthelp/Family/nameChange.shtml",
+      "url": "https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics",
       "authority": "New York State Unified Court System (CourtHelp)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 403,
-        "reachable": false,
-        "blocked": true
-      },
-      "notes": "corpus-vetted. BOT-BLOCKED, NOT DEAD: HTTP 403 to our descriptive UA, to a browser UA, and from an independent vantage point. nycourts.gov appears to block non-interactive clients wholesale. The URL came from the hand-corrected corpus and is not in doubt; what is in doubt is whether we will ever be allowed to watch it."
+      "checked": { "at": "2026-08-22", "status": 403, "reachable": false, "blocked": true },
+      "notes": "live-fetched. MOVED, URL corrected (issue #10): the 2026-07-13 URL (/courthelp/Family/nameChange.shtml) is dead — it returned HTTP 404 on a 2026-08-22 live check (and 404/403 on 2026-08-21 checks). NY Courts migrated CourtHelp off the /courthelp/ path, and the equivalent content is published at /help/name-change-andor-sex-designation-change/name-change-basics, which is where this entry now points. THIS TOOL CANNOT CURRENTLY READ THE NEW URL EITHER: on 2026-08-22 it returned HTTP 403 on 5 of 5 attempts, 4 of them spaced 120s apart with a fresh robots cache each time. www.nycourts.gov refuses this tool's User-Agent host-wide — /robots.txt ITSELF returns 403 rather than serving robots content — so this reads as a host-wide bot wall, not a fault in this page. Because a robots.txt we cannot read is treated as permissive (core/fetch.py), this is NOT a robots-disallowed gap; it is a registered source we cannot fetch. THE URL IS STILL CORRECTED rather than left pointing at the dead one, because the server itself distinguishes them: the old path 404s (removed) while the new path 403s (exists, blocked). HONEST LIMIT ON THE CONTENT CLAIM: a 2026-08-21 pass reported two successful 200 reads of the new URL with real on-topic content (title 'Name Change Basics | New York Courts', 222 normalized passages, covering both name change and sex-designation change). That did NOT reproduce on 2026-08-22 (0 of 5), and it is recorded here as a prior observation, not as this entry's status — `reachable` is false on the latest check. Carries no baseline hash and is counted as watched in name only. Same authority, same jurisdiction, same document class — a URL correction, not a new source."
     },
     {
       "id": "ny-doh-vital-records",
@@ -367,13 +314,7 @@
       "url": "https://www.health.ny.gov/vital_records/",
       "authority": "New York State Department of Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 403,
-        "reachable": false,
-        "blocked": true,
-        "browser_status": 200
-      },
+      "checked": { "at": "2026-07-13", "status": 403, "reachable": false, "blocked": true, "browser_status": 200 },
       "notes": "BOT-BLOCKED, NOT DEAD, AND THE CLEANEST EXAMPLE OF WHY THAT DISTINCTION MATTERS: health.ny.gov returns HTTP 403 to our descriptive User-Agent and HTTP 200 to a browser User-Agent, from the same machine, seconds apart. The page is up; we are being filtered on our UA. Deleting this entry on the strength of a 403 would have silently dropped New York's birth-certificate office out of the registry. NOTE for the verifier: New York City births are issued by NYC DOHMH, not the state — a separate source this registry does not yet carry. A registry that silently routed a NYC-born person to the state office would be exactly the kind of wrong answer that costs someone a filing fee and three months."
     },
     {
@@ -383,11 +324,7 @@
       "url": "https://www.dps.texas.gov/section/driver-license/how-change-information-your-driver-license-or-id-card",
       "authority": "Texas Department of Public Safety",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted."
     },
     {
@@ -397,11 +334,7 @@
       "url": "https://www.dshs.texas.gov/vital-statistics",
       "authority": "Texas Department of State Health Services, Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "High-priority watch target: Texas policy on gender-marker amendment has moved by internal directive rather than by statute, which is precisely the kind of change that never makes it into a legislative tracker and only shows up as an edited web page."
     },
     {
@@ -411,11 +344,7 @@
       "url": "https://dol.wa.gov/driver-licenses-and-permits/update-driver-license-information/change-your-gender-designation",
       "authority": "Washington State Department of Licensing",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted."
     },
     {
@@ -425,11 +354,7 @@
       "url": "https://www.courts.wa.gov/forms/?fa=forms.contribute&formID=49",
       "authority": "Washington Courts (Administrative Office of the Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "corpus-vetted. A forms index page; drift here often means a form revision."
     },
     {
@@ -439,11 +364,7 @@
       "url": "https://doh.wa.gov/licenses-permits-and-certificates/vital-records",
       "authority": "Washington State Department of Health, Center for Health Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "Live-fetched 200."
     },
     {
@@ -453,11 +374,7 @@
       "url": "https://www.ilsos.gov/departments/drivers/home.html",
       "authority": "Illinois Secretary of State, Driver Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": null,
-        "reachable": false
-      },
+      "checked": { "at": "2026-07-13", "status": null, "reachable": false },
       "notes": "NOT REACHABLE, BUT NOT A 404. www.ilsos.gov fails at the connection layer, not the HTTP layer: HTTP/2 requests die with INTERNAL_ERROR and HTTP/1.1 requests time out with zero bytes received — including against the bare host root, and from two independent network vantage points. There is no status code to read, so there is nothing to call dead. Left in place with the machine facts recorded rather than deleted on a guess: a host that will not complete a TLS/HTTP exchange is an outage or a network-level block, and neither is a policy change. Still a landing page rather than a deep link; a verifier with a working route to ilsos.gov should replace it with the specific change-of-information page."
     },
     {
@@ -467,11 +384,7 @@
       "url": "https://dph.illinois.gov/topics-services/birth-death-other-records.html",
       "authority": "Illinois Department of Public Health, Division of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "Live-fetched 200."
     },
     {
@@ -481,11 +394,7 @@
       "url": "https://www.illinoiscourts.gov/",
       "authority": "Illinois Supreme Court, Administrative Office of the Illinois Courts",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'State of Illinois Office of the Illinois Courts'. A landing page, not a deep link — the verifier should replace it with the approved statewide name-change form page once they locate it. Kept as a landing page on the same reasoning the repo already applies elsewhere: a landing page still detects a site reorganization, which is itself a signal worth having."
     },
     {
@@ -495,11 +404,7 @@
       "url": "https://www.mass.gov/orgs/registry-of-vital-records-and-statistics",
       "authority": "Massachusetts Registry of Vital Records and Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "MA and RI are in the seed because they are the only two of 51 jurisdictions Namesake fully supports — the point being that even a well-engineered incumbent's *covered* jurisdictions still need someone watching the underlying pages."
     },
     {
@@ -509,11 +414,7 @@
       "url": "https://www.mass.gov/orgs/massachusetts-registry-of-motor-vehicles",
       "authority": "Massachusetts Registry of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "Live-fetched 200."
     },
     {
@@ -523,11 +424,7 @@
       "url": "https://www.mass.gov/name-changes",
       "authority": "Massachusetts Trial Court, Probate and Family Court",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Name Changes | Mass.gov', h1 'Name Changes'. The Commonwealth's hub page for the Probate and Family Court name-change petition (CJP 27)."
     },
     {
@@ -537,11 +434,7 @@
       "url": "https://health.ri.gov/records/",
       "authority": "Rhode Island Department of Health, Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "Live-fetched 200."
     },
     {
@@ -551,11 +444,7 @@
       "url": "https://dmv.ri.gov/licenses-permits-ids",
       "authority": "Rhode Island Division of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Licenses & IDs | RI Division of Motor Vehicles'."
     },
     {
@@ -565,11 +454,7 @@
       "url": "https://dchealth.dc.gov/service/vital-records",
       "authority": "DC Department of Health, Vital Records Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "DC is a jurisdiction in its own right in this registry (not a state, not the federal bucket) because its ID rules are its own."
     },
     {
@@ -579,11 +464,7 @@
       "url": "https://dmv.dc.gov/",
       "authority": "District of Columbia Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200. A landing page; DC DMV's gender-designation page is a deep link a verifier should substitute."
     },
     {
@@ -593,11 +474,7 @@
       "url": "https://code.dccouncil.gov/us/dc/council/code/sections/16-2501",
       "authority": "Council of the District of Columbia — D.C. Law Library (D.C. Official Code, Title 16, Chapter 25 \"Change of Name or Gender\")",
       "verified": false,
-      "checked": {
-        "at": "2026-08-21",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: dccourts.gov 403s our descriptive UA on every path including the site root (unchanged as of 2026-08-21). D.C. Official Code § 16-2501 is the operative name-change application statute -- who may file, and where -- under Chapter 25, titled 'Change of Name or Gender'. 28 passages, real statutory text, stable across two fetches 3s apart; the only date-like tokens are the statute's own 1963/1970 enactment citations, not a live date. Statutory surface, not the court's own process page."
     },
     {
@@ -607,12 +484,7 @@
       "url": "https://www.floridahealth.gov/certificates-records/birth-certificates/",
       "authority": "Florida Department of Health, Bureau of Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.floridahealth.gov/certificates/certificates/birth/index.html"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.floridahealth.gov/certificates/certificates/birth/index.html" },
       "notes": "live-fetched. HTTP 200 after one redirect, title 'Birth Certificates - Florida Department of Health', h1 'Birth Certificates'. The registry records the post-redirect URL, which is the current official location."
     },
     {
@@ -622,11 +494,7 @@
       "url": "https://www.flhsmv.gov/driver-licenses-id-cards/general-information/",
       "authority": "Florida Department of Highway Safety and Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'General Information'. FLHSMV's requirements page for driver licence and ID card changes."
     },
     {
@@ -636,11 +504,7 @@
       "url": "https://www.kdhe.ks.gov/1165/Office-of-Vital-Statistics",
       "authority": "Kansas Department of Health and Environment, Office of Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Office of Vital Statistics'."
     },
     {
@@ -650,11 +514,7 @@
       "url": "https://www.kdhe.ks.gov/1172/Amend-Adult-Birth-Certificates",
       "authority": "Kansas Department of Health and Environment, Office of Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Amend Adult Birth Certificates'. THE high-signal Kansas target: Kansas stopped amending the sex field on birth certificates by executive/legal action rather than by statute, and this is the page on which that kind of reversal actually surfaces."
     },
     {
@@ -664,11 +524,7 @@
       "url": "https://www.ksrevenue.gov/dovindex.html",
       "authority": "Kansas Department of Revenue, Division of Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Kansas Department of Revenue Division of Vehicles Home Page'. A landing page; a verifier should deep-link the driver's-licence change page."
     },
     {
@@ -678,11 +534,7 @@
       "url": "https://www.tn.gov/health/vr.html",
       "authority": "Tennessee Department of Health, Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Tennessee Office of Vital Records'. (The obvious-looking /health/health-program-areas/vital-records.html 404s — this is the live path.)"
     },
     {
@@ -692,11 +544,7 @@
       "url": "https://www.tn.gov/safety/driver-services.html",
       "authority": "Tennessee Department of Safety and Homeland Security, Driver Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Driver Services'."
     },
     {
@@ -706,11 +554,7 @@
       "url": "https://www.tncourts.gov/",
       "authority": "Tennessee Administrative Office of the Courts",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Homepage | Tennessee Administrative Office of the Courts'. A landing page: the self-represented-litigant deep link 404s, and no statewide name-change form page was found. Recorded honestly as a landing page rather than invented as a deep link."
     },
     {
@@ -720,11 +564,7 @@
       "url": "https://healthandwelfare.idaho.gov/services-programs/birth-marriage-death-records/change-birth-certificate",
       "authority": "Idaho Department of Health and Welfare, Bureau of Vital Records and Health Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Change a Birth Certificate'. A genuine deep link and a high-signal one: Idaho's ability to amend the sex field on a birth certificate has been litigated (F.V. v. Barron) and legislated against, so this exact page is where a reversal would appear."
     },
     {
@@ -734,11 +574,7 @@
       "url": "https://courtselfhelp.idaho.gov/",
       "authority": "Idaho Supreme Court, Court Assistance Office",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Idaho Court Assistance Office & Self-Help Center!'."
     },
     {
@@ -748,11 +584,7 @@
       "url": "https://oklahoma.gov/health/services/birth-and-death-certificates.html",
       "authority": "Oklahoma State Department of Health, Vital Records Service",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Oklahoma Vital Records'. High-signal: Oklahoma barred sex-designation amendments to birth certificates by executive order, and this is the office that would publish the consequence."
     },
     {
@@ -762,11 +594,7 @@
       "url": "https://oklahoma.gov/health/services/birth-and-death-certificates/vital-records-forms.html",
       "authority": "Oklahoma State Department of Health, Vital Records Service",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records Forms'. The forms index — a form revision is often the first visible trace of a process change."
     },
     {
@@ -776,11 +604,7 @@
       "url": "https://oklahoma.gov/service.html",
       "authority": "Service Oklahoma (state driver licence and ID agency)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Welcome to Service Oklahoma'. Oklahoma moved driver licensing from DPS to Service Oklahoma; the older /service/all-services/mobility/driver-license.html path 404s."
     },
     {
@@ -790,11 +614,7 @@
       "url": "https://dphhs.mt.gov/vitalrecords/",
       "authority": "Montana Department of Public Health and Human Services, Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'. High-signal: Montana's birth-certificate sex-amendment rule has been through rulemaking, injunction, and non-compliance, and this office is where the current posture shows up."
     },
     {
@@ -804,11 +624,7 @@
       "url": "https://courts.mt.gov/forms/",
       "authority": "Montana Judicial Branch (Office of the Court Administrator)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200. A forms index; drift here often means a form revision."
     },
     {
@@ -818,11 +634,7 @@
       "url": "https://hhs.iowa.gov/family-community/vital-records",
       "authority": "Iowa Department of Health and Human Services, Bureau of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (The /public-health/health-statistics/vital-records path 404s — this is the live one.)"
     },
     {
@@ -832,12 +644,7 @@
       "url": "https://iowadot.gov/dmv-services",
       "authority": "Iowa Department of Transportation, Motor Vehicle Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://iowadot.gov/mvd/driverslicense"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://iowadot.gov/mvd/driverslicense" },
       "notes": "live-fetched. HTTP 200 after one redirect, h1 'DMV Services'. The registry records the post-redirect URL."
     },
     {
@@ -847,11 +654,7 @@
       "url": "https://www.iowacourts.gov/for-the-public/representing-yourself",
       "authority": "Iowa Judicial Branch",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Representing Yourself - Overview'."
     },
     {
@@ -861,11 +664,7 @@
       "url": "https://www.in.gov/health/vital-records/",
       "authority": "Indiana Department of Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Vital Records: Home'."
     },
     {
@@ -875,11 +674,7 @@
       "url": "https://www.in.gov/bmv/",
       "authority": "Indiana Bureau of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Bureau of Motor Vehicles: Home'. A landing page — the plausible-looking /bmv/licenses-permits-ids/change-your-name-or-address/ deep link 404s, so it was not invented."
     },
     {
@@ -889,11 +684,7 @@
       "url": "https://www.in.gov/courts/selfservice/",
       "authority": "Indiana Supreme Court, Office of Judicial Administration",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Self-Service Legal Center: Home', h1 'Court forms'."
     },
     {
@@ -903,11 +694,7 @@
       "url": "https://www.coloradojudicial.gov/self-help/adult",
       "authority": "Colorado Judicial Branch",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Adult'. The Colorado Judicial Branch's adult self-help hub, which carries the adult name-change forms (JDF 432/433). Colorado's DMV and vital-records pages are LIVE but 403 our crawler — see the KNOWN GAPS block in _README; we did not spoof a browser UA to get around it."
     },
     {
@@ -917,11 +704,7 @@
       "url": "https://www.oregon.gov/oha/ph/birthdeathcertificates/pages/index.aspx",
       "authority": "Oregon Health Authority, Center for Health Statistics (Vital Records)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, 'Oregon Vital Records and Certificates'."
     },
     {
@@ -931,11 +714,7 @@
       "url": "https://www.oregon.gov/odot/dmv/pages/driverid/chg_gender_designation.aspx",
       "authority": "Oregon Department of Transportation, Driver and Motor Vehicle Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Changing Your Gender Marker on Your Driver's License or ID Card'. One of the very few state DMV pages in the country dedicated explicitly to the gender marker — which makes it one of the highest-signal watch targets in the registry."
     },
     {
@@ -945,11 +724,7 @@
       "url": "https://www.oregon.gov/odot/dmv/pages/dv/chgname.aspx",
       "authority": "Oregon Department of Transportation, Driver and Motor Vehicle Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Changing Your Name'. Distinct from the gender-marker page and changes independently of it."
     },
     {
@@ -959,11 +734,7 @@
       "url": "https://www.courts.oregon.gov/programs/family/forms/Pages/name-sex-change.aspx",
       "authority": "Oregon Judicial Department",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Name and Sex Change'. CAUTION FOR FUTURE MAINTAINERS: courts.oregon.gov serves SOFT 404s — a missing page returns HTTP 200 with a body titled '404 Page Not Found'. A status-code-only liveness check would happily accept a dead Oregon URL. This entry's title was read, not just its status code."
     },
     {
@@ -973,11 +744,7 @@
       "url": "https://www.health.state.mn.us/people/vitalrecords",
       "authority": "Minnesota Department of Health, Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Minnesota Vital Records and Certificates'."
     },
     {
@@ -987,11 +754,7 @@
       "url": "https://dps.mn.gov/divisions/dvs",
       "authority": "Minnesota Department of Public Safety, Driver and Vehicle Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Driver and Vehicle Services'."
     },
     {
@@ -1001,11 +764,7 @@
       "url": "https://www.nmhealth.org/about/erd/bvrhs/vrp/",
       "authority": "New Mexico Department of Health, Bureau of Vital Records and Health Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -1015,11 +774,7 @@
       "url": "https://www.mvd.newmexico.gov/",
       "authority": "New Mexico Taxation and Revenue Department, Motor Vehicle Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, 'Motor Vehicle Division NM'."
     },
     {
@@ -1029,12 +784,7 @@
       "url": "https://nmcourts.gov/",
       "authority": "New Mexico Administrative Office of the Courts",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.nmcourts.gov/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.nmcourts.gov/" },
       "notes": "live-fetched. HTTP 200 after one redirect to the apex domain, h1 'Home – New Mexico Courts'. The registry records the post-redirect URL."
     },
     {
@@ -1044,11 +794,7 @@
       "url": "https://www.alabamapublichealth.gov/vitalrecords/",
       "authority": "Alabama Department of Public Health, Center for Health Statistics (Vital Records)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Vital Records | Alabama Department of Public Health (ADPH)', h1 'Vital Records'."
     },
     {
@@ -1058,11 +804,7 @@
       "url": "https://www.alea.gov/dps/driver-license",
       "authority": "Alabama Law Enforcement Agency, Driver License Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Driver License | Alabama Law Enforcement Agency', h1 'Driver License'."
     },
     {
@@ -1072,11 +814,7 @@
       "url": "https://judicial.alabama.gov/",
       "authority": "Alabama Judicial System (Administrative Office of Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'ALABAMA JUDICIAL SYSTEM'. A landing page: no statewide name-change instruction page was found, and alacourt.gov (the case-lookup host) does not resolve for us at all. Recorded as a landing page rather than invented as a deep link."
     },
     {
@@ -1086,12 +824,7 @@
       "url": "https://health.alaska.gov/en/division-of-public-health/health-analytics-vital-records/",
       "authority": "Alaska Department of Health, Health Analytics and Vital Records Section",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://health.alaska.gov/dph/VitalStats/Pages/default.aspx"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://health.alaska.gov/dph/VitalStats/Pages/default.aspx" },
       "notes": "live-fetched. HTTP 200 (post-redirect URL recorded), h1 'Health Analytics and Vital Records (HAVRS)'. The older /dph/VitalStats path 301s here."
     },
     {
@@ -1101,11 +834,7 @@
       "url": "https://courts.alaska.gov/shc/",
       "authority": "Alaska Court System (Family Law Self-Help Center)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Alaska Court System Self-Help'. The plausible /shc/name/ deep links 404; this is the live self-help hub."
     },
     {
@@ -1115,11 +844,7 @@
       "url": "https://www.akleg.gov/basis/statutes.asp?media=print&secStart=28.15&secEnd=28.15",
       "authority": "Alaska State Legislature — Alaska Statutes, Title 28, Chapter 15 (Drivers' Licenses)",
       "verified": false,
-      "checked": {
-        "at": "2026-08-21",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: dmv.alaska.gov and doa.alaska.gov both 403 our descriptive UA (unchanged as of 2026-08-21). The prior attempt at akleg.gov used a `#28` URL fragment, which a server never sees, so it always returned the same undifferentiated statutes index -- not a scoped fetch. akleg.gov's print view takes `secStart`/`secEnd` as real query parameters that change the response server-side: `secStart=28.15&secEnd=28.15` returns only Chapter 15, Drivers' Licenses (575 passages, e.g. AS 28.15.011 'Drivers must be licensed'), not the whole Title 28 traffic code. Stable across two fetches 3s apart. Statutory surface, not the DMV's own process page."
     },
     {
@@ -1129,11 +854,7 @@
       "url": "https://www.azdhs.gov/licensing/vital-records/index.php",
       "authority": "Arizona Department of Health Services, Bureau of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200. The <title> is the unhelpful site-wide 'ADHS', so the page was confirmed on its body text, which normalizes to ~5.6k characters of Vital Records content — a reminder that a title alone is not a verification."
     },
     {
@@ -1143,12 +864,7 @@
       "url": "https://azdot.gov/mvd/services/driver-services",
       "authority": "Arizona Department of Transportation, Motor Vehicle Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "stable_across_runs": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "stable_across_runs": true },
       "notes": "live-fetched. HTTP 200, title 'Driver Services | Department of Transportation'. NOT the obvious URL, and that is the point: azdot.gov/mvd — the MVD landing page — was in this registry for one day and was caught by the first real two-run watch pass as a FALSE-DRIFT source. It renders a 'frequently viewed links' widget populated with a random sample of site links, which re-rolls on a slow cycle, so the page hashed differently between two watch runs five minutes apart with a diff consisting entirely of link titles ('rest area rules' → 'penalties'). It would have minted a change record most weeks, forever. This deeper page carries the same driver-services content and no rotating widget."
     },
     {
@@ -1158,11 +874,7 @@
       "url": "https://www.azcourts.gov/selfservicecenter",
       "authority": "Arizona Supreme Court, Administrative Office of the Courts (Self-Service Center)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Self-Service Center Home'. The statewide self-service centre that publishes the name-change forms."
     },
     {
@@ -1172,11 +884,7 @@
       "url": "https://healthy.arkansas.gov/programs-services/certificates-records/",
       "authority": "Arkansas Department of Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Certificates & Records'. Arkansas's DL and courts hosts both ship broken TLS chains — see the KNOWN GAPS block."
     },
     {
@@ -1186,11 +894,7 @@
       "url": "https://www.dfa.arkansas.gov/office/mydmv/",
       "authority": "Arkansas Department of Finance and Administration, Office of Motor Vehicle",
       "verified": false,
-      "checked": {
-        "at": "2026-08-21",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: dfa.arkansas.gov and mydmv.arkansas.gov (which now redirects here) both presented a TLS chain this tool's fetcher could not verify as of the 2026-07-13 baseline (recorded gap reason tls-unverifiable). Reverified 2026-08-21 with a clean chain using the exact call this tool's fetcher makes (bare `urllib.request.urlopen`, no context override) -- the server-side defect has apparently been fixed since. 245 passages, real driver's-license/ID service content ('driver's license or id replacement', 'get a federally compliant driver's license or id'), stable across two fetches 3s apart. Arkansas's Code is still not published as state-hosted HTML (licensed to a commercial publisher), so this agency page -- not a statute -- is the source."
     },
     {
@@ -1200,12 +904,7 @@
       "url": "https://portal.ct.gov/dph/resources-and-records/vital-records",
       "authority": "Connecticut Department of Public Health, State Vital Records Office",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://portal.ct.gov/dph/vital-records"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://portal.ct.gov/dph/vital-records" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Vital Records'."
     },
     {
@@ -1215,11 +914,7 @@
       "url": "https://portal.ct.gov/dmv",
       "authority": "Connecticut Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Connecticut DMV | CT.gov'."
     },
     {
@@ -1229,11 +924,7 @@
       "url": "https://dmv.de.gov/",
       "authority": "Delaware Division of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Delaware Division of Motor Vehicles'."
     },
     {
@@ -1243,11 +934,7 @@
       "url": "https://courts.delaware.gov/",
       "authority": "Delaware Judiciary (Court of Common Pleas hears adult name changes)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Delaware Courts'. A landing page. Delaware's vital-records host has a broken TLS chain — see KNOWN GAPS."
     },
     {
@@ -1257,12 +944,7 @@
       "url": "https://dph.georgia.gov/VitalRecords",
       "authority": "Georgia Department of Public Health, State Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://dph.georgia.gov/vitalrecords"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://dph.georgia.gov/vitalrecords" },
       "notes": "live-fetched. HTTP 200 (the post-redirect, case-normalized URL is recorded), h1 'Vital Records'."
     },
     {
@@ -1272,11 +954,7 @@
       "url": "https://dds.georgia.gov/",
       "authority": "Georgia Department of Driver Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Georgia Department of Driver Services'. A landing page; the guessed /change-name-or-address deep link 404s, so it was not invented."
     },
     {
@@ -1286,11 +964,7 @@
       "url": "https://georgiacourts.gov/",
       "authority": "Judicial Council of Georgia / Administrative Office of the Courts",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Welcome to the Georgia Judicial Gateway'. A landing page."
     },
     {
@@ -1300,11 +974,7 @@
       "url": "https://health.hawaii.gov/vitalrecords/",
       "authority": "Hawaii Department of Health, Office of Health Status Monitoring (Vital Records)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -1314,11 +984,7 @@
       "url": "https://www.courts.state.hi.us/",
       "authority": "Hawaii State Judiciary",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Judiciary'. A landing page whose h1 is 'Featured News' — a rotating news block, so this entry is a candidate for editorial drift. Kept and watched; if it proves noisy run-over-run it is a normalizer or registry problem, not a policy signal."
     },
     {
@@ -1328,11 +994,7 @@
       "url": "https://www.chfs.ky.gov/agencies/dph/dehp/vsb/Pages/default.aspx",
       "authority": "Kentucky Cabinet for Health and Family Services, Office of Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'The Office of Vital Statistics - Cabinet for Health and Family Services'."
     },
     {
@@ -1342,12 +1004,7 @@
       "url": "https://drive.ky.gov/Pages/index.aspx",
       "authority": "Kentucky Transportation Cabinet, Division of Driver Licensing (DRIVE)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://drive.ky.gov/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://drive.ky.gov/" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Welcome - DRIVE'."
     },
     {
@@ -1357,12 +1014,7 @@
       "url": "https://www.kycourts.gov/Pages/index.aspx",
       "authority": "Kentucky Court of Justice, Administrative Office of the Courts",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://kycourts.gov/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://kycourts.gov/" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), title 'Kentucky Court of Justice'."
     },
     {
@@ -1372,12 +1024,8 @@
       "url": "https://ldh.la.gov/vital-records",
       "authority": "Louisiana Department of Health, Center for Vital Records and Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
-      "notes": "live-fetched. HTTP 200, h1 'Center for Vital Records and Statistics'."
+      "checked": { "at": "2026-08-22", "status": 403, "reachable": false, "blocked": true },
+      "notes": "live-fetched. HTTP 200, h1 'Center for Vital Records and Statistics'. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still HTTP 403."
     },
     {
       "id": "la-ldh-vital-record-amendments",
@@ -1386,12 +1034,8 @@
       "url": "https://ldh.la.gov/page/vital-record-amendments",
       "authority": "Louisiana Department of Health, Center for Vital Records and Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
-      "notes": "live-fetched. HTTP 200, h1 'Vital Record Amendments'. The high-signal Louisiana target: amendment policy is what governs whether a sex designation can be corrected at all, and it is the page a reversal would land on."
+      "checked": { "at": "2026-08-22", "status": 403, "reachable": false, "blocked": true },
+      "notes": "live-fetched. HTTP 200, h1 'Vital Record Amendments'. The high-signal Louisiana target: amendment policy is what governs whether a sex designation can be corrected at all, and it is the page a reversal would land on. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still HTTP 403."
     },
     {
       "id": "me-cdc-vital-records",
@@ -1400,11 +1044,7 @@
       "url": "https://www.maine.gov/dhhs/mecdc/vital-records",
       "authority": "Maine CDC, Division of Data, Research, and Vital Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (The older /public-health-systems/data-research/vital-records/ path 404s.)"
     },
     {
@@ -1414,11 +1054,7 @@
       "url": "https://www.maine.gov/sos/bmv",
       "authority": "Maine Secretary of State, Bureau of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Bureau of Motor Vehicles'."
     },
     {
@@ -1428,11 +1064,7 @@
       "url": "https://www.courts.maine.gov/",
       "authority": "Maine Judicial Branch",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Maine Courts'. A landing page."
     },
     {
@@ -1442,11 +1074,7 @@
       "url": "https://health.maryland.gov/vsa/Pages/home.aspx",
       "authority": "Maryland Department of Health, Vital Statistics Administration",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Statistics Administration'."
     },
     {
@@ -1456,12 +1084,7 @@
       "url": "https://mva.maryland.gov/",
       "authority": "Maryland Department of Transportation, Motor Vehicle Administration",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://mva.maryland.gov/Pages/default.aspx"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://mva.maryland.gov/Pages/default.aspx" },
       "notes": "live-fetched. HTTP 200 (post-redirect URL recorded), h1 'Motor Vehicle Administration'."
     },
     {
@@ -1471,11 +1094,7 @@
       "url": "https://www.mdcourts.gov/",
       "authority": "Maryland Judiciary (Administrative Office of the Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Home | Maryland Courts'. A landing page."
     },
     {
@@ -1485,11 +1104,7 @@
       "url": "https://msdh.ms.gov/page/31,0,109.html",
       "authority": "Mississippi State Department of Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -1499,11 +1114,7 @@
       "url": "https://courts.ms.gov/",
       "authority": "Mississippi Judiciary (Administrative Office of Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'State of Mississippi Judiciary'. A landing page. Mississippi's DPS host ships a broken TLS chain — see KNOWN GAPS."
     },
     {
@@ -1513,11 +1124,7 @@
       "url": "https://health.mo.gov/data/vitalrecords/",
       "authority": "Missouri Department of Health and Senior Services, Bureau of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Bureau of Vital Records | Health & Senior Services'."
     },
     {
@@ -1527,11 +1134,7 @@
       "url": "https://dor.mo.gov/driver-license/",
       "authority": "Missouri Department of Revenue, Driver License Bureau",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Driver Licensing'."
     },
     {
@@ -1541,11 +1144,7 @@
       "url": "https://www.courts.mo.gov/",
       "authority": "Missouri Judiciary (Office of State Courts Administrator)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Your Missouri Courts'. A landing page. NOTE: this host returned HTTP 500 on one probe and 200 minutes later — expect intermittent failures, which are outages and never drift."
     },
     {
@@ -1555,11 +1154,7 @@
       "url": "https://dhhs.ne.gov/pages/vital-records.aspx",
       "authority": "Nebraska Department of Health and Human Services, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -1569,11 +1164,7 @@
       "url": "https://dmv.nebraska.gov/",
       "authority": "Nebraska Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 \"Driver's License, ID and Permits\"."
     },
     {
@@ -1583,12 +1174,7 @@
       "url": "https://nebraskajudicial.gov/self-help",
       "authority": "Nebraska Judicial Branch (Administrative Office of the Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "stable_across_runs": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "stable_across_runs": true },
       "notes": "live-fetched. HTTP 200, h1 'Self-Help'; the page names the name-change process. NOT the landing page, deliberately: nebraskajudicial.gov/ was caught by `sentinel sources check --twice` as a FALSE-DRIFT source. It renders a 'recently adopted rules' list in NON-DETERMINISTIC ORDER — two fetches seconds apart returned the same rules with two of them swapped, which is a different hash and therefore a weekly change record whose diff is two identical lines in a different order. Same content, different order, permanent false alarm. The self-help page is stable across fetches and is the better watch target anyway."
     },
     {
@@ -1598,11 +1184,7 @@
       "url": "https://nvcourts.gov/",
       "authority": "Nevada Judiciary (Administrative Office of the Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Nevada Judiciary'. A landing page; the /self-help deep link 404s."
     },
     {
@@ -1612,11 +1194,7 @@
       "url": "https://www.nj.gov/health/vital/",
       "authority": "New Jersey Department of Health, Office of Vital Statistics and Registry",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Statistics'."
     },
     {
@@ -1626,11 +1204,7 @@
       "url": "https://www.nj.gov/mvc/",
       "authority": "New Jersey Motor Vehicle Commission",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'NJ Motor Vehicle Commission'. A landing page."
     },
     {
@@ -1640,11 +1214,7 @@
       "url": "https://www.njcourts.gov/",
       "authority": "New Jersey Judiciary",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Welcome to the New Jersey Courts'. A landing page."
     },
     {
@@ -1654,11 +1224,7 @@
       "url": "https://vitalrecords.nc.gov/",
       "authority": "North Carolina Department of Health and Human Services, NC Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'North Carolina Vital Records'."
     },
     {
@@ -1668,11 +1234,7 @@
       "url": "https://www.ncdot.gov/dmv/Pages/default.aspx",
       "authority": "North Carolina Division of Motor Vehicles (NCDOT)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'The Official North Carolina DMV Website'."
     },
     {
@@ -1682,12 +1244,7 @@
       "url": "https://www.hhs.nd.gov/vital",
       "authority": "North Dakota Health and Human Services, Division of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.hhs.nd.gov/vital-records"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.hhs.nd.gov/vital-records" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Vital Records'."
     },
     {
@@ -1697,11 +1254,7 @@
       "url": "https://www.dot.nd.gov/driver",
       "authority": "North Dakota Department of Transportation, Driver License Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Driver | NDDOT'."
     },
     {
@@ -1711,11 +1264,7 @@
       "url": "https://www.ndcourts.gov/",
       "authority": "North Dakota Supreme Court (State Court System)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'North Dakota Court System'. A landing page whose h1 is 'Featured News' — a rotating block, so this is a candidate for editorial drift; watched, and reassessed if it proves noisy."
     },
     {
@@ -1725,11 +1274,7 @@
       "url": "https://bmv.ohio.gov/",
       "authority": "Ohio Bureau of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Ohio BMV'. A landing page; the guessed name-change deep link 404s. Ohio's health department host answers HTTP 404 to every non-browser client we have — see KNOWN GAPS — so Ohio has no birth-certificate source."
     },
     {
@@ -1739,11 +1284,7 @@
       "url": "https://www.supremecourt.ohio.gov/",
       "authority": "Supreme Court of Ohio",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'The Supreme Court of Ohio & The Ohio Judicial System'. A landing page."
     },
     {
@@ -1753,12 +1294,7 @@
       "url": "https://www.pa.gov/agencies/health/programs/vital-records",
       "authority": "Pennsylvania Department of Health, Division of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.pa.gov/agencies/health/programs/vital-records.html"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.pa.gov/agencies/health/programs/vital-records.html" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Vital Records'."
     },
     {
@@ -1768,12 +1304,7 @@
       "url": "https://www.pa.gov/agencies/dmv",
       "authority": "Pennsylvania Department of Transportation, Driver and Vehicle Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.dmv.pa.gov/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.dmv.pa.gov/" },
       "notes": "live-fetched. HTTP 200 after a redirect from dmv.pa.gov (post-redirect URL recorded), h1 'Driver and Vehicle Services'."
     },
     {
@@ -1783,11 +1314,7 @@
       "url": "https://www.pacourts.us/",
       "authority": "Unified Judicial System of Pennsylvania (Administrative Office of PA Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Home | Unified Judicial System of Pennsylvania'. A landing page."
     },
     {
@@ -1797,11 +1324,7 @@
       "url": "https://dph.sc.gov/public/vital-records",
       "authority": "South Carolina Department of Public Health, Division of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'. (SC DHEC split into DPH in 2024; the old scdhec.gov host now fails TLS hostname verification.)"
     },
     {
@@ -1811,12 +1334,7 @@
       "url": "https://dmv.sc.gov/",
       "authority": "South Carolina Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://scdmvonline.com/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://scdmvonline.com/" },
       "notes": "live-fetched. HTTP 200 after a redirect from scdmvonline.com (post-redirect URL recorded), title 'Home | SCDMV'."
     },
     {
@@ -1826,11 +1344,7 @@
       "url": "https://doh.sd.gov/licensing-and-records/vital-records/",
       "authority": "South Dakota Department of Health, Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -1840,11 +1354,7 @@
       "url": "https://ujs.sd.gov/",
       "authority": "South Dakota Unified Judicial System",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Home | South Dakota Unified Judicial System'. A landing page."
     },
     {
@@ -1854,11 +1364,7 @@
       "url": "https://www.sdlegislature.gov/api/Statutes/32-12.html",
       "authority": "South Dakota Legislative Research Council — SD Codified Laws (administered by SD Dept. of Public Safety)",
       "verified": false,
-      "checked": {
-        "at": "2026-08-21",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: South Dakota DPS's own site is a client-rendered page with no extractable policy text (spa-no-text). SDCL Chapter 32-12 (Driver Licenses and Permits) is the operative statute chapter, on the Legislature's own host -- a different host from the JS-shell DPS site. IMPORTANT: the human-facing sdlegislature.gov/Statutes/32-12 URL is ITSELF a JavaScript SPA shell ('doesn't work properly without javascript enabled') -- the same trap as the original DPS gap, just on a different host. This entry instead uses the /api/Statutes/32-12.html path, the server-rendered endpoint the SPA itself fetches client-side: same official Legislature domain, real static HTML. 157 passages, real statutory section list (32-12-1 Definitions, 32-12-2 Payment of fee, 32-12-3 Contents of application, ...); no session ticker, no live date, no rotating widget observed; stable across two fetches 4s apart. Statutory surface, not the DPS's own process page."
     },
     {
@@ -1868,11 +1374,7 @@
       "url": "https://vitalrecords.utah.gov/",
       "authority": "Utah Department of Health and Human Services, Office of Vital Records and Statistics",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Office of Vital Records and Statistics'."
     },
     {
@@ -1882,11 +1384,7 @@
       "url": "https://dld.utah.gov/",
       "authority": "Utah Department of Public Safety, Driver License Division",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Utah Driver License Division'. A landing page."
     },
     {
@@ -1896,11 +1394,7 @@
       "url": "https://www.utcourts.gov/en/self-help/case-categories/family/name-change.html",
       "authority": "Utah State Courts (Self-Help Center)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Name Change Forms & Instructions (Adults and Minors)'. A genuine deep link, and preferred over the utcourts.gov landing page — which carries a rotating scam-alert banner in its body text and would therefore have been a false-drift source."
     },
     {
@@ -1910,12 +1404,7 @@
       "url": "https://www.healthvermont.gov/stats",
       "authority": "Vermont Department of Health, Vital Records Office",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.healthvermont.gov/health-statistics-vital-records"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.healthvermont.gov/health-statistics-vital-records" },
       "notes": "live-fetched. HTTP 200 after a redirect (post-redirect URL recorded), h1 'Health Statistics & Vital Records'."
     },
     {
@@ -1925,12 +1414,7 @@
       "url": "https://www.vtcourts.gov/",
       "authority": "Vermont Judiciary",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.vermontjudiciary.org/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.vermontjudiciary.org/" },
       "notes": "live-fetched. HTTP 200 after a redirect from vermontjudiciary.org (post-redirect URL recorded), title 'Vermont Judiciary'. Vermont's DMV 403s our crawler — see KNOWN GAPS."
     },
     {
@@ -1940,11 +1424,7 @@
       "url": "https://www.vdh.virginia.gov/vital-records/",
       "authority": "Virginia Department of Health, Office of Vital Records",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Office of Vital Records'."
     },
     {
@@ -1954,11 +1434,7 @@
       "url": "https://www.dmv.virginia.gov/",
       "authority": "Virginia Department of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Home | Virginia Department of Motor Vehicles'. A landing page."
     },
     {
@@ -1968,11 +1444,7 @@
       "url": "https://www.vacourts.gov/",
       "authority": "Supreme Court of Virginia (Office of the Executive Secretary)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Front Page | Virginia Court System'. A landing page."
     },
     {
@@ -1982,11 +1454,7 @@
       "url": "https://dhhr.wv.gov/HSC/VR/Pages/default.aspx",
       "authority": "West Virginia Department of Health, Health Statistics Center (Vital Registration)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Registration'."
     },
     {
@@ -1996,11 +1464,7 @@
       "url": "https://transportation.wv.gov/DMV/Pages/default.aspx",
       "authority": "West Virginia Division of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'West Virginia Division of Motor Vehicles'."
     },
     {
@@ -2010,11 +1474,7 @@
       "url": "https://www.courtswv.gov/",
       "authority": "West Virginia Judiciary (Supreme Court of Appeals)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Home | West Virginia Judiciary'. A landing page."
     },
     {
@@ -2024,11 +1484,7 @@
       "url": "https://www.dhs.wisconsin.gov/vitalrecords/index.htm",
       "authority": "Wisconsin Department of Health Services, Vital Records Office",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Records'."
     },
     {
@@ -2038,11 +1494,7 @@
       "url": "https://wisconsindot.gov/Pages/online-srvcs/external/dmv.aspx",
       "authority": "Wisconsin Department of Transportation, Division of Motor Vehicles",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Welcome to the Wisconsin DMV'. Several plausible /Pages/dmv/... deep links 404, so the DMV hub was used rather than a guessed path."
     },
     {
@@ -2052,11 +1504,7 @@
       "url": "https://www.wicourts.gov/",
       "authority": "Wisconsin Court System (Director of State Courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Welcome to the Wisconsin Court System website'. A landing page."
     },
     {
@@ -2066,11 +1514,7 @@
       "url": "https://health.wyo.gov/admin/vitalstatistics/",
       "authority": "Wyoming Department of Health, Vital Statistics Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, h1 'Vital Record Services'."
     },
     {
@@ -2080,11 +1524,7 @@
       "url": "https://www.dot.state.wy.us/driverservices",
       "authority": "Wyoming Department of Transportation, Driver Services",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Driver License and Records'."
     },
     {
@@ -2094,12 +1534,7 @@
       "url": "https://www.wyocourts.gov/",
       "authority": "Wyoming Judicial Branch",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "redirected_from": "https://www.courts.state.wy.us/"
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "redirected_from": "https://www.courts.state.wy.us/" },
       "notes": "live-fetched. HTTP 200 after a redirect from courts.state.wy.us (post-redirect URL recorded), h1 'Welcome to the Wyoming Judicial Branch'."
     },
     {
@@ -2109,13 +1544,8 @@
       "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf",
       "authority": "Michigan Legislature — Public Health Code (administered by MDHHS Vital Records)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "content_type": "application/pdf"
-      },
-      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute — 'New certificate of birth; establishment; requirements' — and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page — the entry claims only that this is an official Michigan page for this document class."
+      "checked": { "at": "2026-08-22", "status": null, "reachable": false, "tls_chain_broken": true },
+      "notes": "live-fetched. GAP FIX: michigan.gov (MDHHS) 403s our descriptive User-Agent on every host and path we tried, so Michigan had NO birth-certificate source at all. MCL 333.2831 is the operative statute — 'New certificate of birth; establishment; requirements' — and it is the section that expressly provides for 'a request that a new certificate be established to show a sex designation other than that designated at birth'. WHY THE PDF AND NOT THE HTML: legislature.mi.gov's HTML view of the same section renders a LIVE SESSION TICKER into the page ('Senate adjourned until Wednesday, July 15, 2026 10:00 AM'), which would mint a change record every single week with a diff about the legislative calendar. That is false-drift by construction, and `--twice` does NOT catch it (it is stable across two back-to-back fetches and rotates on a slower cycle). The PDF rendering of the same section carries no ticker, and carries no embedded /CreationDate that would re-stamp the bytes on every build. HONEST LIMIT: a PDF is hashed as raw bytes, so drift here says 'the bytes changed, go read it' and produces no passage diff. This is a statutory surface, not MDHHS's process page — the entry claims only that this is an official Michigan page for this document class. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still CERTIFICATE_VERIFY_FAILED (unable to get local issuer certificate)."
     },
     {
       "id": "mi-mcl-257-307-license-application",
@@ -2124,13 +1554,8 @@
       "url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf",
       "authority": "Michigan Legislature — Michigan Vehicle Code (administered by Michigan Secretary of State)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "content_type": "application/pdf"
-      },
-      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff."
+      "checked": { "at": "2026-08-22", "status": null, "reachable": false, "tls_chain_broken": true },
+      "notes": "live-fetched. GAP FIX: michigan.gov/sos 403s our UA. MCL 257.307 is the statute governing the application for an operator's licence and what it must contain. Same reasoning as mi-mcl-333-2831: the PDF, because the HTML view of the same section carries a live legislative-session ticker that would drift weekly. Statutory surface, not the SOS process page; hashed as bytes, so no passage diff. Reconfirmed 2026-08-22 by an independent live fetch with this tool's own fetcher: still CERTIFICATE_VERIFY_FAILED (unable to get local issuer certificate)."
     },
     {
       "id": "nh-rsa-5c-87-birth-record-amendment",
@@ -2139,11 +1564,7 @@
       "url": "https://www.gencourt.state.nh.us/rsa/html/I/5-C/5-C-87.htm",
       "authority": "New Hampshire General Court — RSA 5-C (administered by NH DHHS Division of Vital Records)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Section 5-C:87 Initiating Amendments and Corrections to Birth Records.' GAP FIX: every nh.gov host we tried 403s our descriptive UA, so NH had no source at all. RSA 5-C:87 is the statute that governs amending a New Hampshire birth record. Static statutory HTML, 20 passages, no session ticker and no date stamp; identical hash across two back-to-back fetches. Statutory surface, not the DHHS process page."
     },
     {
@@ -2153,11 +1574,7 @@
       "url": "https://www.gencourt.state.nh.us/rules/state_agencies/saf-c1000.html",
       "authority": "New Hampshire Department of Safety, Division of Motor Vehicles (Saf-C 1000, published by the NH General Court)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Saf-C 1000 Driver License'. GAP FIX: dmv.nh.gov 403s our UA. Saf-C 1000 is the DMV's own administrative rule chapter — the rules the licensing counter actually applies — published on the General Court's rules server, which answers us. 4,099 passages of static rule text; stable across two fetches."
     },
     {
@@ -2167,11 +1584,7 @@
       "url": "https://www.gencourt.state.nh.us/rsa/html/LVI/547/547-3-i.htm",
       "authority": "New Hampshire General Court — RSA 547:3-i (administered by the NH Circuit Court, Probate Division)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Section 547:3-i Change of Name.' GAP FIX: courts.nh.gov 403s our UA. RSA 547:3-i is the probate-court name-change statute. 12 passages of static statutory text, no volatile content, stable across two fetches."
     },
     {
@@ -2181,11 +1594,7 @@
       "url": "https://delcode.delaware.gov/title16/c031/sc03/index.html",
       "authority": "Delaware Code Title 16, Chapter 31 (administered by DHSS Office of Vital Statistics)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: dhss.delaware.gov presents a certificate chain our trust store cannot verify, and we do not disable certificate verification to compensate. The Delaware Code Online serves the same statutory content — Title 16 Ch. 31 subchapter III, the vital-records subchapter that carries §3131 (amendment of records) — with a chain that verifies. 427 passages, no volatile content."
     },
     {
@@ -2195,12 +1604,7 @@
       "url": "https://www.capitol.hawaii.gov/hrscurrent/Vol05_Ch0261-0319/HRS0286/HRS_0286-0102.htm",
       "authority": "Hawaii State Legislature — HRS §286-102 (licensing is administered by the four COUNTIES; Hawaii has no state DMV)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true,
-        "intermittent_403_under_load": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true, "intermittent_403_under_load": true },
       "notes": "live-fetched. HTTP 200, heading '§286-102 Licensing.' PARTIAL GAP FIX, and the partiality is the point: Hawaii has NO state DMV — driver licensing is administered by the four counties (Honolulu, Hawai'i, Maui, Kaua'i), so there is no statewide issuing authority whose page we could watch. What IS statewide is the statute the counties administer, HRS §286-102, and that is what this entry watches. It does NOT claim to watch a county licensing process. The county surfaces were tried: honolulu.gov/csd answers but titles its driver-licensing page with a rotating NEWS HEADLINE (false-drift on a slow cycle); hawaiicounty.gov 403s our UA; the Maui and Kaua'i pages 404. MACHINE FACT: capitol.hawaii.gov 403s under concurrent load and answers a single request fine — at a weekly cadence of one fetch this is not expected to bite, but if this source starts flapping, suspect rate-limiting before suspecting removal."
     },
     {
@@ -2210,11 +1614,7 @@
       "url": "https://legislature.idaho.gov/statutesrules/idstat/Title49/T49CH3/SECT49-306/",
       "authority": "Idaho Legislature — Idaho Code §49-306 (administered by the Idaho Transportation Department)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Section 49-306 – Idaho State Legislature'. GAP FIX: itd.idaho.gov presents a chain our trust store cannot verify, and we will not turn verification off. Idaho Code §49-306 ('Application for driver's license and instruction permit') is the statute ITD administers, and legislature.idaho.gov serves it with a chain that verifies. 233 passages; stable."
     },
     {
@@ -2224,11 +1624,7 @@
       "url": "https://www.ksrevisor.gov/statutes/chapters/ch60/060_014_0001.html",
       "authority": "Kansas Office of Revisor of Statutes — K.S.A. 60-1401 (administered by the Kansas district courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title '60-1401'. GAP FIX: kscourts.gov serves a Cloudflare JS interstitial to every non-browser client, and we do not pretend to be a browser. K.S.A. 60-1401 is the name-change statute; the Revisor of Statutes serves it as static HTML. 59 passages; stable."
     },
     {
@@ -2238,11 +1634,7 @@
       "url": "https://www.legis.la.gov/legis/Law.aspx?d=77843",
       "authority": "Louisiana State Legislature — La. R.S. 13:4751 (administered by the district courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, heading '§4751. Petition for name change; adults; minors' (verified by reading the page text — the site's `d=` document ids are opaque and a neighbouring id resolved to an unrelated statute about annual reports, so this URL was confirmed by its CONTENT, not by its shape). GAP FIX: lasc.org normalizes to zero passages. 68 passages of statutory text; stable across two fetches."
     },
     {
@@ -2252,11 +1644,7 @@
       "url": "https://legis.la.gov/Legis/Law.aspx?d=88370",
       "authority": "Louisiana State Legislature — Louisiana Revised Statutes (administered by the Louisiana OMV)",
       "verified": false,
-      "checked": {
-        "at": "2026-08-21",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-08-21", "status": 200, "reachable": true },
       "notes": "live-fetched. GAP FIX: the Louisiana OMV's own site is a client-rendered page with no extractable policy text (spa-no-text). RS 32, Chapter 2 ('Driver's License Law') is the operative statute chapter on the Louisiana Legislature's own host -- a different host from the JS-shell OMV site. 149 passages of static statutory text (definitions of 'driver's license', 'commercial driver's license', 'suspension', 'revocation', etc.); no session ticker, no live date, no rotating widget observed, stable across two fetches. Statutory surface, not the OMV's own process page."
     },
     {
@@ -2266,11 +1654,7 @@
       "url": "https://www.revisor.mn.gov/statutes/cite/259.10",
       "authority": "Minnesota Office of the Revisor of Statutes — Minn. Stat. §259.10 (administered by the district courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Sec. 259.10 MN Statutes'. GAP FIX: mncourts.gov serves a Cloudflare JS interstitial to every non-browser client. Minn. Stat. §259.10 is the name-change statute. 297 passages; stable."
     },
     {
@@ -2280,11 +1664,7 @@
       "url": "https://www.driverservicebureau.dps.ms.gov/",
       "authority": "Mississippi Department of Public Safety, Driver Service Bureau",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Welcome to DPS Driver Service Bureau'. GAP FIX: dps.ms.gov (the department's main host) presents a chain our trust store cannot verify; the Driver Service Bureau's own host, which is the actual driver-licensing surface, presents a chain that DOES verify. Same authority, same document class, honest TLS. KNOWN EDITORIAL CHURN: the page carries a dated news/station-closure block, so it will drift when that block turns over. That is real, visible page text about the licensing offices themselves, and a reviewer dismissing it as `editorial` is the correct outcome — it is not a rotating widget re-rolled per request (it is stable across two fetches), and suppressing it in the normalizer would mean teaching the normalizer which visible text does not count. See RESPONSIBLE-TECH §A."
     },
     {
@@ -2294,11 +1674,7 @@
       "url": "https://leg.mt.gov/bills/mca/title_0610/chapter_0050/part_0010/section_0110/0610-0050-0010-0110.html",
       "authority": "Montana Legislature — MCA 61-5-111 (administered by the Montana Motor Vehicle Division)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title \"61-5-111. Contents of driver's license, renewal, license expirations, license replacements, grace period, and fees\". GAP FIX: mvdmt.gov (which dojmt.gov/driving redirects to) serves a Cloudflare JS interstitial. MCA 61-5-111 is the statute governing what a Montana licence contains and how it is renewed/replaced. 75 passages; stable."
     },
     {
@@ -2308,11 +1684,7 @@
       "url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/ByChapter/Chapter_101.html",
       "authority": "North Carolina General Assembly — N.C.G.S. Chapter 101 (administered by the clerks of superior court)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Chapter 101'. GAP FIX: nccourts.gov 403s our descriptive UA. N.C.G.S. Chapter 101 ('Names of Persons') is the name-change statute the clerks of superior court administer, and it is live: §101-2 was amended by S.L. 2025-54 effective 1 December 2025, which is exactly the kind of movement this tool exists to catch. 54 passages; stable."
     },
     {
@@ -2322,11 +1694,7 @@
       "url": "https://www.leg.state.nv.us/NRS/NRS-440.html",
       "authority": "Nevada Legislature — NRS Chapter 440 (administered by the Nevada Office of Vital Records, DPBH)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'NRS: CHAPTER 440 - VITAL STATISTICS'. GAP FIX, and this one is the repeat of a lesson: dpbh.nv.gov had to be REMOVED from this registry because the nv.gov CMS renders a rotating 'Nevada state symbol' trivia block (state fish → state reptile) that re-rolls on EVERY request — so Nevada had no birth-certificate source at all. leg.state.nv.us is a different system entirely, carries no such widget, and hashed identically across two back-to-back fetches. NRS 440 is the vital-statistics chapter. MACHINE FACT: the page carries a build stamp ('[Rev. 4/15/2026 …]') that moves when the chapter is rebuilt; that correlates with real edits rather than with the clock, but if this source produces a diff whose only change is the stamp, dismiss it as editorial."
     },
     {
@@ -2336,11 +1704,7 @@
       "url": "https://www.leg.state.nv.us/NAC/NAC-483.html",
       "authority": "Nevada Legislature — NAC Chapter 483 (the Nevada DMV's own administrative regulations)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'NAC: CHAPTER 483 - DRIVERS' LICENSES; DRIVING SCHOOLS AND DRIVING INSTRUCTORS'. GAP FIX: dmv.nv.gov serves a 624-byte JavaScript shell that normalizes to one passage — hashing it would watch a loading spinner. NAC 483 is the DMV's own regulation chapter, served as static HTML by the Legislature's site. 8,203 passages; stable across two fetches. Same build-stamp note as nv-nrs-440."
     },
     {
@@ -2350,11 +1714,7 @@
       "url": "https://codes.ohio.gov/ohio-administrative-code/chapter-3701-5",
       "authority": "Ohio Department of Health — OAC Chapter 3701-5, Vital Statistics (published by the Legislative Service Commission)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Chapter 3701-5 - Ohio Administrative Code | Ohio Laws', h1 'Chapter 3701-5 | Vital Statistics'. GAP FIX: odh.ohio.gov returns HTTP 404 to every non-browser client we have tried, including its own site root — a WAF wearing a 404's clothes. codes.ohio.gov publishes ODH's OWN administrative rules (the vital-statistics chapter ODH administers) and answers us with 200. 738 passages; stable."
     },
     {
@@ -2364,11 +1724,7 @@
       "url": "https://webserver.rilegislature.gov/Statutes/TITLE33/33-22/33-22-28.htm",
       "authority": "Rhode Island General Assembly — R.I. Gen. Laws §33-22-28 (administered by the city and town probate courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, heading '§ 33-22-28. Name change.' (confirmed by reading the page: the neighbouring §33-22-27 is about execution for costs, so this URL was picked from the chapter index by CONTENT, not by guessing a section number). NEWLY-NAMED HOLE, NOW CLOSED: Rhode Island had no court_order_name_change source and was not in the old GAP list either — a silent thin spot, which is exactly what the derived coverage gate now makes impossible. Rhode Island name changes are heard in the city/town probate courts, so there is no single statewide court page; the statute they apply is statewide, and that is what this watches. 35 passages; stable."
     },
     {
@@ -2378,11 +1734,7 @@
       "url": "https://www.scstatehouse.gov/code/t15c049.php",
       "authority": "South Carolina Legislature — S.C. Code Title 15 Ch. 49 (administered by the family courts)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Code of Laws - Title 15 - Chapter 49 - CIVIL REMEDIES AND PROCEDURES'. GAP FIX: sccourts.org's robots.txt disallows our user-agent from the ENTIRE site (the site root too), and we honour robots.txt without appeal. The South Carolina Legislature publishes the name-change chapter (§15-49-10 et seq.) and its robots.txt permits us. 104 passages; stable."
     },
     {
@@ -2392,11 +1744,7 @@
       "url": "https://statutes.capitol.texas.gov/Docs/FA/htm/FA.45.htm",
       "authority": "Texas Legislature — Family Code Chapter 45 (administered by the district courts, county by county)",
       "verified": false,
-      "checked": {
-        "at": "2026-07-13",
-        "status": 200,
-        "reachable": true
-      },
+      "checked": { "at": "2026-07-13", "status": 200, "reachable": true },
       "notes": "live-fetched. HTTP 200, title 'Texas Constitution and Statutes'. GAP FIX, with the limit stated: Texas publishes NO statewide name-change instructions — the process is county-level, which is why this jurisdiction/document-class pair was previously a gap 'in the world rather than in the crawler'. What IS statewide is Family Code Chapter 45 ('Change of Name'), the statute every Texas county court applies, and that is what this entry watches. It does not claim to watch a county's filing process, and it is not a substitute for one. 83 passages, ZERO volatile lines; stable."
     }
   ]

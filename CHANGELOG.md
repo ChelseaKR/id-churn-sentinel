@@ -80,6 +80,49 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **Six registered sources were recorded as reachable when they are not, and one
+  pointed at a dead URL** (issue #10, 2026-08-22). Every `checked` block written
+  in this pass came from an actual fetch through this repo's own
+  robots-respecting `HttpFetcher`, not from a previous pass's report:
+  `travel.state.gov` (both federal passport sources) and `ldh.la.gov` (both
+  Louisiana vital-records sources) answer HTTP 403; `legislature.mi.gov`'s two
+  MCL PDFs fail TLS verification with `CERTIFICATE_VERIFY_FAILED` and never get
+  an HTTP status at all. All six now carry `reachable: false` with the
+  registry's existing machine vocabulary (`blocked`, `tls_chain_broken`), so
+  none of them can be counted as unchanged. Watched-in-name-only goes 6 → 12,
+  derived by `sentinel coverage`, never hand-written.
+- **NY courts' name-change URL moved, and is recorded as moved-but-still-unreadable**
+  (issue #10). The 2026-07-13 URL returns 404 and the replacement path returns
+  403 — the server's own 404-vs-403 split is the evidence that the old path was
+  removed while the new one exists, and the URL is corrected on that basis. It
+  is **not** counted as fixed: this tool could not read the replacement on any
+  of 5 attempts (4 spaced 120s apart, fresh robots cache each time).
+  `www.nycourts.gov` refuses this tool's User-Agent host-wide and `/robots.txt`
+  itself 403s; because an unreadable robots.txt is treated as permissive
+  (`core/fetch.py`), this is a source we cannot fetch, not a `robots-disallowed`
+  gap. An earlier pass had reported two successful reads of the new URL with
+  real on-topic content; that did not reproduce, and it is recorded in the
+  entry's notes as a prior observation rather than as its status.
+- **The published claim that every unreachable source carries no baseline hash
+  was not true any more.** Six of the twelve were reachable when the 2026-07-13
+  baseline was written and still hold the last hash actually observed. README
+  and `docs/RESPONSIBLE-TECH-AUDITS.md` now state both cases and the reason the
+  distinction matters — a carried-forward hash keeps an outage from becoming
+  drift, and must never turn an outage into a clean bill of health.
+- **`sources/registry.json` was being rewritten in a non-canonical style**, and
+  there was no gate to notice. A plain `json.dumps(indent=2)` explodes every
+  inline `checked`/`verification`/`fetch_policy` block, growing the file from
+  ~1750 to ~2400 lines and turning a two-field edit into a ~960-line diff; this
+  had happened twice. The file is written through `dump_registry_text` again,
+  and `test_committed_registry_is_written_in_the_canonical_style` now fails the
+  build if it drifts. This protects the `sentinel verify` audit trail, whose
+  value depends on each of up to 156 rewrites being a one-line diff naming a
+  human.
+- **New invariant over the committed registry:**
+  `test_no_committed_entry_renders_a_failed_fetch_as_a_reachable_one` fails the
+  build if any entry pairs an HTTP status of 400+ (or no status at all) with
+  `reachable: true` — issue #10's harm expressed as a merge gate rather than a
+  convention.
 - **`courts.michigan.gov` tightened its robots.txt to a site-wide `Disallow:
   /`** (issue #10, 2026-08-21), confirmed directly against the live host
   (independent of this tool's own fetcher, to rule out a fetcher bug) and

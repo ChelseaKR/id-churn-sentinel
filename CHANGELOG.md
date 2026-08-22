@@ -80,6 +80,32 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **Registry reconciled against a real end-to-end run** (issue #10, 2026-08-22):
+  `sentinel sources check` over all 156 live URLs read **144 of 156**. Two
+  entries disagreed with what the run measured, and both are corrected to the
+  measurement rather than the other way round:
+  - `ny-courts-name-change` had been recorded unreachable on the strength of 5
+    targeted attempts that all returned 403. The full pass **read it cleanly** —
+    HTTP 200, title "Name Change Basics | New York Courts", 222 passages,
+    on-topic for both name change and sex-designation change. The difference is
+    request spacing: the full pass reaches the host once, after a long gap, while
+    the targeted retries were two minutes apart. The move is therefore
+    *confirmed*, and the entry records `reachable: true` with an explicit
+    `intermittent: true` flag — neither cherry-picking the success nor writing
+    off a source that demonstrably serves. A 403 on a later run is an outage and
+    is reported as one.
+  - `courts.mo.gov` was recorded reachable from a 2026-07-13 check but returned
+    HTTP 500 on the pass and again on an independent retry. It is now recorded
+    unreachable on the latest check with `server_error: true`. **A 5xx is an
+    outage, not a block** — unlike this registry's 403 and TLS entries, nothing
+    suggests the host refuses this tool or that the page is gone, so it stays
+    registered and stays attempted, and this is expressly not grounds to demote
+    it to a named gap.
+  The count stays 12, but its membership changed, so the docs now name the
+  breakdown rather than flattening it: 7 refusals (403), 3 TLS failures, 1
+  timeout, 1 server-side 500. The docs also correct a claim that had stopped
+  being true — of the twelve, **five** carry no baseline hash and **seven** hold
+  the last hash actually observed.
 - **Six registered sources were recorded as reachable when they are not, and one
   pointed at a dead URL** (issue #10, 2026-08-22). Every `checked` block written
   in this pass came from an actual fetch through this repo's own

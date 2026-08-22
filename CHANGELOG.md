@@ -9,6 +9,26 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **Five named gaps closed with real, independently re-verified government sources**
+  (2026-08-21): AK drivers_license (`akleg.gov`, AS 28.15 — scoped via the print
+  view's `secStart`/`secEnd` query parameters, not the `#fragment` links the
+  original attempt tried, which a server never sees), AR drivers_license
+  (`dfa.arkansas.gov/office/mydmv` — the 2026-07-13 TLS chain defect the gap
+  recorded appears to have been fixed since), DC court_order_name_change
+  (`code.dccouncil.gov`, D.C. Official Code § 16-2501, under a chapter titled
+  "Change of Name or Gender"), LA drivers_license (`legis.la.gov`, RS 32 Ch. 2 —
+  a different host from the JS-shell OMV portal the gap named), and SD
+  drivers_license (`sdlegislature.gov`'s server-rendered `/api/Statutes/...`
+  endpoint, avoiding the same SPA-shell trap the gap named on a different path).
+  Every one of the five was fetched, passage-counted, and hash-compared across
+  two fetches by this pass directly (not accepted from an unverified report);
+  152 → 156 sources, 12 → 8 named gaps. Following the exact convention this
+  registry already uses (README's "Closing the map without lying to get
+  there"): a different government host on the *same* jurisdiction's domain,
+  never a guessed replacement authority. No jurisdiction outside the registry's
+  declared scope (50 states + DC + the US federal bucket, 52 of 52) was
+  considered — territorial expansion is explicitly deferred pending
+  governance/capacity review per `docs/00-V1-PLAN.md` and `docs/12-ROADMAP.md`.
 - `docs/THRESHOLD-EVIDENCE.md` (2026-08-19): the audit behind `REMOVAL_THRESHOLD`,
   recording what observation history actually exists (one 74-minute session on
   2026-07-13; empty per-attempt evidence tables; no failure ever observed
@@ -60,6 +80,24 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **`courts.michigan.gov` tightened its robots.txt to a site-wide `Disallow:
+  /`** (issue #10, 2026-08-21), confirmed directly against the live host
+  (independent of this tool's own fetcher, to rule out a fetcher bug) and
+  reconfirmed on a second check. The SCAO-approved PC 51 name-change petition
+  PDF this registry watched from that host is now a named gap
+  (`robots-disallowed`) rather than a source we quietly kept fetching in
+  violation of it; a search for an equivalent Michigan government host serving
+  the same form did not find one. No other registry entry used this host.
+- **`protect-main` required zero status checks** (#24): the ruleset had only
+  `deletion` and `non_fast_forward` rules, so `main` reported as protected
+  while `ci.yml`'s `verify`, both CodeQL matrix jobs, and the TruffleHog scan
+  were all advisory — a red check could not block a merge. `protect-main` now
+  names all four as `required_status_checks`, matched against the real
+  check-run contexts on `main`'s own HEAD commit rather than guessed from
+  workflow YAML. Verified this actually blocks a merge, not just reports one:
+  a throwaway PR with a deliberate lint failure went `mergeStateStatus:
+  BLOCKED` and `gh pr merge` was refused outright ("the base branch policy
+  prohibits the merge"), closed without merging once confirmed.
 - **Working the whole verification queue left the attempt denominator at
   zero** (#18). `verify.confirm()` was the only writer of a verification in the
   codebase and wrote `status`, `verifier`, `at` and `note`, while

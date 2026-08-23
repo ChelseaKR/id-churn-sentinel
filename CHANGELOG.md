@@ -80,6 +80,24 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **`watch.yml` now retitles the review-queue issue when it reuses one**
+  (issue #38, 2026-08-23). The workflow posts one of two mutually exclusive
+  findings each run — "nothing was attempt-eligible" or "watched sources moved
+  or went unreadable" — and reuses a single open `review-queue` issue across
+  runs rather than filing a new one weekly. The title was only ever set on
+  `issues.create`; the reuse branch called `issues.createComment` and never
+  touched the title, so an issue opened by one finding could keep that title
+  forever even after a later run's comment reported the opposite. Issue #10 is
+  the live case: it is titled "Review queue: watched sources moved" from an
+  early run, and the registry has been 0/156 attempt-eligible since, so every
+  run since has been silently posting "nothing was checked" comments onto a
+  title that says the opposite — exactly the reassuring-label-persists failure
+  this project's other gates exist to refuse, just not yet applied to the one
+  label a reviewer actually reads to triage. Fixed by calling `issues.update`
+  with the freshly computed title before/alongside `issues.createComment` in
+  the reuse branch. `tests/test_public_boundary.py` gains a regression test
+  that reads the workflow text and asserts the reuse branch calls
+  `issues.update` with the `title` variable.
 - **Registry reconciled against a real end-to-end run** (issue #10, 2026-08-22):
   `sentinel sources check` over all 156 live URLs read **144 of 156**. Two
   entries disagreed with what the run measured, and both are corrected to the

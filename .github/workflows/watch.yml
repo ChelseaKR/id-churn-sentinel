@@ -297,6 +297,18 @@ jobs:
             });
 
             if (existing.data.length > 0) {
+              // The two findings this job can post are mutually exclusive, and only one of
+              // them is true of *this* run. An issue opened by a past "watched sources moved"
+              // run and now reused by a "nothing was attempt-eligible" run (or vice versa)
+              // must not keep the stale title — a reviewer triages by title, and the wrong one
+              // reads as the opposite of what actually happened (issue #38). Retitle on every
+              // reuse so the title always matches the most recent comment, not the first one.
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                title,
+              });
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

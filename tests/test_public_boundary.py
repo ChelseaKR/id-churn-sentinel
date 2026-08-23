@@ -113,3 +113,28 @@ def test_secret_scan_pins_its_runtime_and_never_floats_to_latest() -> None:
     assert "version: latest" not in workflow
     assert re.search(r'version:\s*"?3\.\d+\.\d+', workflow), "scanner runtime is not pinned"
     assert "extra_args: --only-verified" in workflow
+
+
+def test_watch_workflow_retitles_the_review_queue_issue_when_reusing_it() -> None:
+    """`watch.yml` posts one of two mutually exclusive findings each run — "nothing was
+    attempt-eligible" or "watched sources moved or went unreadable" — and reuses one open
+    `review-queue` issue across runs rather than filing a new one every week (issue #10 has
+    stood open since the first run). Reusing the issue without also recomputing its title lets
+    an issue opened by one finding keep that title forever, even after a later run's comment
+    says the opposite (issue #38): a reviewer who triages by title — the normal way anyone
+    scans open issues — is told the wrong thing by the one field they read first. So the reuse
+    branch must retitle the issue with the freshly computed `title` before/alongside its
+    comment, not only the create branch.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "watch.yml").read_text(encoding="utf-8")
+    start = workflow.index("if (existing.data.length > 0) {")
+    end = workflow.index("} else {", start)
+    reuse_branch = workflow[start:end]
+    assert "issues.update" in reuse_branch, (
+        "the reuse branch must retitle the existing issue with issues.update — otherwise a "
+        "stale finding-type title from a past run persists silently onto a run whose finding "
+        "is the opposite one (issue #38)"
+    )
+    assert re.search(r"issues\.update\(\{[^}]*title,", reuse_branch, re.DOTALL), (
+        "issues.update must pass the freshly computed `title` variable, not a hardcoded string"
+    )

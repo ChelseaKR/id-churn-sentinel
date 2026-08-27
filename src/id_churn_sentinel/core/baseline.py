@@ -215,7 +215,42 @@ class BaselineReport:
             + len(self.url_changed)
         )
 
+    @property
+    def observed(self) -> int:
+        """Sources this pass actually READ: retrieved, and with text in them.
+
+        The deliberate twin of `WatchRun.observed_count`, which is defined as the successful
+        retrievals minus the unmeasured ones, and for the identical reason: it is "how many
+        pages did the watcher actually look at", which is the numerator `total` is not.
+        `total` counts every source we *tried*, because the attempt denominator is a fact
+        about our eligibility decision and is deliberately reachability-blind (see
+        `core/eligibility.py`) — so `total` is equally non-zero for a pass that read 156
+        pages and a pass in which all 156 hosts refused to answer.
+
+        Only `unreachable` (nothing answered) and `no_text` (something answered and there was
+        nothing in it) are excluded. `unbaselined` and `url_changed` ARE observations: the
+        page was fetched and read, and what is missing is a hash worth comparing it against,
+        not the page.
+        """
+        return len(self.matched) + len(self.moved) + len(self.unbaselined) + len(self.url_changed)
+
     def summary(self) -> str:
+        if self.total and not self.observed:
+            # Every source we tried, and not one of them answered with a page we could read.
+            # Each count below is zero, and every one of them is zero for the blind reason
+            # rather than the reassuring one — byte-identical to what a complete pass over
+            # sources that all matched prints. `sentinel watch` has always refused to call
+            # this state `quiet` (`_validate_terminal_evidence`: quiet requires successful
+            # retrieval of every eligible source). `baseline check` — the command the hosted
+            # weekly job actually runs — printed "0 MOVED" instead. Same refusal, made where
+            # it was missing, exactly as the empty-denominator refusal below was.
+            return (
+                f"NO SOURCE WAS READ — {self.total} source(s) were attempted and NOT ONE "
+                f"produced a readable page ({len(self.unreachable)} unreachable, "
+                f"{len(self.no_text)} with no extractable text), so this run compared nothing "
+                "against the committed baseline. It is NOT evidence that nothing moved; it is "
+                "the absence of evidence either way."
+            )
         if not self.total:
             # A pass over no sources at all. Every count below is zero, and each zero is
             # ambiguous in exactly the direction that hurts: "0 MOVED" is what a clean,

@@ -778,8 +778,14 @@ def test_baseline_check_reports_an_unreadable_page_instead_of_a_match(
     assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
     capsys.readouterr()
 
+    # `ca-dmv` answers with a readable page so this pass is not blind end to end. The
+    # unreadable source is the subject; a run in which NOTHING was read is a different
+    # finding with its own refusal, and mixing the two here would test both badly.
     blind = StubFetcher(
-        {source.url: (b"<html><head><script>x</script></head></html>", "text/html")}
+        {
+            source.url: (b"<html><head><script>x</script></head></html>", "text/html"),
+            "https://www.dmv.ca.gov/portal/x": (fixture_before, "text/html"),
+        }
     )
     exit_code = main(
         [
@@ -834,6 +840,96 @@ def test_baseline_check_emits_a_zero_no_text_count_when_every_page_was_readable(
     out_text = capsys.readouterr().out
     assert "baseline-check-no-text-count: 0" in out_text
     assert "NO EXTRACTABLE TEXT" not in out_text
+
+
+def test_baseline_check_refuses_to_call_a_run_that_read_nothing_a_clean_result(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The all-blind run, which used to be byte-identical to a clean one.
+
+    `attempted` is deliberately reachability-blind, so a pass in which NO host answered still
+    prints a non-zero attempt denominator with every drift count at zero — exactly what a
+    complete pass over pages that all matched prints. The weekly workflow branched on those
+    counts, concluded `needs-review=false`, filed nothing and went green, for a run that had
+    not read a single page. This is the same refusal `sentinel watch` has always made (its
+    receipt cannot be `quiet` unless every eligible source was retrieved and measured), made
+    in the command the hosted job actually runs.
+    """
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    # Nothing is configured, so every source in the registry fails to answer.
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({}),
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    # The denominator is NOT zero — that is the whole trap this closes.
+    assert "baseline-check-attempted-count: 2" in captured.out
+    assert "baseline-check-observed-count: 0" in captured.out
+    assert "baseline-check-unreachable-count: 2" in captured.out
+    # And every drift count is zero, which is precisely why they cannot be branched on alone.
+    assert "baseline-check-moved-count: 0" in captured.out
+    assert "baseline-check-no-text-count: 0" in captured.out
+    assert "NO SOURCE WAS READ" in captured.out
+    assert "absence of evidence either way" in captured.out
+    assert "NOT ONE was read" in captured.err
+
+
+def test_baseline_check_still_exits_zero_when_only_some_sources_are_unreachable(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The rule the refusal above must not break: a state website being down is NOT a build
+    failure. `ca-dmv` never answers here and `tx-dps` does, so one page was read and the
+    command exits 0 exactly as it always has. If this ever goes red, the humans learn to
+    ignore the badge, and then they ignore it on the week that matters."""
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),  # ca-dmv is down
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0
+    assert "baseline-check-unreachable-count: 1" in out_text
+    assert "baseline-check-observed-count: 1" in out_text
+    assert "NO SOURCE WAS READ" not in out_text
 
 
 def test_watch_names_an_unreadable_source_and_refuses_to_call_the_run_quiet(

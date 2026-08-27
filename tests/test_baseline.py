@@ -12,6 +12,7 @@ committed registry — offline, with no network, like everything else in this su
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -128,7 +129,48 @@ def test_an_unreachable_source_is_never_reported_as_moved(source: Source) -> Non
     assert report.moved == []
     assert report.matched == []
     assert report.unreachable == [(source.id, "stubbed outage: no response configured")]
+    # This pass tried one source and read none, so the summary is the blind-run sentence
+    # rather than the count line. The rule under test is unchanged and is carried by
+    # `moved == []` above: the outage produced no drift claim. What the summary must not do
+    # is let a reader take "0 MOVED" from a pass that read nothing.
+    assert report.observed == 0
+    assert "NO SOURCE WAS READ" in report.summary()
+    assert "absence of evidence either way" in report.summary()
+    assert "0 MOVED" not in report.summary()
+
+
+def test_an_unreachable_source_among_readable_ones_still_reports_not_drift(
+    source: Source, fixture_before: bytes
+) -> None:
+    """The count line, and the `not drift` wording on it, still apply whenever at least one
+    page was read — which is every pass except the all-blind one above."""
+    other = replace(source, id="ca-dmv", url="https://www.dmv.ca.gov/portal/x")
+    report = check_baselines(
+        [source, other],
+        StubFetcher({source.url: (fixture_before, "text/html")}),  # `other` never answers
+        {},
+    )
+
+    assert report.observed == 1
+    assert report.unreachable == [(other.id, "stubbed outage: no response configured")]
     assert "not drift" in report.summary()
+    assert "NO SOURCE WAS READ" not in report.summary()
+
+
+def test_observed_counts_pages_read_not_sources_attempted(
+    source: Source, fixture_before: bytes
+) -> None:
+    """`observed` is the twin of `WatchRun.observed_count` and is defined the same way:
+    successful retrievals minus the ones with nothing readable in them. A page we fetched but
+    hold no committed hash for was still READ — what is missing is something to compare it
+    against, not the page — so it counts, and the blind-run refusal cannot fire on a registry
+    that simply has no baselines written yet."""
+    report = check_baselines([source], StubFetcher({source.url: (fixture_before, "text/html")}), {})
+
+    assert report.unbaselined == [source.id]
+    assert report.total == 1
+    assert report.observed == 1
+    assert "NO SOURCE WAS READ" not in report.summary()
 
 
 def test_a_source_with_no_committed_baseline_is_named_not_guessed(
@@ -272,17 +314,27 @@ def test_a_page_with_no_extractable_text_is_not_compared_against_the_baseline(
     command could not read."""
     live = StubFetcher({source.url: (fixture_before, "text/html")})
     committed = {source.id: BaselineEntry(_hash_of(live, source), CURRENT_CONTRACT)}
+    # A second source that reads fine, so the pass is not blind end to end. The unreadable
+    # source is the subject here; a pass that read NOTHING is a different finding with its
+    # own summary, and letting the two overlap would test both badly.
+    readable = replace(source, id="ca-dmv", url="https://www.dmv.ca.gov/portal/x")
 
     report = check_baselines(
-        [source],
-        StubFetcher({source.url: (b"<html><head><script>x</script></head></html>", "text/html")}),
+        [source, readable],
+        StubFetcher(
+            {
+                source.url: (b"<html><head><script>x</script></head></html>", "text/html"),
+                readable.url: (fixture_before, "text/html"),
+            }
+        ),
         committed,
     )
 
     assert report.no_text == [(source.id, source.url)]
     assert report.matched == []
     assert report.moved == []
-    assert report.unbaselined == []
+    assert report.unbaselined == [readable.id]
+    assert report.observed == 1
     assert "served NO extractable text" in report.summary()
     assert "0 match the committed baseline" in report.summary()
 

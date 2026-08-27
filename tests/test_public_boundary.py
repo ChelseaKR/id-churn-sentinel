@@ -113,3 +113,60 @@ def test_secret_scan_pins_its_runtime_and_never_floats_to_latest() -> None:
     assert "version: latest" not in workflow
     assert re.search(r'version:\s*"?3\.\d+\.\d+', workflow), "scanner runtime is not pinned"
     assert "extra_args: --only-verified" in workflow
+
+
+def test_watch_workflow_branches_on_what_it_read_not_only_on_what_it_selected() -> None:
+    """The weekly job must not read an all-blind run as a quiet one.
+
+    `attempted_count` is deliberately reachability-blind, so it proves sources were SELECTED
+    and never that any was READ. A run in which every host refused to answer prints a
+    non-zero denominator with every drift count at zero — byte-identical to a complete pass
+    over pages that all matched — and this job branched only on those. It concluded
+    `needs-review=false`, filed nothing, and went green for a run that read no page at all.
+
+    Asserted against the workflow text, the established pattern here for `.github/workflows`
+    invariants (see `test_secret_scan_pins_its_runtime_and_never_floats_to_latest`), because
+    the property lives in the YAML and not in any importable module.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "watch.yml").read_text(encoding="utf-8")
+
+    # The numerator is parsed, and a missing marker is loud rather than assumed to be zero.
+    assert "baseline-check-observed-count" in workflow
+    assert "cannot tell whether any page was actually read" in workflow
+    assert "baseline-check-unreachable-count" in workflow
+
+    # It is branched on, and the branch reaches the human-review queue.
+    assert 'echo "nothing-observed=true" >> "$GITHUB_OUTPUT"' in workflow
+    blind_branch = re.search(
+        r'elif \[\[ "\$observed_count" -eq 0 \]\]; then\n(?:.*\n)*?\s*echo "needs-review=true"',
+        workflow,
+    )
+    assert blind_branch, "a run that read nothing must reach the review queue"
+
+    # And it is not allowed to be green.
+    assert "steps.check.outputs.nothing-observed == 'true'" in workflow
+
+    # The backstop: a non-zero exit no branch here explains must not default to green.
+    assert "steps.check.outputs.check-status != '0'" in workflow
+
+
+def test_watch_workflow_never_fails_for_a_source_merely_being_down() -> None:
+    """The rule the gate above must not break, pinned so a later edit cannot quietly widen it.
+
+    An outage at a watched source is the tool WORKING. If this job goes red for one state's
+    website being down, the humans learn to ignore the badge and then ignore it on the week a
+    page is quietly rewritten. So the failure condition is the *observation count* being zero,
+    never the unreachable count being non-zero.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "watch.yml").read_text(encoding="utf-8")
+
+    failure_conditions = re.findall(r"^\s*if: (steps\.check\.outputs\..*)$", workflow, re.MULTILINE)
+    gating = [c for c in failure_conditions if "needs-review" not in c]
+    assert gating, "the workflow has no failure gate at all"
+    for condition in gating:
+        assert "unreachable-count" not in condition, (
+            f"a source being unreachable must never fail the run on its own: {condition}"
+        )
+        assert "no-text-count" not in condition, (
+            f"an unreadable page must never fail the run on its own: {condition}"
+        )

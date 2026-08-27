@@ -1077,9 +1077,45 @@ def _refuse_empty_baseline_check() -> int:
     print("baseline-check-cross-contract-count: 0")
     print("baseline-check-no-text-count: 0")
     print("baseline-check-url-changed-count: 0")
+    print("baseline-check-unreachable-count: 0")
+    print("baseline-check-observed-count: 0")
     print(
         "  FAILED: no attempt-eligible source was checked. This run is not evidence that "
         "nothing changed.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _refuse_blind_baseline_check(report: BaselineReport) -> int:
+    """A pass that reached every source it tried and read none of them, exited as one.
+
+    The narrow companion to `_refuse_empty_baseline_check`, and the reason it is narrow is the
+    rule it must not break: **a state website being down is never a broken build.** That rule
+    protects a source we tried and could not reach, so that a real outage does not teach the
+    humans to ignore a red badge — and it is untouched here. One unreachable source still
+    exits 0. Ten still exit 0. A hundred and fifty-five out of a hundred and fifty-six still
+    exit 0.
+
+    This fires only when the count of sources we actually READ is zero: every single source
+    either never answered or answered with nothing in it. At that point the sentence "a state
+    website is down" has stopped being the explanation — every state's website is not down at
+    once — and the likely cause is on our side of the wire: no egress from the runner, DNS,
+    a proxy, TLS, a robots or redirect refusal, or a bug in the fetcher. Either way the report
+    is the same one the empty denominator produces: this run observed nothing, and a caller
+    handed exit 0 would read that as "nothing moved".
+
+    `sentinel watch` has always refused this state — its receipt cannot be `quiet` unless every
+    eligible source was retrieved AND measured (`_validate_terminal_evidence`). This command,
+    the one the hosted weekly job actually runs, had no such refusal.
+    """
+    print(
+        f"  FAILED: {report.total} source(s) were attempted and NOT ONE was read "
+        f"({len(report.unreachable)} unreachable, {len(report.no_text)} with no extractable "
+        "text). This run is not evidence that nothing changed. A single unreachable source is "
+        "an outage and never fails this command; every source unreachable at once is usually "
+        "this end of the wire (egress, DNS, proxy, TLS, robots) rather than every government "
+        "host going down together.",
         file=sys.stderr,
     )
     return 1
@@ -1200,6 +1236,22 @@ def _cmd_baseline_check(
     # to the MOVED count: that count is what a workflow alerts a human with as "a source is no
     # longer what the baseline said", and this is a source we could not check at all.
     print(f"baseline-check-url-changed-count: {len(report.url_changed)}")
+    # Sources that never answered. This bucket has been printed one line at a time since the
+    # command was written and had NO machine-readable count, so the only number a workflow
+    # could see about it was the one it was missing. An outage at one source is not a build
+    # failure and never becomes one — but a workflow cannot tell "one host is down" from
+    # "every host is down" without this line, and those are not the same fact.
+    print(f"baseline-check-unreachable-count: {len(report.unreachable)}")
+    # THE OBSERVATION NUMERATOR, and the twin of the attempt denominator printed before the
+    # first fetch. `attempted` is deliberately reachability-blind: a source we tried and could
+    # not reach stays in it, which is right for eligibility accounting and wrong as evidence
+    # that anything was looked at. So a run in which all 156 hosts refused to answer prints
+    # attempted=156 with every other count at 0 — byte-identical to a complete pass over 156
+    # pages that all matched. That is the same fail-open the attempt denominator was added to
+    # close (issue #25), one level down: there it was "we examined nothing", here it is "we
+    # reached nothing", and both are the absence of evidence rather than a finding of quiet.
+    # Branch on this together with the denominator, never on a drift numerator alone.
+    print(f"baseline-check-observed-count: {report.observed}")
     if report.url_changed:
         print(
             f"\n{len(report.url_changed)} source(s) are registered at a DIFFERENT URL than the\n"
@@ -1239,6 +1291,8 @@ def _cmd_baseline_check(
             "the difference; it is the authority here. Refresh this file with:\n"
             "  sentinel watch && sentinel baseline write"
         )
+    if not report.observed:
+        return _refuse_blind_baseline_check(report)
     return 0  # never a gate — a state website being down is not a broken build
 
 

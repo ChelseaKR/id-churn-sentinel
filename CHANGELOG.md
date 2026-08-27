@@ -80,6 +80,38 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **A watch run that read nothing is no longer reported as a quiet one**
+  (2026-08-26): the fail-open that `Four green weeks that checked zero sources`
+  (#25) closed at the attempt *denominator* was still open at the observation
+  *numerator*. `attempted_count` is deliberately reachability-blind — a source we
+  tried and could not reach stays in it — so a pass in which **every** host
+  refused to answer printed `attempted: 156` with `moved`, `no-text` and
+  `url-changed` all at `0`, which is byte-for-byte what a complete pass over 156
+  pages that all matched prints. `watch.yml` branched only on those counts,
+  concluded `needs-review=false`, filed no review issue and went green, for a run
+  that had not read a single page. Confirmed by replaying the workflow's own bash
+  against real command output: an all-unreachable report produced
+  `nothing-checked=false needs-review=false` — green, silent — and `sentinel`'s
+  non-zero exit was captured into `check-status` and then never read by any step.
+  - `BaselineReport.observed` counts the sources actually READ (successful
+    retrievals minus the ones with nothing readable in them), mirroring
+    `WatchRun.observed_count`, which is how `sentinel watch` has always defined
+    the same quantity.
+  - `sentinel baseline check` emits `baseline-check-observed-count:` and
+    `baseline-check-unreachable-count:` — the latter bucket had been printed one
+    line at a time since the command was written and had no machine-readable
+    count at all — and exits non-zero when nothing was read, the same refusal it
+    already made for an empty denominator.
+  - `watch.yml` parses both (a missing marker stays loud rather than defaulting
+    to the reassuring zero), files the review queue under its own title and
+    remedy — the fix for "nothing answered" is at the network, not in the
+    verification queue — and only then goes red. A second gate fails the run if
+    the check exits non-zero for a reason no branch explains, instead of letting
+    an unexplained failure default to green.
+  - **The rule this does not break:** a state website being down is still never a
+    broken build. One unreachable source exits 0, and so do 155 of 156; only
+    reading *nothing at all* fails, which is not an outage but the monitor being
+    blind. Pinned by test in both directions.
 - **Registry reconciled against a real end-to-end run** (issue #10, 2026-08-22):
   `sentinel sources check` over all 156 live URLs read **144 of 156**. Two
   entries disagreed with what the run measured, and both are corrected to the

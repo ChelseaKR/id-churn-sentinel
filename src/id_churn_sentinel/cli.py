@@ -20,7 +20,7 @@ a judgment about a **change** ("this diff matters"). `verify` is a judgment abou
 ("this URL is the official page"). `sources policy` is a judgment about a **host** ("their
 robots.txt and terms permit us to watch this"). All three refuse to run without a name; none
 can be done by a machine; and a source is fetched only when the last two have both been done to
-it — today 0 of 152 sources have had either, which every published artifact says out loud.
+it — today no source has had either, which every published artifact says out loud.
 
 The fetcher is a parameter of :func:`main`, not a global. `main()` with no fetcher and no
 `watch` subcommand opens no sockets, which is why every test in this repo runs offline: the

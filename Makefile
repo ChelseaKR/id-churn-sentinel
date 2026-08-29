@@ -80,9 +80,9 @@ no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, n
 	@# Two properties, one stage, because they are one discipline. The feed gate stops the
 	@# claim "a machine noticed this, so it must matter". The labelling gate stops the claim
 	@# "this URL is in your list, so it must be the right page" — which the product would
-	@# otherwise make BY OMISSION, 152 times, to people who cannot afford to act on a wrong
-	@# citation. 0 of 152 sources are human-verified, and every artifact says so, on every
-	@# source, in a machine-readable field and in a word.
+	@# otherwise make BY OMISSION, once per registered source, to people who cannot afford to
+	@# act on a wrong citation. 0 of 156 sources are human-verified, and every artifact says
+	@# so, on every source, in a machine-readable field and in a word.
 	uv run pytest -m "feed_integrity or source_labelling" -q
 
 no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_source_labelling.py)
@@ -110,11 +110,11 @@ coverage: ## Print the coverage numbers DERIVED from the registry (no network; n
 sources-check: ## Live-fetch every registry URL and report status. Liveness only — NOT verification.
 	uv run sentinel sources check
 
-verify-sources: ## THE HUMAN VERIFICATION QUEUE. 0 of 152 sources are human-verified; fix that.
+verify-sources: ## THE HUMAN VERIFICATION QUEUE. 0 of 156 sources are human-verified; fix that.
 	@# The most valuable command in this Makefile, and the only one a machine cannot run for
 	@# you. It shows a human each source's title and text and records their yes/no WITH THEIR
-	@# NAME — it refuses to record one without. ~3.5 hours for all 152, resumable, federal
-	@# sources first. See docs/VERIFYING.md.
+	@# NAME — it refuses to record one without. Roughly three and a half hours for the whole
+	@# registry, resumable, federal sources first. See docs/VERIFYING.md.
 	@printf 'Your name (recorded in the registry against every source you confirm): '; \
 	read -r name; \
 	uv run sentinel verify --verifier "$$name" --federal-first

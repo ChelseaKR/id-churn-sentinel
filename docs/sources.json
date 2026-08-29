@@ -1,25 +1,46 @@
 {
   "schema_version": "2.0",
-  "generated_at": "2026-07-17T01:43:48.553047+00:00",
+  "generated_at": "2026-08-29T00:28:33.783972+00:00",
   "coverage": {
-    "registered_candidates": 152,
+    "registered_candidates": 156,
     "attempt_eligible": 0,
-    "ineligible": 152,
-    "eligibility_as_of": "2026-07-17",
+    "ineligible": 156,
+    "eligibility_as_of": "2026-08-29",
     "ineligibility_reasons": {
-      "fetch-policy-unreviewed": 152,
-      "unverified": 152
+      "fetch-policy-unreviewed": 156,
+      "unverified": 156
     },
     "jurisdictions_covered": 52,
     "jurisdictions_total": 52,
-    "named_gaps": 12,
-    "registered_but_crawler_unreachable": 6,
+    "named_gaps": 8,
+    "registered_but_crawler_unreachable": 12,
     "human_verified": 0,
-    "unverified": 152,
+    "unverified": 156,
     "rejected_by_a_human": 0
   },
   "disclaimer": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is.",
   "sources": [
+    {
+      "source_id": "ak-akleg-as-28-15-drivers-license",
+      "jurisdiction": "AK",
+      "document_class": "drivers_license",
+      "url": "https://www.akleg.gov/basis/statutes.asp?media=print&secStart=28.15&secEnd=28.15",
+      "authority": "Alaska State Legislature \u2014 Alaska Statutes, Title 28, Chapter 15 (Drivers' Licenses)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-08-29",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
+    },
     {
       "source_id": "ak-courts-self-help",
       "jurisdiction": "AK",
@@ -34,7 +55,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -55,7 +76,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -76,7 +97,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -97,7 +118,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -118,7 +139,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -139,7 +160,28 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
+    },
+    {
+      "source_id": "ar-dfa-mydmv",
+      "jurisdiction": "AR",
+      "document_class": "drivers_license",
+      "url": "https://www.dfa.arkansas.gov/office/mydmv/",
+      "authority": "Arkansas Department of Finance and Administration, Office of Motor Vehicle",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -160,7 +202,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -181,7 +223,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -202,7 +244,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -223,7 +265,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -244,7 +286,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -265,7 +307,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -286,7 +328,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -307,7 +349,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -328,7 +370,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -349,7 +391,28 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
+    },
+    {
+      "source_id": "dc-code-16-2501-name-change",
+      "jurisdiction": "DC",
+      "document_class": "court_order_name_change",
+      "url": "https://code.dccouncil.gov/us/dc/council/code/sections/16-2501",
+      "authority": "Council of the District of Columbia \u2014 D.C. Law Library (D.C. Official Code, Title 16, Chapter 25 \"Change of Name or Gender\")",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -370,7 +433,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -391,7 +454,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -412,7 +475,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -433,7 +496,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -454,7 +517,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -475,7 +538,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -496,7 +559,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -517,7 +580,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -538,7 +601,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -559,7 +622,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -580,7 +643,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -601,7 +664,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -622,7 +685,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -643,7 +706,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -664,7 +727,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -685,7 +748,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -706,7 +769,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -727,7 +790,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -748,7 +811,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -769,7 +832,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -790,7 +853,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -811,7 +874,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -832,7 +895,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -853,7 +916,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -874,7 +937,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -895,7 +958,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -916,7 +979,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -937,7 +1000,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -958,7 +1021,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -979,7 +1042,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1000,7 +1063,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1021,7 +1084,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1039,10 +1102,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1060,10 +1123,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1084,7 +1147,28 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
+    },
+    {
+      "source_id": "la-rs32-ch2-drivers-license",
+      "jurisdiction": "LA",
+      "document_class": "drivers_license",
+      "url": "https://legis.la.gov/Legis/Law.aspx?d=88370",
+      "authority": "Louisiana State Legislature \u2014 Louisiana Revised Statutes (administered by the Louisiana OMV)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1105,7 +1189,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1126,7 +1210,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1147,7 +1231,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1168,7 +1252,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1189,7 +1273,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1210,7 +1294,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1231,7 +1315,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1252,7 +1336,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1273,7 +1357,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1291,10 +1375,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1312,31 +1396,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
-      "ineligibility_reasons": [
-        "unverified",
-        "fetch-policy-unreviewed"
-      ],
-      "fetch_policy_outcome": "unreviewed"
-    },
-    {
-      "source_id": "mi-scao-pc51-name-change-petition",
-      "jurisdiction": "MI",
-      "document_class": "court_order_name_change",
-      "url": "https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf",
-      "authority": "Michigan Supreme Court, State Court Administrative Office (SCAO)",
-      "verification_status": "unverified",
-      "human_verified": false,
-      "verified_by": "",
-      "verified_at": "",
-      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
-      "notes": "",
-      "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1357,7 +1420,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1378,7 +1441,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1399,7 +1462,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1417,10 +1480,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1441,7 +1504,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1462,7 +1525,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1483,7 +1546,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1504,7 +1567,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1525,7 +1588,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1546,7 +1609,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1567,7 +1630,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1588,7 +1651,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1609,7 +1672,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1630,7 +1693,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1651,7 +1714,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1672,7 +1735,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1693,7 +1756,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1714,7 +1777,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1735,7 +1798,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1756,7 +1819,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1777,7 +1840,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1798,7 +1861,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1819,7 +1882,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1840,7 +1903,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1861,7 +1924,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1882,7 +1945,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1903,7 +1966,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1924,7 +1987,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1945,7 +2008,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1966,7 +2029,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1987,7 +2050,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2008,7 +2071,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2029,7 +2092,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2040,17 +2103,17 @@
       "source_id": "ny-courts-name-change",
       "jurisdiction": "NY",
       "document_class": "court_order_name_change",
-      "url": "https://www.nycourts.gov/courthelp/Family/nameChange.shtml",
+      "url": "https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics",
       "authority": "New York State Unified Court System (CourtHelp)",
       "verification_status": "unverified",
       "human_verified": false,
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": false,
+      "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2071,7 +2134,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2092,7 +2155,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2113,7 +2176,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2134,7 +2197,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2155,7 +2218,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2176,7 +2239,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2197,7 +2260,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2218,7 +2281,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2239,7 +2302,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2260,7 +2323,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2281,7 +2344,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2302,7 +2365,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2323,7 +2386,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2344,7 +2407,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2365,7 +2428,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2386,7 +2449,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2407,7 +2470,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2428,7 +2491,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2449,7 +2512,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2470,7 +2533,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2491,7 +2554,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2512,7 +2575,28 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
+      "ineligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "fetch_policy_outcome": "unreviewed"
+    },
+    {
+      "source_id": "sd-sdlrc-32-12-drivers-license",
+      "jurisdiction": "SD",
+      "document_class": "drivers_license",
+      "url": "https://www.sdlegislature.gov/api/Statutes/32-12.html",
+      "authority": "South Dakota Legislative Research Council \u2014 SD Codified Laws (administered by SD Dept. of Public Safety)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": "",
+      "attempt_eligible": false,
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2533,7 +2617,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2554,7 +2638,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2575,7 +2659,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2596,7 +2680,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2617,7 +2701,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2638,7 +2722,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2659,7 +2743,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2680,7 +2764,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2698,10 +2782,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2719,10 +2803,10 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2743,7 +2827,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2764,7 +2848,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2785,7 +2869,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2806,7 +2890,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2827,7 +2911,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2848,7 +2932,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2869,7 +2953,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2890,7 +2974,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2911,7 +2995,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2932,7 +3016,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2953,7 +3037,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2974,7 +3058,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2995,7 +3079,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3016,7 +3100,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3037,7 +3121,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3058,7 +3142,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3079,7 +3163,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3100,7 +3184,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3121,7 +3205,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3142,7 +3226,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3163,7 +3247,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3184,7 +3268,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3205,7 +3289,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-07-17",
+      "eligibility_as_of": "2026-08-29",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3215,17 +3299,6 @@
   ],
   "gaps": [
     {
-      "jurisdiction": "AK",
-      "document_class": "drivers_license",
-      "reason": "blocked-403",
-      "hosts": [
-        "dmv.alaska.gov",
-        "doa.alaska.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Both Alaska DMV hosts 403 our descriptive User-Agent. We do not spoof a browser UA. The Alaska statutes/admin-code site (akleg.gov) answers us, but publishes only a table of contents whose deep links are #fragments \u2014 a fragment cannot scope a fetch, so watching it would claim a precision we do not have."
-    },
-    {
       "jurisdiction": "AR",
       "document_class": "court_order_name_change",
       "reason": "tls-unverifiable",
@@ -3234,17 +3307,6 @@
       ],
       "checked": "2026-07-13",
       "detail": "The Arkansas judiciary's host presents a chain our trust store cannot verify, and the Arkansas Code is not published as state-hosted HTML. Same refusal as above: a broken chain is the server's defect, and weakening our TLS verification to compensate would be ours."
-    },
-    {
-      "jurisdiction": "AR",
-      "document_class": "drivers_license",
-      "reason": "tls-unverifiable",
-      "hosts": [
-        "dfa.arkansas.gov",
-        "mydmv.arkansas.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Both present a chain our trust store cannot verify. We do not disable certificate verification. Arkansas does not publish its Code as state-hosted HTML (it is licensed to a commercial publisher), so there is no alternative official surface for this document class."
     },
     {
       "jurisdiction": "CO",
@@ -3279,16 +3341,6 @@
       "detail": "jud.ct.gov completes no TLS handshake with the tool's OpenSSL 3.5 (SSLV3_ALERT_HANDSHAKE_FAILURE) while answering a legacy OpenSSL 1.1.1 client with 200 \u2014 'it loads in my browser' is not evidence that this tool can watch it. The obvious alternative, the General Assembly's own site (cga.ct.gov), presents a chain our trust store cannot verify. Connecticut's court name-change process therefore has no honestly watchable official surface."
     },
     {
-      "jurisdiction": "DC",
-      "document_class": "court_order_name_change",
-      "reason": "blocked-403",
-      "hosts": [
-        "dccourts.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "dccourts.gov 403s our descriptive UA on every path including the site root. NEWLY NAMED: this hole existed before today and was NOT in the old GAP list \u2014 the coverage gate now derives the gap list from the registry, so a silent thin spot fails the build instead of sitting there."
-    },
-    {
       "jurisdiction": "FL",
       "document_class": "court_order_name_change",
       "reason": "robots-disallowed",
@@ -3300,16 +3352,14 @@
       "detail": "flcourts.gov is a client-rendered SPA AND its robots.txt disallows our UA from the form-download paths where the name-change forms live \u2014 either one alone would end it. The alternative official surface, the Legislature's statute page for Fla. Stat. 68.07, renders TODAY'S DATE into the page: it would produce a change record every single day, forever, whose diff is the date. `--twice` does not catch that (it is stable across two back-to-back fetches on the same day); reading the normalized text does, which is why we read it."
     },
     {
-      "jurisdiction": "LA",
-      "document_class": "drivers_license",
-      "reason": "spa-no-text",
+      "jurisdiction": "MI",
+      "document_class": "court_order_name_change",
+      "reason": "robots-disallowed",
       "hosts": [
-        "expresslane.la.gov",
-        "expresslane.org",
-        "dps.louisiana.gov"
+        "courts.michigan.gov"
       ],
-      "checked": "2026-07-13",
-      "detail": "The Office of Motor Vehicles' public site is a JavaScript shell that normalizes to 2 passages \u2014 hashing it would watch a loading spinner, not a policy. dps.louisiana.gov's robots.txt disallows us. Louisiana's court name-change statute WAS recovered (see la-rs-13-4751); the OMV's licensing rules have no equivalent state-hosted HTML surface."
+      "checked": "2026-08-21",
+      "detail": "courts.michigan.gov tightened its robots.txt to a site-wide `Disallow: /` for all user agents since the 2026-07-13 seed, confirmed directly (not through this tool's own fetcher, to rule out a fetcher bug) and reconfirmed on a second check. The SCAO-approved PC 51 name-change petition PDF this registry previously watched at courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf is under this same host and is now refused. We honour a robots.txt refusal without appeal; a search for an alternate Michigan government host serving the same or an equivalent name-change petition form did not find one."
     },
     {
       "jurisdiction": "OK",
@@ -3321,18 +3371,6 @@
       ],
       "checked": "2026-07-13",
       "detail": "oscn.net \u2014 which is where Oklahoma publishes BOTH its court information and its statutes \u2014 serves `User-agent: * / Disallow: /`. It forbids all automated access to the entire site, and we honour that without appeal. The Legislature's own site (oklegislature.gov) presents a chain our trust store cannot verify. Removed, not spoofed."
-    },
-    {
-      "jurisdiction": "SD",
-      "document_class": "drivers_license",
-      "reason": "spa-no-text",
-      "hosts": [
-        "sd.gov",
-        "dps.sd.gov",
-        "sdlegislature.gov"
-      ],
-      "checked": "2026-07-13",
-      "detail": "Every South Dakota surface for this document class is client-rendered: sd.gov/dps is a 940KB ServiceNow portal whose text is 'Loading\u2026', dps.sd.gov normalizes to 4 passages, and sdlegislature.gov (which would have been the statutory alternative) serves a page whose title is literally 'Loading...' and whose text is 6 passages. There is nothing here a hash can honestly watch."
     },
     {
       "jurisdiction": "VT",

@@ -11,7 +11,7 @@ The second one is easy to miss precisely because nobody ever says it out loud. T
 site lists one official-looking URL per (jurisdiction, document class). A caseworker reads a
 row saying *"OH · Birth certificate · Ohio Department of Health · <url>"* as **"this is Ohio's
 official birth-certificate page"** — which is a completely reasonable reading of a table like
-that, and **nobody has checked that it is true**. Today `0 of 152 sources are human-verified`.
+that, and **nobody has checked that it is true**. Today `0 of 156 sources are human-verified`.
 If that entry is wrong, the person acting on it is sent to the wrong office on a day they took
 off work, and a wrong *citation* is worse than a wrong "no change": it does not merely fail to
 warn someone, it actively directs them.
@@ -40,6 +40,7 @@ from id_churn_sentinel.core.changes import (
     ReviewStatus,
     Significance,
 )
+from id_churn_sentinel.core.coverage import coverage, repo_root
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
     REJECTED,
@@ -59,6 +60,11 @@ pytestmark = pytest.mark.source_labelling
 
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
+#: The published site as committed. GitHub Pages serves these bytes off the branch with
+#: no build step and nothing between the commit and the consumer, so this directory is
+#: the product rather than a build artifact of it.
+COMMITTED_SITE = repo_root() / "docs"
+
 # The words a reader sees. Status is never a colour and never an icon: the caseworker most
 # likely to be reading this with a screen reader is exactly the one a red dot fails silently.
 STATUS_WORDS = ("UNVERIFIED", "VERIFIED", "REJECTED", "WITHDRAWN")
@@ -66,7 +72,7 @@ STATUS_WORDS = ("UNVERIFIED", "VERIFIED", "REJECTED", "WITHDRAWN")
 
 @pytest.fixture
 def real_registry() -> Registry:
-    """The committed registry — the actual product, all 152 of it."""
+    """The committed registry — the actual product, however many of it there are."""
     return load_registry()
 
 
@@ -229,14 +235,29 @@ def test_the_site_says_it_above_the_fold_and_before_the_numbers(published: Path)
         assert sentence in page, f"the front door must say: {sentence!r}"
 
 
-def test_every_source_row_on_the_site_carries_a_status_word(published: Path) -> None:
+def _source_rows(page: str) -> list[str]:
+    """The source rows of the rendered site, matched one way for every test that counts them.
+
+    Two tests ask how many sources this page lists — one of a fresh publish, one of the
+    committed bytes — and two different matchers would let them disagree about the answer
+    without either being wrong.
+    """
+    rows = re.findall(r"<tr><th scope=\"row\">.*?</tr>", page, re.DOTALL)
+    return [row for row in rows if "<code>" in row]
+
+
+def test_every_source_row_on_the_site_carries_a_status_word(
+    published: Path, real_registry: Registry
+) -> None:
     """WCAG 2.2 AA, 1.4.1: status is a WORD. Not a colour, not an icon, not a tick. Every row
     of every source table says what is behind that source."""
     page = (published / "index.html").read_text()
-    rows = re.findall(r"<tr><th scope=\"row\">.*?</tr>", page, re.DOTALL)
-    source_rows = [row for row in rows if "<code>" in row]
+    source_rows = _source_rows(page)
 
-    assert len(source_rows) == 156
+    # Derived, not typed. This read `== 156`, which is a hand-written coverage number in the
+    # gate against hand-written coverage numbers: it would have gone red on the next real
+    # registry change for a reason that has nothing to do with what this test is about.
+    assert len(source_rows) == coverage(real_registry).sources_total
     for row in source_rows:
         assert any(word in row for word in STATUS_WORDS), row[:120]
 
@@ -376,3 +397,108 @@ def _channel(path: Path) -> ET.Element:
     channel = root.find("channel")
     assert channel is not None
     return channel
+
+
+# ---- THE GATE, ON THE COMMITTED BYTES ------------------------------------------------------
+
+
+def test_the_committed_inventory_describes_the_registry_it_ships_with(
+    real_registry: Registry,
+) -> None:
+    """MERGE-BLOCKING: the inventory a consumer fetches must describe THIS registry.
+
+    Every other test in this file takes the `published` fixture, which publishes into a
+    `tmp_path`. Those prove the *publisher* is correct. None of them proves the *commit* is,
+    and the commit is what a consumer gets: Pages serves `docs/` straight off the branch,
+    with no build step and no CI in between, because an Actions-driven deploy would never
+    run under this account's spending limit.
+
+    That gap was not hypothetical. `docs/sources.json` was written on 2026-07-19 and
+    `sources/registry.json` was changed on 2026-08-22 by commit b0115c5, "reconcile the
+    registry with a real end-to-end run". Between those dates the registry gained four
+    sources and lost four named gaps, and the served inventory went on telling A4TE, Trans
+    Lifeline and a legal-aid clinic that this project watches 152 sources with 12 named gaps.
+    Four of those gaps were false confessions — and this repository already has the sentence
+    for why that is the worse direction, in `completeness_violations`: "a gap that claims we
+    are blind to something we actually watch is a false confession, and a consumer who reads
+    it will go looking elsewhere for information we already have."
+
+    `sentinel coverage --check-docs` could not have caught it. `DOC_PATHS` names the prose —
+    README, ROADMAP, CONSUMERS, the audits, VERIFYING, and the registry itself — and not one
+    published artifact. The gate against a document lying about the registry had never read
+    the product.
+
+    Every count here is re-derived rather than remembered, so this test needs no edit when
+    the registry moves; it fails only when the commit and the registry disagree. Timestamps
+    are deliberately not compared: `generated_at` changes on every publish, and a gate that
+    goes red for a re-run would be trained away.
+    """
+    payload = json.loads((COMMITTED_SITE / "sources.json").read_text(encoding="utf-8"))
+    report = coverage(real_registry)
+    published_coverage = payload["coverage"]
+
+    published_ids = {source["source_id"] for source in payload["sources"]}
+    registry_ids = {source.id for source in real_registry.sources}
+    assert published_ids == registry_ids, (
+        f"the served inventory is not this registry: "
+        f"{sorted(registry_ids - published_ids)} are watched and unpublished, "
+        f"{sorted(published_ids - registry_ids)} are published and not in the registry. "
+        f"Run `make publish` and commit the result."
+    )
+
+    published_gaps = {(gap["jurisdiction"], gap["document_class"]) for gap in payload["gaps"]}
+    registry_gaps = {(gap.jurisdiction, gap.document_class) for gap in real_registry.gaps}
+    assert published_gaps == registry_gaps, (
+        f"the served gap list is not this registry's: "
+        f"{sorted(published_gaps - registry_gaps)} are published as gaps but ARE watched — a "
+        f"false confession, which sends a consumer looking elsewhere for something we have. "
+        f"{sorted(registry_gaps - published_gaps)} are real gaps this site does not admit to."
+    )
+
+    for field, derived in (
+        ("registered_candidates", report.sources_total),
+        ("jurisdictions_covered", report.jurisdictions_covered),
+        ("jurisdictions_total", report.jurisdictions_total),
+        ("named_gaps", report.gaps_total),
+        ("registered_but_crawler_unreachable", report.unreachable_total),
+        ("human_verified", report.verified_total),
+        ("unverified", report.unverified_total),
+        ("rejected_by_a_human", report.rejected_total),
+    ):
+        assert published_coverage[field] == derived, (
+            f"docs/sources.json publishes {field}={published_coverage[field]}, the registry "
+            f"says {derived}. Run `make publish` and commit the result."
+        )
+
+
+def test_the_committed_site_page_counts_the_registry_it_ships_with(
+    real_registry: Registry,
+) -> None:
+    """The same question of the HTML, because that is what a person reads.
+
+    `sources.json` is what a consuming program fetches; `index.html` is what a caseworker
+    opens. They are written by one `publish` run and can only disagree if one of them was
+    committed without the other — which is a state a human eye will not catch, because the
+    page looks exactly as it always did.
+    """
+    page = (COMMITTED_SITE / "index.html").read_text(encoding="utf-8")
+    report = coverage(real_registry)
+
+    source_rows = _source_rows(page)
+    assert len(source_rows) == report.sources_total, (
+        f"the served page lists {len(source_rows)} sources; the registry has "
+        f"{report.sources_total}. Run `make publish` and commit the result."
+    )
+    # The page's loudest line names the size of the registry, in whichever of the four
+    # sentences `_verification_notice` picks. Asserting the *number* rather than one of the
+    # sentences is deliberate: the first version of this test asserted "0 of 156 sources are
+    # human-verified" and failed, because with nothing verified the site deliberately says
+    # "no human has confirmed any of these 156 sources" instead — a sentence a reader cannot
+    # skim past. A test that had been written to match the phrase would have pinned the
+    # weaker copy as correct.
+    headline = re.search(r'<h2 id="verification">Read this first: (.*?)</h2>', page)
+    assert headline is not None, "the served page has no verification headline"
+    assert str(report.sources_total) in headline.group(1), (
+        f"the page's verification headline reads {headline.group(1)!r} and does not name the "
+        f"registry's {report.sources_total} sources. Run `make publish` and commit the result."
+    )

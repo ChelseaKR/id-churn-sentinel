@@ -65,7 +65,7 @@ def test_no_committed_entry_claims_a_verification_nobody_signed() -> None:
     happen is an entry claiming a human confirmed it with **no human named and no date**.
     `load_registry` refuses to load one at all; this asserts it on the committed file.
 
-    (The standing count — `0 of 152 sources are human-verified` — is checked in
+    (The standing count — `0 of 156 sources are human-verified` — is checked in
     `test_verify.py` and gated in every doc by `sentinel coverage --check-docs`.)
     """
     registry = load_registry(default_registry_path())

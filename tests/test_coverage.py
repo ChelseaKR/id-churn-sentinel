@@ -26,6 +26,7 @@ import pytest
 
 from id_churn_sentinel.cli import main
 from id_churn_sentinel.core.coverage import (
+    DOC_PATHS,
     check_docs,
     completeness_violations,
     coverage,
@@ -95,6 +96,24 @@ def test_a_stale_gap_also_fails_the_check(source: Source) -> None:
     )
 
 
+def _stub_gated_docs(root: Path, *, except_for: str, text: str = "52 of 52 jurisdictions") -> None:
+    """Write a satisfying stub for every document in `DOC_PATHS` except the one under test.
+
+    Derived from `DOC_PATHS` rather than mirrored by hand. The three tests below each carried
+    their own copy of the list, and two of the copies were already incomplete — they passed
+    only because they assert with `any(...)` and an extra "missing from disk" drift is
+    harmless to that. Adding one document to `DOC_PATHS` then failed a test that has nothing
+    to say about which documents are gated. A hand-maintained copy of the list the gate reads
+    is the same drift this gate exists to refuse, one level up.
+    """
+    for relative in DOC_PATHS:
+        if relative == except_for:
+            continue
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+
 def test_a_doc_that_states_the_wrong_number_fails(tmp_path: Path, real_registry: Registry) -> None:
     """The drift itself. A README claiming a coverage number the registry does not support is
     caught, named, and the correct number is printed — so the fix is mechanical."""
@@ -104,11 +123,7 @@ def test_a_doc_that_states_the_wrong_number_fails(tmp_path: Path, real_registry:
         "140 of 152 sources are human-verified.",
         encoding="utf-8",
     )
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "sources").mkdir()
-    for stub in ("docs/ROADMAP.md", "docs/CONSUMERS.md", "docs/RESPONSIBLE-TECH-AUDITS.md"):
-        (tmp_path / stub).write_text("52 of 52 jurisdictions", encoding="utf-8")
-    (tmp_path / "sources/registry.json").write_text("52 of 52 jurisdictions", encoding="utf-8")
+    _stub_gated_docs(tmp_path, except_for="README.md")
 
     drifts = check_docs(coverage(real_registry), tmp_path)
 
@@ -129,11 +144,7 @@ def test_a_doc_that_stops_describing_coverage_at_all_also_fails(
     check has nothing left to check. A doc in DOC_PATHS is there because it is supposed to
     say what we watch."""
     (tmp_path / "README.md").write_text("A tool.", encoding="utf-8")
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "sources").mkdir()
-    for stub in ("docs/ROADMAP.md", "docs/CONSUMERS.md", "docs/RESPONSIBLE-TECH-AUDITS.md"):
-        (tmp_path / stub).write_text("nothing to see", encoding="utf-8")
-    (tmp_path / "sources/registry.json").write_text("{}", encoding="utf-8")
+    _stub_gated_docs(tmp_path, except_for="README.md", text="nothing to see")
 
     drifts = check_docs(coverage(real_registry), tmp_path)
 
@@ -154,16 +165,7 @@ def test_a_third_partys_coverage_number_is_not_our_business(
         "cannot currently be fetched. 0 of 156 sources are human-verified.",
         encoding="utf-8",
     )
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "sources").mkdir()
-    for stub in (
-        "docs/ROADMAP.md",
-        "docs/CONSUMERS.md",
-        "docs/RESPONSIBLE-TECH-AUDITS.md",
-        "docs/VERIFYING.md",
-    ):
-        (tmp_path / stub).write_text("52 of 52 jurisdictions", encoding="utf-8")
-    (tmp_path / "sources/registry.json").write_text("52 of 52 jurisdictions", encoding="utf-8")
+    _stub_gated_docs(tmp_path, except_for="README.md")
 
     assert check_docs(coverage(real_registry), tmp_path) == []
 

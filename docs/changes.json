@@ -1,18 +1,32 @@
 {
   "schema_version": "2.0",
-  "generated_at": "2026-07-17T01:43:48.553047+00:00",
+  "generated_at": "2026-08-29T00:28:33.783972+00:00",
   "feed_url": "https://chelseakr.github.io/id-churn-sentinel/",
   "disclaimer": "This feed reports a human-reviewed observation that an eligible registered source candidate changed, with the passage that changed. It does not assert what the law is, and it is not legal advice. Every item was reviewed by a named human before publication. An empty `changes` array means no human has confirmed a change yet \u2014 it is NOT a claim that nothing changed at any registered candidate.",
   "registry_verification": {
     "scope": "all jurisdictions",
-    "sources": 152,
+    "sources": 156,
     "human_verified": 0,
-    "unverified": 152,
+    "unverified": 156,
     "rejected": 0,
     "statement": "THE SOURCE REGISTRY IS NOT HUMAN-VERIFIED. Each entry is a CANDIDATE official URL: our own crawler fetched it and read its title, and its `verification_status` says whether a named human has since confirmed it is the official page for that document class in that jurisdiction. `unverified` means nobody has. A machine cannot tell a state's real birth-certificate page from a convincing-looking one \u2014 it cannot even tell a live page from a bot-wall served with HTTP 200 \u2014 so do not rely on an unverified entry as authoritative guidance, and do not present it to anyone as one. What this tool does claim: this URL changed, and here is what changed in it. What it never claims: what the law is."
   },
   "changes": [],
   "sources": [
+    {
+      "source_id": "ak-akleg-as-28-15-drivers-license",
+      "jurisdiction": "AK",
+      "document_class": "drivers_license",
+      "url": "https://www.akleg.gov/basis/statutes.asp?media=print&secStart=28.15&secEnd=28.15",
+      "authority": "Alaska State Legislature \u2014 Alaska Statutes, Title 28, Chapter 15 (Drivers' Licenses)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
     {
       "source_id": "ak-courts-self-help",
       "jurisdiction": "AK",
@@ -89,6 +103,20 @@
       "document_class": "birth_certificate",
       "url": "https://healthy.arkansas.gov/programs-services/certificates-records/",
       "authority": "Arkansas Department of Health, Vital Records",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
+      "source_id": "ar-dfa-mydmv",
+      "jurisdiction": "AR",
+      "document_class": "drivers_license",
+      "url": "https://www.dfa.arkansas.gov/office/mydmv/",
+      "authority": "Arkansas Department of Finance and Administration, Office of Motor Vehicle",
       "verification_status": "unverified",
       "human_verified": false,
       "verified_by": "",
@@ -229,6 +257,20 @@
       "document_class": "birth_certificate",
       "url": "https://portal.ct.gov/dph/resources-and-records/vital-records",
       "authority": "Connecticut Department of Public Health, State Vital Records Office",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
+      "source_id": "dc-code-16-2501-name-change",
+      "jurisdiction": "DC",
+      "document_class": "court_order_name_change",
+      "url": "https://code.dccouncil.gov/us/dc/council/code/sections/16-2501",
+      "authority": "Council of the District of Columbia \u2014 D.C. Law Library (D.C. Official Code, Title 16, Chapter 25 \"Change of Name or Gender\")",
       "verification_status": "unverified",
       "human_verified": false,
       "verified_by": "",
@@ -696,7 +738,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -710,7 +752,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -719,6 +761,20 @@
       "document_class": "court_order_name_change",
       "url": "https://www.legis.la.gov/legis/Law.aspx?d=77843",
       "authority": "Louisiana State Legislature \u2014 La. R.S. 13:4751 (administered by the district courts)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
+      "source_id": "la-rs32-ch2-drivers-license",
+      "jurisdiction": "LA",
+      "document_class": "drivers_license",
+      "url": "https://legis.la.gov/Legis/Law.aspx?d=88370",
+      "authority": "Louisiana State Legislature \u2014 Louisiana Revised Statutes (administered by the Louisiana OMV)",
       "verification_status": "unverified",
       "human_verified": false,
       "verified_by": "",
@@ -864,7 +920,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -878,21 +934,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
-      "notes": ""
-    },
-    {
-      "source_id": "mi-scao-pc51-name-change-petition",
-      "jurisdiction": "MI",
-      "document_class": "court_order_name_change",
-      "url": "https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf",
-      "authority": "Michigan Supreme Court, State Court Administrative Office (SCAO)",
-      "verification_status": "unverified",
-      "human_verified": false,
-      "verified_by": "",
-      "verified_at": "",
-      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -948,7 +990,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -1361,14 +1403,14 @@
       "source_id": "ny-courts-name-change",
       "jurisdiction": "NY",
       "document_class": "court_order_name_change",
-      "url": "https://www.nycourts.gov/courthelp/Family/nameChange.shtml",
+      "url": "https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics",
       "authority": "New York State Unified Court System (CourtHelp)",
       "verification_status": "unverified",
       "human_verified": false,
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": false,
+      "reachable_by_our_crawler": true,
       "notes": ""
     },
     {
@@ -1680,6 +1722,20 @@
       "notes": ""
     },
     {
+      "source_id": "sd-sdlrc-32-12-drivers-license",
+      "jurisdiction": "SD",
+      "document_class": "drivers_license",
+      "url": "https://www.sdlegislature.gov/api/Statutes/32-12.html",
+      "authority": "South Dakota Legislative Research Council \u2014 SD Codified Laws (administered by SD Dept. of Public Safety)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "reachable_by_our_crawler": true,
+      "notes": ""
+    },
+    {
       "source_id": "sd-ujs",
       "jurisdiction": "SD",
       "document_class": "court_order_name_change",
@@ -1802,7 +1858,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {
@@ -1816,7 +1872,7 @@
       "verified_by": "",
       "verified_at": "",
       "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
-      "reachable_by_our_crawler": true,
+      "reachable_by_our_crawler": false,
       "notes": ""
     },
     {

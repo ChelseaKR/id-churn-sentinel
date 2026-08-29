@@ -72,7 +72,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <header>
 <h1>ID Churn Sentinel</h1>
 <p class="lede"><strong>Technical alpha:</strong> a candidate-source registry and human-review pipeline for US government pages about name and gender-marker changes on identity documents. When operational, it reports that an eligible source page changed and shows the passage that changed. <strong>It never asserts what the law is.</strong></p>
-<p class="meta">Generated 17 July 2026, 01:43 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
+<p class="meta">Generated 29 August 2026, 00:28 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
 </header>
 <main id="main">
 <nav class="section-nav" aria-label="Page sections">
@@ -87,9 +87,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </ul>
 </nav>
 <section class="notice" aria-labelledby="verification">
-<h2 id="verification">Read this first: no human has confirmed any of these 152 sources</h2>
-<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-07-17, <strong>0 of 152 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
-<p><strong>Every source listed on this page is a <em>candidate</em> official URL.</strong> Our crawler fetched it and read its title. That is all that has happened to 152 of the 152 entries below: <strong>UNVERIFIED — machine-checked, not human-confirmed</strong>. <strong>No human has confirmed that each one is the official page it claims to be</strong> for that document class in that jurisdiction.</p>
+<h2 id="verification">Read this first: no human has confirmed any of these 156 sources</h2>
+<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-08-29, <strong>0 of 156 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
+<p><strong>Every source listed on this page is a <em>candidate</em> official URL.</strong> Our crawler fetched it and read its title. That is all that has happened to 156 of the 156 entries below: <strong>UNVERIFIED — machine-checked, not human-confirmed</strong>. <strong>No human has confirmed that each one is the official page it claims to be</strong> for that document class in that jurisdiction.</p>
 <p><strong>Do not rely on this list as authoritative guidance, and do not hand it to someone who will.</strong> A machine cannot tell a state's real birth-certificate page from a convincing-looking one. It cannot even reliably tell a live page from a bot-wall: one federal site answers our crawler with a page titled <q>Request Access</q> and serves it with <strong>HTTP 200</strong>. A status code is not a verification, and a title is not a verification. A person is.</p>
 <h3>What this tool does claim</h3>
 <ul>
@@ -104,11 +104,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <p>Every source below, in <a href="sources.json">sources.json</a>, and in every per-jurisdiction feed carries a machine-readable <code>verification_status</code> field for exactly this reason — so that an integrator cannot consume a source without being told what is behind it. The verification queue and how it is worked: <a href="https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/VERIFYING.md">docs/VERIFYING.md</a>.</p>
 </section>
 <section class="notice" aria-labelledby="run-health">
-<h2 id="run-health">Run health: STALE</h2>
+<h2 id="run-health">Run health: FAILED · CURRENT</h2>
 <p><strong>The feed's generated time is not evidence that the watcher ran.</strong> Health below comes only from persisted run and source-attempt receipts. A failed, partial, running, or stale state means feed silence must not be read as no change.</p>
-<p>No watch run receipt exists.</p>
+<p>Latest attempt <code>cee217f102684e719afb92fe88eb892f</code>: <strong>FAILED</strong>; scope <strong>all jurisdictions</strong>; started 2026-08-23T19:15:22.799410+00:00; completed 2026-08-23T19:15:22.801459+00:00; <strong>no source was attempt-eligible, so this run examined nothing</strong> — there is no denominator here and the zero counts are not a measurement of any page.</p>
 <p>No successful watch run receipt exists.</p>
-<p><a href="status.json">status.json</a> carries the exact eligible, attempted, and successful source ID sets.</p>
+<p><a href="status.json">status.json</a> carries the exact eligible, attempted, successful, and unmeasured source ID sets.</p>
 </section>
 <section aria-labelledby="what">
 <h2 id="what">What this tool will and will not tell you</h2>
@@ -129,23 +129,23 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <section aria-labelledby="coverage">
 <h2 id="coverage">Coverage</h2>
 <dl class="stats">
-<div><dt>Registered candidates</dt><dd>152</dd></div>
-<div><dt>Attempt-eligible</dt><dd>0 of 152</dd></div>
+<div><dt>Registered candidates</dt><dd>156</dd></div>
+<div><dt>Attempt-eligible</dt><dd>0 of 156</dd></div>
 <div><dt>Jurisdictions</dt><dd>52 of 52</dd></div>
-<div><dt>Named gaps</dt><dd>12</dd></div>
-<div><dt>Registered but crawler-unreachable</dt><dd>6</dd></div>
-<div><dt>Human-verified</dt><dd>0 of 152</dd></div>
+<div><dt>Named gaps</dt><dd>8</dd></div>
+<div><dt>Registered but crawler-unreachable</dt><dd>12</dd></div>
+<div><dt>Human-verified</dt><dd>0 of 156</dd></div>
 <div><dt>Rejected by a human</dt><dd>0</dd></div>
 </dl>
-<p><strong>152 of the 152 sources in this registry are machine-checked and <em>not</em> human-verified.</strong> A live fetch confirmed each URL answers, and its title was read. That is a fact about a socket, not a person confirming it is the right page — those are different claims, and this project keeps them in different fields, on every source, in every artifact.</p>
-<p><strong>6 of the 152 registered candidates could not be fetched</strong> by our own crawler during registry checking. They remain listed as unreachable candidates in the inventory below rather than deleted, because deleting them would erase the fact that we cannot watch them.</p>
+<p><strong>156 of the 156 sources in this registry are machine-checked and <em>not</em> human-verified.</strong> A live fetch confirmed each URL answers, and its title was read. That is a fact about a socket, not a person confirming it is the right page — those are different claims, and this project keeps them in different fields, on every source, in every artifact.</p>
+<p><strong>12 of the 156 registered candidates could not be fetched</strong> by our own crawler during registry checking. They remain listed as unreachable candidates in the inventory below rather than deleted, because deleting them would erase the fact that we cannot watch them.</p>
 <table>
 <caption>Sources by document class</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Sources</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>54</td></tr>
 <tr><th scope="row">Court-order name change</th><td>46</td></tr>
-<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>46</td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>50</td></tr>
 <tr><th scope="row">Passport</th><td>3</td></tr>
 <tr><th scope="row">Selective Service</th><td>1</td></tr>
 <tr><th scope="row">Social Security</th><td>2</td></tr>
@@ -234,11 +234,12 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <h2 id="sources">Registered source candidates</h2>
 <p>Every URL below was fetched by this tool's own crawler, with its own TLS stack and its own descriptive User-Agent, and its title read, before it was added. <strong>The verification column says whether a named human has since opened it and confirmed it is the official page for that document class in that jurisdiction</strong> — and for anything marked <strong>UNVERIFIED — machine-checked, not human-confirmed</strong>, nobody has.</p>
 <table>
-<caption>AK — 2 registered source candidates</caption>
+<caption>AK — 3 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>Alaska Department of Health, Health Analytics and Vital Records Section</td><td><a href="https://health.alaska.gov/en/division-of-public-health/health-analytics-vital-records/">https://health.alaska.gov/en/division-of-public-health/health-analytics-vital-records/</a><br><code>ak-havrs-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Court-order name change</th><td>Alaska Court System (Family Law Self-Help Center)</td><td><a href="https://courts.alaska.gov/shc/">https://courts.alaska.gov/shc/</a><br><code>ak-courts-self-help</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Alaska State Legislature — Alaska Statutes, Title 28, Chapter 15 (Drivers&#x27; Licenses)</td><td><a href="https://www.akleg.gov/basis/statutes.asp?media=print&amp;secStart=28.15&amp;secEnd=28.15">https://www.akleg.gov/basis/statutes.asp?media=print&amp;secStart=28.15&amp;secEnd=28.15</a><br><code>ak-akleg-as-28-15-drivers-license</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
 <table>
@@ -251,10 +252,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </tbody>
 </table>
 <table>
-<caption>AR — 1 registered source candidate</caption>
+<caption>AR — 2 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>Arkansas Department of Health, Vital Records</td><td><a href="https://healthy.arkansas.gov/programs-services/certificates-records/">https://healthy.arkansas.gov/programs-services/certificates-records/</a><br><code>ar-adh-certificates-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Arkansas Department of Finance and Administration, Office of Motor Vehicle</td><td><a href="https://www.dfa.arkansas.gov/office/mydmv/">https://www.dfa.arkansas.gov/office/mydmv/</a><br><code>ar-dfa-mydmv</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
 <table>
@@ -292,10 +294,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </tbody>
 </table>
 <table>
-<caption>DC — 2 registered source candidates</caption>
+<caption>DC — 3 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>DC Department of Health, Vital Records Division</td><td><a href="https://dchealth.dc.gov/service/vital-records">https://dchealth.dc.gov/service/vital-records</a><br><code>dc-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Court-order name change</th><td>Council of the District of Columbia — D.C. Law Library (D.C. Official Code, Title 16, Chapter 25 &quot;Change of Name or Gender&quot;)</td><td><a href="https://code.dccouncil.gov/us/dc/council/code/sections/16-2501">https://code.dccouncil.gov/us/dc/council/code/sections/16-2501</a><br><code>dc-code-16-2501-name-change</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Driver&#x27;s licence / state ID</th><td>District of Columbia Department of Motor Vehicles</td><td><a href="https://dmv.dc.gov/">https://dmv.dc.gov/</a><br><code>dc-dmv</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
@@ -390,12 +393,13 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </tbody>
 </table>
 <table>
-<caption>LA — 3 registered source candidates</caption>
+<caption>LA — 4 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
-<tr><th scope="row">Birth certificate</th><td>Louisiana Department of Health, Center for Vital Records and Statistics</td><td><a href="https://ldh.la.gov/page/vital-record-amendments">https://ldh.la.gov/page/vital-record-amendments</a><br><code>la-ldh-vital-record-amendments</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Birth certificate</th><td>Louisiana Department of Health, Center for Vital Records and Statistics</td><td><a href="https://ldh.la.gov/vital-records">https://ldh.la.gov/vital-records</a><br><code>la-ldh-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Birth certificate</th><td>Louisiana Department of Health, Center for Vital Records and Statistics</td><td><a href="https://ldh.la.gov/page/vital-record-amendments">https://ldh.la.gov/page/vital-record-amendments</a><br><code>la-ldh-vital-record-amendments</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Birth certificate</th><td>Louisiana Department of Health, Center for Vital Records and Statistics</td><td><a href="https://ldh.la.gov/vital-records">https://ldh.la.gov/vital-records</a><br><code>la-ldh-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Court-order name change</th><td>Louisiana State Legislature — La. R.S. 13:4751 (administered by the district courts)</td><td><a href="https://www.legis.la.gov/legis/Law.aspx?d=77843">https://www.legis.la.gov/legis/Law.aspx?d=77843</a><br><code>la-rs-13-4751-petition-for-name-change</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Louisiana State Legislature — Louisiana Revised Statutes (administered by the Louisiana OMV)</td><td><a href="https://legis.la.gov/Legis/Law.aspx?d=88370">https://legis.la.gov/Legis/Law.aspx?d=88370</a><br><code>la-rs32-ch2-drivers-license</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
 <table>
@@ -426,12 +430,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </tbody>
 </table>
 <table>
-<caption>MI — 3 registered source candidates</caption>
+<caption>MI — 2 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
-<tr><th scope="row">Birth certificate</th><td>Michigan Legislature — Public Health Code (administered by MDHHS Vital Records)</td><td><a href="https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf">https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf</a><br><code>mi-mcl-333-2831-new-birth-certificate</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Court-order name change</th><td>Michigan Supreme Court, State Court Administrative Office (SCAO)</td><td><a href="https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf">https://www.courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf</a><br><code>mi-scao-pc51-name-change-petition</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Michigan Legislature — Michigan Vehicle Code (administered by Michigan Secretary of State)</td><td><a href="https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf">https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf</a><br><code>mi-mcl-257-307-license-application</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Birth certificate</th><td>Michigan Legislature — Public Health Code (administered by MDHHS Vital Records)</td><td><a href="https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf">https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf</a><br><code>mi-mcl-333-2831-new-birth-certificate</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Michigan Legislature — Michigan Vehicle Code (administered by Michigan Secretary of State)</td><td><a href="https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf">https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf</a><br><code>mi-mcl-257-307-license-application</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
 <table>
@@ -448,7 +451,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>Missouri Department of Health and Senior Services, Bureau of Vital Records</td><td><a href="https://health.mo.gov/data/vitalrecords/">https://health.mo.gov/data/vitalrecords/</a><br><code>mo-dhss-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Court-order name change</th><td>Missouri Judiciary (Office of State Courts Administrator)</td><td><a href="https://www.courts.mo.gov/">https://www.courts.mo.gov/</a><br><code>mo-courts</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Court-order name change</th><td>Missouri Judiciary (Office of State Courts Administrator)</td><td><a href="https://www.courts.mo.gov/">https://www.courts.mo.gov/</a><br><code>mo-courts</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Driver&#x27;s licence / state ID</th><td>Missouri Department of Revenue, Driver License Bureau</td><td><a href="https://dor.mo.gov/driver-license/">https://dor.mo.gov/driver-license/</a><br><code>mo-dor-driver-license</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
@@ -538,7 +541,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>New York State Department of Health, Vital Records</td><td><a href="https://www.health.ny.gov/vital_records/">https://www.health.ny.gov/vital_records/</a><br><code>ny-doh-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Court-order name change</th><td>New York State Unified Court System (CourtHelp)</td><td><a href="https://www.nycourts.gov/courthelp/Family/nameChange.shtml">https://www.nycourts.gov/courthelp/Family/nameChange.shtml</a><br><code>ny-courts-name-change</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Court-order name change</th><td>New York State Unified Court System (CourtHelp)</td><td><a href="https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics">https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics</a><br><code>ny-courts-name-change</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Driver&#x27;s licence / state ID</th><td>New York State Department of Motor Vehicles</td><td><a href="https://dmv.ny.gov/driver-license/change-information-on-dmv-photo-documents">https://dmv.ny.gov/driver-license/change-information-on-dmv-photo-documents</a><br><code>ny-dmv-change-information</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
@@ -598,11 +601,12 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </tbody>
 </table>
 <table>
-<caption>SD — 2 registered source candidates</caption>
+<caption>SD — 3 registered source candidates</caption>
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Birth certificate</th><td>South Dakota Department of Health, Vital Records</td><td><a href="https://doh.sd.gov/licensing-and-records/vital-records/">https://doh.sd.gov/licensing-and-records/vital-records/</a><br><code>sd-doh-vital-records</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Court-order name change</th><td>South Dakota Unified Judicial System</td><td><a href="https://ujs.sd.gov/">https://ujs.sd.gov/</a><br><code>sd-ujs</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Driver&#x27;s licence / state ID</th><td>South Dakota Legislative Research Council — SD Codified Laws (administered by SD Dept. of Public Safety)</td><td><a href="https://www.sdlegislature.gov/api/Statutes/32-12.html">https://www.sdlegislature.gov/api/Statutes/32-12.html</a><br><code>sd-sdlrc-32-12-drivers-license</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 </tbody>
 </table>
 <table>
@@ -628,8 +632,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <thead><tr><th scope="col">Document class</th><th scope="col">Issuing authority</th><th scope="col">Candidate page</th><th scope="col">Verification · monitoring eligibility</th></tr></thead>
 <tbody>
 <tr><th scope="row">Passport</th><td>Office of the Federal Register (National Archives)</td><td><a href="https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&amp;order=newest&amp;per_page=20&amp;fields%5B%5D=title&amp;fields%5B%5D=publication_date&amp;fields%5B%5D=document_number&amp;fields%5B%5D=html_url&amp;fields%5B%5D=agencies">https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&amp;order=newest&amp;per_page=20&amp;fields%5B%5D=title&amp;fields%5B%5D=publication_date&amp;fields%5B%5D=document_number&amp;fields%5B%5D=html_url&amp;fields%5B%5D=agencies</a><br><code>us-federal-register-sex-marker</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Passport</th><td>U.S. Department of State, Bureau of Consular Affairs</td><td><a href="https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html">https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html</a><br><code>us-passport-change-correct</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
-<tr><th scope="row">Passport</th><td>U.S. Department of State, Bureau of Consular Affairs</td><td><a href="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html">https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html</a><br><code>us-passport-sex-markers</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Passport</th><td>U.S. Department of State, Bureau of Consular Affairs</td><td><a href="https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html">https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html</a><br><code>us-passport-change-correct</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
+<tr><th scope="row">Passport</th><td>U.S. Department of State, Bureau of Consular Affairs</td><td><a href="https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html">https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html</a><br><code>us-passport-sex-markers</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Selective Service</th><td>U.S. Selective Service System</td><td><a href="https://www.sss.gov/register/">https://www.sss.gov/register/</a><br><code>us-selective-service-register</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Reachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Social Security</th><td>U.S. Social Security Administration</td><td><a href="https://www.ssa.gov/number-card">https://www.ssa.gov/number-card</a><br><code>us-ssa-number-card</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
 <tr><th scope="row">Social Security</th><td>U.S. Social Security Administration</td><td><a href="https://www.ssa.gov/forms/ss-5.pdf">https://www.ssa.gov/forms/ss-5.pdf</a><br><code>us-ssa-ss5-form</code></td><td><strong>UNVERIFIED — machine-checked, not human-confirmed</strong><br><span>Not monitored — excluded by eligibility: unverified, fetch-policy-unreviewed</span><br><span>Crawler-unreachable when last machine-checked</span></td></tr>
@@ -700,31 +704,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </section>
 <section aria-labelledby="gaps">
 <h2 id="gaps">What is NOT watched, and why</h2>
-<p>There are <strong>12 named gaps</strong>. <strong>The feed's silence about any of them means nothing at all.</strong> Each one is a refusal we chose: in every case there is a two-line change — spoof a browser User-Agent, disable certificate verification, ignore a robots.txt — that would close the gap today and make this a tool that lies to a government server, about who it is, on behalf of a population under surveillance. We do not make it. The gap is recorded instead.</p>
+<p>There are <strong>8 named gaps</strong>. <strong>The feed's silence about any of them means nothing at all.</strong> Each one is a refusal we chose: in every case there is a two-line change — spoof a browser User-Agent, disable certificate verification, ignore a robots.txt — that would close the gap today and make this a tool that lies to a government server, about who it is, on behalf of a population under surveillance. We do not make it. The gap is recorded instead.</p>
 <table>
 <caption>Named gaps</caption>
 <thead><tr><th scope="col">Jurisdiction</th><th scope="col">Document class</th><th scope="col">Why we do not watch it</th><th scope="col">Host(s) that refused us</th><th scope="col">Detail</th></tr></thead>
 <tbody>
-<tr>
-<th scope="row">AK</th>
-<td>Driver&#x27;s licence / state ID</td>
-<td>Serves a browser, 403s our User-Agent (we do not spoof one)</td>
-<td>dmv.alaska.gov, doa.alaska.gov</td>
-<td>Both Alaska DMV hosts 403 our descriptive User-Agent. We do not spoof a browser UA. The Alaska statutes/admin-code site (akleg.gov) answers us, but publishes only a table of contents whose deep links are #fragments — a fragment cannot scope a fetch, so watching it would claim a precision we do not have.</td>
-</tr>
 <tr>
 <th scope="row">AR</th>
 <td>Court-order name change</td>
 <td>TLS chain our trust store cannot verify (we do not disable checks)</td>
 <td>arcourts.gov</td>
 <td>The Arkansas judiciary&#x27;s host presents a chain our trust store cannot verify, and the Arkansas Code is not published as state-hosted HTML. Same refusal as above: a broken chain is the server&#x27;s defect, and weakening our TLS verification to compensate would be ours.</td>
-</tr>
-<tr>
-<th scope="row">AR</th>
-<td>Driver&#x27;s licence / state ID</td>
-<td>TLS chain our trust store cannot verify (we do not disable checks)</td>
-<td>dfa.arkansas.gov, mydmv.arkansas.gov</td>
-<td>Both present a chain our trust store cannot verify. We do not disable certificate verification. Arkansas does not publish its Code as state-hosted HTML (it is licensed to a commercial publisher), so there is no alternative official surface for this document class.</td>
 </tr>
 <tr>
 <th scope="row">CO</th>
@@ -748,13 +738,6 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <td>jud.ct.gov completes no TLS handshake with the tool&#x27;s OpenSSL 3.5 (SSLV3_ALERT_HANDSHAKE_FAILURE) while answering a legacy OpenSSL 1.1.1 client with 200 — &#x27;it loads in my browser&#x27; is not evidence that this tool can watch it. The obvious alternative, the General Assembly&#x27;s own site (cga.ct.gov), presents a chain our trust store cannot verify. Connecticut&#x27;s court name-change process therefore has no honestly watchable official surface.</td>
 </tr>
 <tr>
-<th scope="row">DC</th>
-<td>Court-order name change</td>
-<td>Serves a browser, 403s our User-Agent (we do not spoof one)</td>
-<td>dccourts.gov</td>
-<td>dccourts.gov 403s our descriptive UA on every path including the site root. NEWLY NAMED: this hole existed before today and was NOT in the old GAP list — the coverage gate now derives the gap list from the registry, so a silent thin spot fails the build instead of sitting there.</td>
-</tr>
-<tr>
 <th scope="row">FL</th>
 <td>Court-order name change</td>
 <td>Their robots.txt forbids us (honoured without appeal)</td>
@@ -762,11 +745,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <td>flcourts.gov is a client-rendered SPA AND its robots.txt disallows our UA from the form-download paths where the name-change forms live — either one alone would end it. The alternative official surface, the Legislature&#x27;s statute page for Fla. Stat. 68.07, renders TODAY&#x27;S DATE into the page: it would produce a change record every single day, forever, whose diff is the date. `--twice` does not catch that (it is stable across two back-to-back fetches on the same day); reading the normalized text does, which is why we read it.</td>
 </tr>
 <tr>
-<th scope="row">LA</th>
-<td>Driver&#x27;s licence / state ID</td>
-<td>Client-rendered page with no policy text to hash</td>
-<td>expresslane.la.gov, expresslane.org, dps.louisiana.gov</td>
-<td>The Office of Motor Vehicles&#x27; public site is a JavaScript shell that normalizes to 2 passages — hashing it would watch a loading spinner, not a policy. dps.louisiana.gov&#x27;s robots.txt disallows us. Louisiana&#x27;s court name-change statute WAS recovered (see la-rs-13-4751); the OMV&#x27;s licensing rules have no equivalent state-hosted HTML surface.</td>
+<th scope="row">MI</th>
+<td>Court-order name change</td>
+<td>Their robots.txt forbids us (honoured without appeal)</td>
+<td>courts.michigan.gov</td>
+<td>courts.michigan.gov tightened its robots.txt to a site-wide `Disallow: /` for all user agents since the 2026-07-13 seed, confirmed directly (not through this tool&#x27;s own fetcher, to rule out a fetcher bug) and reconfirmed on a second check. The SCAO-approved PC 51 name-change petition PDF this registry previously watched at courts.michigan.gov/siteassets/forms/scao-approved/pc51.pdf is under this same host and is now refused. We honour a robots.txt refusal without appeal; a search for an alternate Michigan government host serving the same or an equivalent name-change petition form did not find one.</td>
 </tr>
 <tr>
 <th scope="row">OK</th>
@@ -774,13 +757,6 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <td>Their robots.txt forbids us (honoured without appeal)</td>
 <td>oscn.net, oklegislature.gov</td>
 <td>oscn.net — which is where Oklahoma publishes BOTH its court information and its statutes — serves `User-agent: * / Disallow: /`. It forbids all automated access to the entire site, and we honour that without appeal. The Legislature&#x27;s own site (oklegislature.gov) presents a chain our trust store cannot verify. Removed, not spoofed.</td>
-</tr>
-<tr>
-<th scope="row">SD</th>
-<td>Driver&#x27;s licence / state ID</td>
-<td>Client-rendered page with no policy text to hash</td>
-<td>sd.gov, dps.sd.gov, sdlegislature.gov</td>
-<td>Every South Dakota surface for this document class is client-rendered: sd.gov/dps is a 940KB ServiceNow portal whose text is &#x27;Loading…&#x27;, dps.sd.gov normalizes to 4 passages, and sdlegislature.gov (which would have been the statutory alternative) serves a page whose title is literally &#x27;Loading...&#x27; and whose text is 6 passages. There is nothing here a hash can honestly watch.</td>
 </tr>
 <tr>
 <th scope="row">VT</th>

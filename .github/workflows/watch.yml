@@ -61,7 +61,7 @@ jobs:
       contents: read
       issues: write # Required only to create or update the human review-queue issue.
     runs-on: ubuntu-latest
-    timeout-minutes: 40 # 152 sources against slow government CDNs; travel.state.gov alone
+    timeout-minutes: 40 # the whole registry against slow government CDNs; travel.state.gov alone
     # has been measured taking 44s to answer a single request.
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

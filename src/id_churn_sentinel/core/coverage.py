@@ -64,6 +64,13 @@ def repo_root() -> Path:
 # here — a claim nobody checks is a claim that will eventually be wrong.
 DOC_PATHS: tuple[str, ...] = (
     "README.md",
+    # The Makefile, because it states a coverage number and PRINTS it: `make help` renders
+    # the `##` text of every target, so "0 of N sources are human-verified" on the
+    # verify-sources target is a claim a maintainer reads before they read anything else.
+    # It sat outside this tuple saying 152 while the registry held 156, which is precisely
+    # the eighth guardrail ("never hand-write a coverage number") going unenforced in the
+    # file that runs every gate.
+    "Makefile",
     "docs/ROADMAP.md",
     "docs/CONSUMERS.md",
     "docs/RESPONSIBLE-TECH-AUDITS.md",

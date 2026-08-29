@@ -333,6 +333,21 @@ def test_the_feed_requires_no_account_and_carries_no_tracking(
         assert tracker not in lowered, f"the feed must not carry {tracker!r}"
 
 
+def _committed_change_feeds() -> list[Path]:
+    """Every JSON change feed in the commit: the all-jurisdictions one and each per-state one.
+
+    All of them are served. A consumer serving one state subscribes to `changes-us-tx.json`
+    and never fetches `changes.json`, so a record that reaches only the per-jurisdiction feed
+    reaches a reader exactly as completely as one in the main feed.
+    """
+    return sorted([PUBLISHED / "changes.json", *PUBLISHED.glob("changes-*.json")])
+
+
+def _committed_rss_feeds() -> list[Path]:
+    """Every RSS feed in the commit. This is the surface an incumbent actually subscribes to."""
+    return sorted([PUBLISHED / "feed.xml", *PUBLISHED.glob("feed-*.xml")])
+
+
 def test_the_committed_published_feed_holds_the_safety_property() -> None:
     """THE GATE, on the bytes that are actually served.
 
@@ -346,16 +361,61 @@ def test_the_committed_published_feed_holds_the_safety_property() -> None:
     So a hand-edited `changes.json`, a bad merge, or a `publish` run against a tampered store
     would reach A4TE, Trans Lifeline, and a legal-aid clinic exactly as written. This asserts
     the safety property where it actually has to hold.
-    """
-    payload = json.loads((PUBLISHED / "changes.json").read_text(encoding="utf-8"))
 
-    for change in payload["changes"]:
-        assert change["review_status"] == "confirmed", (
-            f"published change {change['id']} is {change['review_status']!r} — only records a "
-            f"named human confirmed may be served, and these bytes are served as committed"
+    **And it used to assert nothing.** The body was one `for change in payload["changes"]`
+    loop holding every assertion, over a feed that has held zero changes since the day it was
+    written — so the merge-blocking gate on the served bytes had never executed a single
+    assertion. This file already refuses that shape two directories away, where
+    `test_watch_never_emits_a_classified_change` asserts `report.changed` is non-empty "or
+    this test proves nothing". The same guard belongs here.
+
+    Zero published changes is the correct state today: nothing has been reviewed, so nothing
+    may be served. What is not correct is passing *silently* over it, so the empty case is
+    given the assertion it can actually make — that every served artifact agrees the count is
+    zero. A `feed.xml` carrying an item whose record is in no `changes.json` is a record that
+    reached a consumer without passing the publisher, which is the failure this gate exists
+    for and the one a vacuous loop could never see.
+
+    It also reads only what a program fetches, and consumers fetch more than `changes.json`:
+    the RSS an incumbent subscribes to, and the 53 per-jurisdiction feeds an org serving one
+    state consumes instead of the whole thing.
+    """
+    served = 0
+    for path in _committed_change_feeds():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for change in payload["changes"]:
+            served += 1
+            assert change["review_status"] == "confirmed", (
+                f"{path.name}: published change {change['id']} is "
+                f"{change['review_status']!r} — only records a named human confirmed may be "
+                f"served, and these bytes are served as committed"
+            )
+            assert change["significance"] in {"editorial", "substantive"}
+            assert change["reviewer"], f"{path.name}: a published change with no human behind it"
+
+    items = {
+        path: path.read_text(encoding="utf-8").count("<item>") for path in _committed_rss_feeds()
+    }
+    total_items = sum(items.values())
+
+    if served == 0:
+        # The per-record property above was vacuous, and this is the assertion that is not:
+        # every served artifact has to agree there is nothing to serve. An item in an RSS
+        # feed with no record behind it in any JSON feed is a change that reached a reader
+        # without passing the publisher.
+        carrying = {path.name: count for path, count in items.items() if count}
+        assert not carrying, (
+            f"the committed JSON feeds publish no changes, but these RSS feeds carry items: "
+            f"{carrying}. An item nobody can find a reviewed record for is a change that "
+            f"reached a consumer without passing the review gate."
         )
-        assert change["significance"] in {"editorial", "substantive"}
-        assert change["reviewer"], "a published change with no human behind it"
+    else:
+        # Every RSS item must have a record behind it. The RSS is the surface people
+        # subscribe to; it may never be ahead of the JSON that carries the reviewer's name.
+        assert total_items <= served, (
+            f"{total_items} RSS item(s) across the committed feeds against {served} reviewed "
+            f"record(s) — the feed a reader subscribes to is ahead of the records behind it."
+        )
 
 
 def test_the_committed_site_is_servable_by_pages_from_the_branch() -> None:

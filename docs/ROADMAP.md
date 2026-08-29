@@ -83,7 +83,7 @@ The hard parts are not technical. They are: (a) resisting the enormous pull towa
 ## 8. Implementation plan
 
 ### M0 — Core (**shipped**)
-Registry with closed vocabularies + validation; SQLite snapshot store with retention; normalization + hashing; drift detection with unified passage diffs; `ChangeRecord` + the human review gate; RSS + JSON publication; the `sentinel` CLI; 7 merge-blocking gates; 143 tests, ~99% coverage, all offline.
+Registry with closed vocabularies + validation; SQLite snapshot store with retention; normalization + hashing; drift detection with unified passage diffs; `ChangeRecord` + the human review gate; RSS + JSON publication; the `sentinel` CLI; 7 merge-blocking gates; the whole suite offline, under the branch-coverage floor the metrics table above states. The measurement is not recorded here, for the reason that table gives: nothing re-derives it into this document, and `make cov` prints it.
 
 ### M1 — Verify the registry (**the next real work, and it is not code**)
 `0 of 156 sources are human-verified`. A human opens each URL, confirms it is the official page for that jurisdiction and document class, corrects it or deletes it, and flips the flag. **Nothing else in this repo is worth more than this**, and no amount of engineering substitutes for it.

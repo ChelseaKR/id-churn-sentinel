@@ -1,0 +1,71 @@
+# Does the feed a consumer receives say what this repository says?
+#
+# The published surface is docs/, committed and served straight from the branch
+# with no build step and no CI, because a site that exists only while somebody
+# else's billing system agrees to run a job is a site that does not exist. That
+# decision removes a deploy pipeline, and with it every place a deploy could be
+# checked. Nothing here has ever looked at the bytes a consumer receives, so Pages
+# serving an older commit, or Jekyll silently dropping a file, or the branch never
+# having been published at all, would leave every gate green while an org polling
+# feed-us-tx.xml read a different set of changes.
+#
+# These feeds carry name and gender-marker change procedures for 52 jurisdictions.
+# A consumer acting on a stale one sends somebody to a counter with the wrong form.
+#
+# This is the check for the deployment: take every file git tracks under docs/,
+# which is exactly what branch-served Pages publishes, fetch each over HTTPS, and
+# fail naming every byte-level difference.
+#
+# It reads the network, deliberately, which the seven-stage merge gate must never
+# do. That is why it lives in its own workflow, holds only `contents: read`, and is
+# not part of `make verify`: it grades the deployment, and a deployment that has not
+# caught up yet is not a reason to block a merge.
+#
+# Runs daily and on demand (Actions > live integrity sentinel > Run workflow).
+name: live integrity sentinel
+
+on:
+  schedule:
+    - cron: "51 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Deduplicate reads without ever cancelling or queueing behind a deploy.
+  group: live-integrity
+  cancel-in-progress: false
+
+jobs:
+  verify-live:
+    name: the live surface is what this repository publishes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compare the live surface with what this checkout publishes
+        run: |
+          set -uo pipefail
+          expected_sha="$(git rev-parse HEAD)"
+          python3 tools/verify_live_site.py
+          verify_rc="$?"
+          # A deploy for a newer commit may have landed while this ran, in which case
+          # the live surface differing from THIS commit is the deploy working. Only
+          # that exact case is excused, and only by re-reading the remote afterwards.
+          remote_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
+          if [ "$remote_sha" != "$expected_sha" ]; then
+            echo "::warning::main moved to ${remote_sha} while this ran; re-run once its deploy finishes"
+            exit 0
+          fi
+          exit "$verify_rc"

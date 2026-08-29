@@ -9,6 +9,23 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A daily check that the feeds Pages serves are the feeds this repository
+  publishes** (2026-08-29), in `tools/verify_live_site.py` and
+  `.github/workflows/live-integrity.yml`. `tests/test_published_site_drift.py`
+  now holds the committed `docs/` to what the code regenerates from the
+  registry. This holds the *deployment* to the committed `docs/`, which is the
+  other half of the same sentence and the half nothing could see: Pages serving
+  an older commit, or Jekyll dropping a file, or the branch never having been
+  published, would have left all seven gate stages green while an org polling
+  `feed-us-tx.xml` read a different set of changes. The check takes every file
+  git tracks under `docs/`, which is exactly what branch-served Pages publishes,
+  fetches each over HTTPS, and fails naming every byte-level difference. It
+  refuses to pass vacuously: fewer than 100 files or fewer than a million bytes
+  in the comparison set, any fetch that is not HTTP 200, and an origin answering
+  a guaranteed-missing path with anything but 404 are all failures rather than a
+  quiet OK. `docs/.nojekyll` is deliberately zero bytes and is compared like any
+  other file, since its presence is the instruction.
+
 - **A canonical URL and social-preview metadata on the published page, and a
   merge-blocking gate that both name this project rather than the shared origin**
   (2026-08-28), in `src/id_churn_sentinel/core/site.py` and

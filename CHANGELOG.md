@@ -9,6 +9,30 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A canonical URL and social-preview metadata on the published page, and a
+  merge-blocking gate that both name this project rather than the shared origin**
+  (2026-08-28), in `src/id_churn_sentinel/core/site.py` and
+  `tests/test_site.py`. The page had no `<link rel="canonical">` and no Open
+  Graph tags at all, so a link to it previewed as a bare URL. The reason this is
+  not merely cosmetic is the deployment shape: six project sites are served from
+  the same `chelseakr.github.io` origin on *paths*, so the canonical a
+  single-domain habit produces (`/`) is not a shorter spelling of this site, it
+  is a different address that today 404s, and all six sites would claim it. The
+  new `test_the_head_names_this_project_and_not_the_shared_origin` sits in the
+  existing "servable from a subpath" section rather than starting a parallel SEO
+  suite, because it is the same deployment bug the section already holds, and it
+  asserts the subpath is present rather than merely that a canonical exists.
+  `<title>`/`og:title` and `description`/`og:description` are each rendered from
+  one constant, so they cannot drift apart. The description states no count:
+  guardrail 8 forbids a hand-written coverage number, and a number on a preview
+  card is the one nobody rechecks. There is no `og:image` because the repository
+  contains no image and inventing one would be publishing an artifact that does
+  not exist; `twitter:card` is `summary`, which promises none.
+  Observed: with the canonical line deleted the gate fails at "the page has no
+  canonical URL"; pointed at `https://chelseakr.github.io/` it fails at "is the
+  shared origin, which is a different site than this one"; with `og:description`
+  drifted from `description` it fails on their equality. Restored, it passes.
+
 - **A merge-blocking gate that the committed site describes the registry it
   ships with** (2026-08-28), in `tests/test_source_labelling.py` and therefore
   in stage 6 of `make verify`. Every other test in that file takes a `published`

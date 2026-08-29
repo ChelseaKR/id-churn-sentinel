@@ -71,6 +71,7 @@ __all__ = [
     "PAGES_URL",
     "RAW_BASE_URL",
     "REPO_URL",
+    "SITE_DESCRIPTION",
     "SITE_TITLE",
     "feed_slug",
     "render_site",
@@ -98,6 +99,28 @@ PAGES_URL = "https://chelseakr.github.io/id-churn-sentinel/"
 UNVERIFIED_HEADLINE = "UNVERIFIED — machine-checked, not human-confirmed"
 
 SITE_TITLE = "ID Churn Sentinel"
+_PAGE_TITLE = f"{SITE_TITLE} — registered candidates, gaps, and service status"
+
+# One sentence, declared once, rendered into `<meta name="description">` and `og:description`.
+# Two copies of a sentence are two chances for one of them to drift, and the drifting copy is
+# the one a search result or a chat preview shows instead of the page.
+#
+# It states what the thing is and carries the same caution the page leads with: a REGISTRY of
+# CANDIDATE pages, in technical alpha, machine-checked and not human-confirmed. It names no
+# count — guardrail 8 in CLAUDE.md — because a hand-written number here is outside the reach of
+# `sentinel coverage --check-docs`, and a number on a preview card is exactly the number nobody
+# rechecks. It promises no legal meaning, per guardrail 6.
+#
+# Deliberately absent: `og:image`. Nothing in this repository is an image, and the page renders
+# no `src=` at all — `test_every_link_on_the_page_is_subpath_safe` asserts that, because a
+# subresource with a broken relative path fails silently under a Pages subpath. Pointing
+# `og:image` at a file that does not exist is a worse card than no card, and drawing one to
+# fill the slot would be inventing a published artifact. Hence `twitter:card` is `summary`,
+# which promises no image, rather than `summary_large_image`, which does.
+SITE_DESCRIPTION = (
+    "Technical-alpha registry and human-review pipeline for candidate US government pages "
+    "about name and gender-marker changes. No account, no tracking."
+)
 
 _CLASS_LABELS = {
     "birth_certificate": "Birth certificate",
@@ -170,10 +193,24 @@ def render_site(
             "<head>",
             '<meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{_esc(SITE_TITLE)} — registered candidates, gaps, and service status</title>",
-            '<meta name="description" content="Technical-alpha registry and human-review '
-            "pipeline for candidate US government pages about name and gender-marker changes. "
-            'No account, no tracking.">',
+            f"<title>{_esc(_PAGE_TITLE)}</title>",
+            f'<meta name="description" content="{_esc(SITE_DESCRIPTION)}">',
+            # The canonical, and every social URL, is the ABSOLUTE Pages URL — including the
+            # `/id-churn-sentinel/` path segment. Six of these project sites share the
+            # `chelseakr.github.io` origin, so a canonical of "/" would not merely be wrong, it
+            # would name a DIFFERENT project's page and invite a crawler to fold six sites into
+            # one. `PAGES_URL` already carries the subpath; nothing here builds a URL by hand.
+            f'<link rel="canonical" href="{_esc(PAGES_URL)}">',
+            '<meta property="og:type" content="website">',
+            f'<meta property="og:site_name" content="{_esc(SITE_TITLE)}">',
+            f'<meta property="og:title" content="{_esc(_PAGE_TITLE)}">',
+            f'<meta property="og:description" content="{_esc(SITE_DESCRIPTION)}">',
+            f'<meta property="og:url" content="{_esc(PAGES_URL)}">',
+            '<meta property="og:locale" content="en_US">',
+            # `summary`, not `summary_large_image`: this repo publishes no image, and a card
+            # type that promises one it cannot supply renders worse than one that does not ask.
+            # There is no og:image for the same reason — see the note above SITE_DESCRIPTION.
+            '<meta name="twitter:card" content="summary">',
             # Feed autodiscovery: a reader who points any RSS client at this page gets the feed
             # without hunting for the URL. Relative, like every other link here — see the module
             # docstring on why a leading slash would break under a Pages subpath.

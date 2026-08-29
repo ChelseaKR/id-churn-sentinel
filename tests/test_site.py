@@ -44,7 +44,7 @@ from id_churn_sentinel.core.registry import (
     Verification,
     load_registry,
 )
-from id_churn_sentinel.core.site import feed_slug, render_site
+from id_churn_sentinel.core.site import PAGES_URL, feed_slug, render_site
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
 
@@ -227,6 +227,63 @@ def test_every_link_on_the_page_is_subpath_safe(
     # And nothing on the page is fetched from anywhere at all — a subresource with a broken
     # relative path fails silently, which is the other half of the same deployment bug.
     assert "src=" not in page
+
+
+def test_the_head_names_this_project_and_not_the_shared_origin(
+    tmp_path: Path, site_registry: Registry
+) -> None:
+    """The canonical URL, and every social URL, must carry the `/id-churn-sentinel/` subpath.
+
+    This site is one of six project sites served from the SAME origin,
+    `chelseakr.github.io`, on paths rather than on domains of their own. That makes a
+    plausible-looking canonical actively destructive in a way it would not be on a dedicated
+    domain: `<link rel="canonical" href="/">` resolves to `https://chelseakr.github.io/`,
+    which is not a shortened form of this site — it is a different address that today 404s,
+    and every one of the six sites would claim the identical canonical. A crawler that
+    believes them folds six unrelated projects into one document.
+
+    So the check is not "is there a canonical" — an empty or origin-rooted one would pass
+    that. It is that the canonical, `og:url`, `<title>` and `og:title` agree with each other
+    and all name the subpath, and that the description a preview card shows is the same
+    sentence the page's own `<meta name="description">` carries.
+    """
+    publish([], tmp_path, registry=site_registry)
+    page = (tmp_path / "index.html").read_text()
+
+    canonical = re.search(r'<link rel="canonical" href="([^"]+)">', page)
+    assert canonical, "the page has no canonical URL"
+    assert canonical.group(1) == PAGES_URL, (
+        f"canonical is {canonical.group(1)!r}, not {PAGES_URL!r}"
+    )
+
+    def meta(attribute: str, name: str) -> str | None:
+        found = re.search(rf'<meta {attribute}="{name}" content="([^"]*)">', page)
+        return found.group(1) if found else None
+
+    # Every social URL names this project, never the bare origin the six sites share.
+    assert meta("property", "og:url") == PAGES_URL
+    for url in (canonical.group(1), meta("property", "og:url")):
+        assert url is not None
+        assert url.rstrip("/") != "https://chelseakr.github.io", (
+            f"{url!r} is the shared origin, which is a different site than this one"
+        )
+        assert "/id-churn-sentinel/" in url, f"{url!r} omits this project's path segment"
+
+    # One sentence and one title, not two that can drift apart.
+    title = re.search(r"<title>([^<]+)</title>", page)
+    assert title is not None
+    assert meta("property", "og:title") == title.group(1)
+    assert meta("name", "description") == meta("property", "og:description")
+    assert meta("name", "description"), "the page has no description"
+
+    # A card type that promises an image must actually carry one. This repo publishes no
+    # image, so it declares `summary` — the assertion holds either way round, so committing a
+    # social image later fails here until og:image is added with it.
+    card = meta("name", "twitter:card")
+    assert card in {"summary", "summary_large_image"}, f"unknown twitter:card {card!r}"
+    if card == "summary_large_image":
+        assert meta("property", "og:image"), "summary_large_image promises an og:image"
+    assert meta("property", "og:type") == "website"
 
 
 def test_the_published_directory_turns_jekyll_off(tmp_path: Path, site_registry: Registry) -> None:

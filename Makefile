@@ -75,6 +75,21 @@ sources-validate: ## [5/7] Registry gate: valid entries, no dupes, AND no doc ly
 	@# different one. A
 	@# self-description is a fact about the artifact; compute it from the artifact.
 	uv run sentinel coverage --check-docs
+	@# And the third form of the same question, asked of the bytes a consumer actually fetches.
+	@# The two checks above hold the REGISTRY and the PROSE to each other. Nothing held the
+	@# PUBLISHED SITE to either: Pages serves the committed `docs/` off the branch with no build
+	@# step, so a source added to the registry without a `make publish`, or a hand-edit of a
+	@# generated file, is served exactly as written. Every existing check over docs/ asks a
+	@# property of the artifact ("is any unreviewed record served?", "does every source carry
+	@# its status?") rather than whether the artifact still matches its input, so a stale
+	@# inventory — which is not a malformed one — passed all of them.
+	@#
+	@# This regenerates the whole surface into a TEMPORARY directory and byte-compares. It
+	@# never writes into docs/: a gate that regenerated in place would repair the drift it
+	@# exists to find. Excluded, and only these: status.json and the run-health section of
+	@# index.html, which are watch-run health from the uncommitted store in var/ — they are
+	@# cross-checked against each other instead. See the module docstring.
+	uv run pytest tests/test_published_site_drift.py -q
 
 no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, no unlabelled source in ANY artifact
 	@# Two properties, one stage, because they are one discipline. The feed gate stops the

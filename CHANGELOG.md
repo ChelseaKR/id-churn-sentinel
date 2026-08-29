@@ -9,6 +9,17 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A merge-blocking gate that the committed site describes the registry it
+  ships with** (2026-08-28), in `tests/test_source_labelling.py` and therefore
+  in stage 6 of `make verify`. Every other test in that file takes a `published`
+  fixture that publishes into a `tmp_path`, which proves the *publisher* is
+  correct and says nothing about the *commit* — and the commit is what a
+  consumer gets. The new checks re-derive every count from the registry rather
+  than remembering one, name which source ids and which gaps differ, and check
+  the rendered page as well as the JSON, because `sources.json` is what a
+  program fetches and `index.html` is what a caseworker opens. The existing
+  site-row test stopped asserting a hard-coded `156` for the same reason.
+
 - **Five named gaps closed with real, independently re-verified government sources**
   (2026-08-21): AK drivers_license (`akleg.gov`, AS 28.15 — scoped via the print
   view's `secStart`/`secEnd` query parameters, not the `#fragment` links the
@@ -79,6 +90,45 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   (default 2s), structurally, so no call path can burst a government server.
 
 ### Fixed
+
+- **The published site said this project watches 152 sources; the registry says
+  156** (2026-08-28). `docs/` is the product: GitHub Pages serves the committed
+  bytes off the branch with no build step and nothing between the commit and the
+  consumer. `docs/sources.json` and `docs/index.html` were last written on
+  2026-07-19; the five-named-gaps registry change above landed on 2026-08-21 and
+  nobody re-ran `make publish`. For fourteen weeks the served inventory told
+  A4TE, Trans Lifeline and a legal-aid clinic that this project watches 152
+  sources with 12 named gaps and 6 unreachable candidates, when the registry
+  says 156, 8 and 12. Four of those published gaps were false confessions — a
+  gap claiming we are blind to something we actually watch sends a consumer
+  looking elsewhere for information we already have — and the unreachable count
+  was understated by half, in the flattering direction. Regenerated with
+  `make publish`; the run-health section also moves from "STALE · no watch run
+  receipt exists" to the real receipt, which says the last watch FAILED.
+- **The merge-blocking gate on the served bytes had never executed an
+  assertion** (2026-08-28). `test_the_committed_published_feed_holds_the_safety
+  _property` calls itself "THE GATE, on the bytes that are actually served", and
+  its whole body was a `for change in payload["changes"]` loop over a feed that
+  has held zero changes since the day it was written. It also read only
+  `changes.json`, so `feed.xml` — the surface an incumbent actually subscribes
+  to — and the 53 per-jurisdiction feeds were served bytes no test looked at.
+  Zero published changes is the correct state; passing silently over it is not.
+  The empty case now asserts the invariant it can actually make, that every
+  served artifact agrees the count is zero, which catches an RSS item with no
+  reviewed record behind it — a change that reached a consumer without passing
+  the review gate, and the failure a vacuous loop could never see. The
+  repository already refuses this shape in
+  `test_watch_never_emits_a_classified_change` ("or this test proves nothing");
+  the same guard now applies to the gate on the product.
+- **`make help` printed a coverage number nothing checked, and it was wrong**
+  (2026-08-28). The Makefile said "0 of 152 sources are human-verified" twice,
+  once inside the help text `make help` renders, against a registry of 156. It
+  was not in `DOC_PATHS`, so `sentinel coverage --check-docs` had never read it —
+  in a project whose eighth guardrail is "never hand-write a coverage number".
+  The Makefile is now gated like every other document, and the two ungated
+  counts beside it are reworded rather than left as numbers nobody checks. The
+  same stale count is corrected in `watch.yml`'s timeout comment and two
+  docstrings.
 
 - **A watch run that read nothing is no longer reported as a quiet one**
   (2026-08-26): the fail-open that `Four green weeks that checked zero sources`

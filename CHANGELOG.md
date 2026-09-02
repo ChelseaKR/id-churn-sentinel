@@ -203,6 +203,26 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
     broken build. One unreachable source exits 0, and so do 155 of 156; only
     reading *nothing at all* fails, which is not an outage but the monitor being
     blind. Pinned by test in both directions.
+- **`watch.yml` now retitles the review-queue issue when it reuses one**
+  (issue #38, 2026-08-23). The workflow posts one of three mutually exclusive
+  findings each run — "nothing was attempt-eligible", "every attempted source
+  was unreadable", or "watched sources moved" — and reuses a single open
+  `review-queue` issue across runs rather than filing a new one weekly. The
+  title was only ever set on `issues.create`; the reuse branch called
+  `issues.createComment` and never touched the title, so an issue opened by one
+  finding could keep that title forever even after a later run's comment
+  reported a different one. Issue #10 is the live case: it is titled "Review
+  queue: watched sources moved" from an early run, and the registry has been
+  0/156 attempt-eligible since, so every run since has been silently posting
+  "nothing was checked" comments onto a title that says the opposite — exactly
+  the reassuring-label-persists failure this project's other gates exist to
+  refuse, just not yet applied to the one label a reviewer actually reads to
+  triage. Fixed by calling `issues.update` with the freshly computed title
+  before `issues.createComment` in the reuse branch, targeting the same issue
+  the comment is posted to. `tests/test_public_boundary.py` gains a regression
+  test asserting the reuse branch retitles the issue it comments on, with the
+  computed `title` variable rather than any literal, and that the three
+  findings do not share a title.
 - **Registry reconciled against a real end-to-end run** (issue #10, 2026-08-22):
   `sentinel sources check` over all 156 live URLs read **144 of 156**. Two
   entries disagreed with what the run measured, and both are corrected to the

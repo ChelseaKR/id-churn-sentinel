@@ -844,6 +844,56 @@ def test_verify_list_says_what_the_registry_actually_watches(
     assert "sentinel sources policy" in out
 
 
+def test_a_limited_list_reports_the_whole_queue_not_the_page_it_printed(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--limit` is a page size, not a measurement, and must never shrink the count.
+
+    The count is read by someone deciding whether to spend an afternoon on the verification
+    burn-down, and `--limit` exists precisely so they can look at one sitting's worth first.
+    Taking the length of the *truncated* list meant asking to see less was reported as there
+    being less: `--limit 5` against 151 pending sources printed "5 source(s) pending human
+    verification". A capped read rendered as the total is the same defect this project
+    refuses everywhere else — it is why `unmeasured_count` and `attempt_completeness` exist —
+    so the one screen aimed at recruiting a volunteer should not commit it.
+    """
+    assert (
+        main(
+            ["--registry", str(registry_file), "verify", "--list", "--limit", "1"],
+            fetcher=StubFetcher(),
+        )
+        == 0
+    )
+
+    out = capsys.readouterr().out
+    assert "showing 1 of 2 source(s) pending human verification (--limit 1)" in out
+    assert "verify --list: 1 source(s) pending human verification" not in out, (
+        "the page size was reported as the size of the queue"
+    )
+    # Only the sitting is listed, though — the cap still caps what is printed.
+    assert out.count("      https://") == 1
+
+
+def test_an_unlimited_list_does_not_grow_a_showing_of_clause(
+    registry_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The rule the fix must not break: with no `--limit`, and with a limit no smaller than
+    the queue, nothing was truncated and the plain count is the honest sentence."""
+    assert main(["--registry", str(registry_file), "verify", "--list"], fetcher=StubFetcher()) == 0
+    assert "showing" not in capsys.readouterr().out
+
+    assert (
+        main(
+            ["--registry", str(registry_file), "verify", "--list", "--limit", "9"],
+            fetcher=StubFetcher(),
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "showing" not in out
+    assert "verify --list: 2 source(s) pending human verification" in out
+
+
 # -- `residual_ineligibility` / `unwatchable_after_confirmation` as reusable primitives --------
 #
 # The two functions the CLI's eligibility messaging above is built from, exercised directly:

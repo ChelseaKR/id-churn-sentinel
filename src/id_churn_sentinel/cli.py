@@ -624,17 +624,28 @@ def _cmd_verify(
     path = args.registry or default_registry_path()
 
     if args.list:
-        queue = pending(
+        # The whole queue first, then the sitting. `--limit` is a page size, not a
+        # measurement: asking for it must never shrink the count this reports. Taking the
+        # length of the *truncated* list said "verify --list: 5 source(s) pending human
+        # verification" for `--limit 5` against a registry with 151 pending — a capped read
+        # rendered as the total, which is the one thing this project refuses everywhere else.
+        matching = pending(
             registry,
             jurisdiction=args.jurisdiction,
             document_class=args.document_class,
             federal_first=args.federal_first,
-            limit=args.limit,
         )
+        queue = matching[: args.limit] if args.limit else matching
         for source in queue:
             print(f"  {source.jurisdiction:<3} {source.document_class:<24} {source.id}")
             print(f"      {source.url}")
-        print(f"verify --list: {len(queue)} source(s) pending human verification")
+        if len(queue) < len(matching):
+            print(
+                f"verify --list: showing {len(queue)} of {len(matching)} source(s) pending "
+                f"human verification (--limit {args.limit})"
+            )
+        else:
+            print(f"verify --list: {len(matching)} source(s) pending human verification")
         # The queue's length is not the answer to "is this repo watching anything yet", and a
         # volunteer deciding whether to spend an afternoon deserves the answer that is (#18).
         _print_eligibility_after_verification(registry)

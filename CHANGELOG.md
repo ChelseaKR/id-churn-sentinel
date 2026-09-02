@@ -166,6 +166,23 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   race is still excused, a mismatch on an unmoved `main` is still reported, and
   a passing comparison is not turned red by a remote read that failed.
 
+- **`verify --list --limit N` reported the page size as the size of the queue**
+  (2026-09-01). `--limit` is a sitting — "show me one afternoon's worth" — and
+  the count beneath the listing is what someone reads while deciding whether to
+  take the verification burn-down on at all. The count was `len()` of the
+  already-truncated list, so `--limit 5` against 151 pending sources printed
+  `verify --list: 5 source(s) pending human verification`: asking to see less
+  was rendered as there *being* less. A capped read reported as a total is the
+  defect this project refuses everywhere else — it is the reason
+  `unmeasured_count` and `attempt_completeness` exist — and it had landed on
+  the one screen aimed at recruiting the human the whole pipeline waits for.
+  Fixed by counting the whole matching queue and truncating only what is
+  printed, with the cap named when it bites: `showing 5 of 151 source(s)
+  pending human verification (--limit 5)`. Two tests in
+  `tests/test_verify.py` pin it in both directions — the limited case reports
+  both numbers while still printing only the sitting, and the unlimited case
+  does not grow a spurious "showing" clause.
+
 - **The published site said this project watches 152 sources; the registry says
   156** (2026-08-28). `docs/` is the product: GitHub Pages serves the committed
   bytes off the branch with no build step and nothing between the commit and the

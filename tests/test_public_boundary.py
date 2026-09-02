@@ -227,3 +227,116 @@ def test_watch_workflow_retitles_the_review_queue_issue_when_reusing_it() -> Non
     assert len(set(titles)) == 3, (
         f"two findings share a title, so a retitle cannot tell them apart: {titles}"
     )
+
+
+# --- live integrity sentinel: an unreadable remote is not a deploy -------------------------
+
+LIVE_INTEGRITY = ROOT / ".github" / "workflows" / "live-integrity.yml"
+
+
+def _live_integrity_shell() -> str:
+    """The literal shell of the one `run:` step in `live-integrity.yml`.
+
+    Extracted rather than retyped, so this test cannot pass against a copy of the script
+    while the workflow ships something else.
+    """
+    lines = LIVE_INTEGRITY.read_text(encoding="utf-8").splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() == "run: |"]
+    assert len(starts) == 1, f"expected exactly one run block, found {len(starts)}"
+    start = starts[0]
+    indent = len(lines[start]) - len(lines[start].lstrip()) + 2
+    body = []
+    for line in lines[start + 1 :]:
+        if line.strip() and (len(line) - len(line.lstrip())) < indent:
+            break
+        body.append(line[indent:] if len(line) >= indent else "")
+    return "\n".join(body)
+
+
+def _run_live_integrity(
+    tmp_path: Path, *, verify_rc: int, remote_sha: str | None, head_sha: str = "a" * 40
+) -> subprocess.CompletedProcess[str]:
+    """Run that shell with `git` and `python3` stubbed, so the branching is what is tested.
+
+    `remote_sha=None` stands for the read failing outright — `git ls-remote` exiting
+    non-zero with nothing on stdout, which is what a network blip, an auth failure or a
+    missing ref actually looks like here.
+    """
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    if remote_sha is None:
+        ls_remote = 'echo "fatal: could not read from remote repository" >&2; exit 128'
+    else:
+        ls_remote = f'printf "%s\\trefs/heads/main\\n" "{remote_sha}"'
+    git.write_text(
+        "#!/bin/sh\n"
+        'case "$1 $2" in\n'
+        f'  "rev-parse HEAD") echo "{head_sha}" ;;\n'
+        f'  "ls-remote --exit-code") {ls_remote} ;;\n'
+        '  *) echo "unexpected git call: $*" >&2; exit 99 ;;\n'
+        "esac\n",
+        encoding="utf-8",
+    )
+    git.chmod(0o755)
+    python3 = bin_dir / "python3"
+    python3.write_text(f"#!/bin/sh\nexit {verify_rc}\n", encoding="utf-8")
+    python3.chmod(0o755)
+
+    script = tmp_path / "step.sh"
+    script.write_text(_live_integrity_shell(), encoding="utf-8")
+    return subprocess.run(  # noqa: S603
+        ["/bin/bash", str(script)],
+        capture_output=True,
+        text=True,
+        env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(tmp_path)},
+        cwd=tmp_path,
+        check=False,
+    )
+
+
+def test_an_unreadable_remote_never_excuses_a_live_surface_mismatch(tmp_path: Path) -> None:
+    """The regression: a failed `git ls-remote` must not be read as "main moved on".
+
+    This step is the only check in the repository that looks at the bytes a consumer
+    actually receives. It excuses a mismatch in exactly one case — a newer commit deployed
+    while the comparison ran — and establishes that case by re-reading the remote. But an
+    unread remote leaves `remote_sha` empty, and the empty string is unequal to every real
+    sha, so "we never found out where main is" took the same branch as "main moved" and
+    exited 0. A network blip could turn a genuinely stale live feed green, which is this
+    project's primary failure mode wearing a different hat: absence of evidence rendered as
+    evidence of absence.
+    """
+    result = _run_live_integrity(tmp_path, verify_rc=1, remote_sha=None)
+    assert result.returncode == 1, (
+        "a live-surface mismatch must survive a remote we could not read — an unknown "
+        f"excuses nothing (stdout: {result.stdout!r}, stderr: {result.stderr!r})"
+    )
+    assert "could not read origin/main" in result.stdout, (
+        "the unreadable remote must be said out loud, not silently folded into the result"
+    )
+
+
+def test_a_real_deploy_race_is_still_excused(tmp_path: Path) -> None:
+    """The rule the fix must not break: a newer commit deploying mid-run is the deploy
+    working, and must not page anyone. Pinned in both directions so a later tightening
+    cannot quietly turn an ordinary deploy into a red daily job."""
+    result = _run_live_integrity(tmp_path, verify_rc=1, remote_sha="b" * 40)
+    assert result.returncode == 0, "a genuine deploy race must still be excused"
+    assert "main moved to" in result.stdout
+
+
+def test_a_mismatch_on_an_unmoved_main_is_reported(tmp_path: Path) -> None:
+    """And the ordinary failing case: main is exactly where this checkout thinks it is, so
+    a mismatch is a real one and the step must go red."""
+    result = _run_live_integrity(tmp_path, verify_rc=1, remote_sha="a" * 40)
+    assert result.returncode == 1
+
+
+def test_a_matching_live_surface_stays_green_even_if_the_remote_is_unreadable(
+    tmp_path: Path,
+) -> None:
+    """The fix must not invent a failure either: when the comparison itself passed there is
+    nothing to excuse and nothing to report, whatever the remote read did."""
+    result = _run_live_integrity(tmp_path, verify_rc=0, remote_sha=None)
+    assert result.returncode == 0

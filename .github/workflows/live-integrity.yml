@@ -63,9 +63,23 @@ jobs:
           # A deploy for a newer commit may have landed while this ran, in which case
           # the live surface differing from THIS commit is the deploy working. Only
           # that exact case is excused, and only by re-reading the remote afterwards.
-          remote_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
-          if [ "$remote_sha" != "$expected_sha" ]; then
-            echo "::warning::main moved to ${remote_sha} while this ran; re-run once its deploy finishes"
-            exit 0
+          #
+          # The re-read has to have SUCCEEDED before it can excuse anything. `git ls-remote`
+          # failing — a network blip, an auth problem, the ref not being there — leaves
+          # `remote_sha` empty, and the empty string compares unequal to every real sha. So
+          # the branch below could not tell "main moved on" from "we never found out where
+          # main is", and took the excusing path for both: an unreadable remote turned a
+          # genuine mismatch between the served feeds and the published bytes into a green
+          # run, on the one check in this repository that looks at the bytes a consumer
+          # actually receives. A remote we could not read is an unknown, not a deploy, and
+          # an unknown excuses nothing.
+          if remote_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)" &&
+             [ -n "$remote_sha" ]; then
+            if [ "$remote_sha" != "$expected_sha" ]; then
+              echo "::warning::main moved to ${remote_sha} while this ran; re-run once its deploy finishes"
+              exit 0
+            fi
+          else
+            echo "::warning::could not read origin/main, so whether it moved while this ran is unknown; reporting the comparison as measured rather than excusing it"
           fi
           exit "$verify_rc"

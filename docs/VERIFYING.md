@@ -1,4 +1,4 @@
-# Verifying the registry — the one question, and how to answer 152 of them
+# Verifying the registry — the one question, and how to answer it for all 156 sources
 
 > **Last verified: 2026-07-13 · Recheck cadence: per registry expansion.**
 > Status today: **`0 of 156 sources are human-verified`.** Everything below exists to change that number.
@@ -10,7 +10,7 @@ A source is fetched by the watcher only when **both** of these exist for it:
 1. **A human verification** — you, answering the question below, with your name, the date, a receipt of what you were shown, and a recheck date. `sentinel verify` writes all four.
 2. **A dated fetch-policy decision** — a named human's reading of that host's robots.txt and terms of service, saying we may watch it, on what evidence, for what reason, and until when. `sentinel sources policy` records it. **Nothing infers it**, and a source without it stays `fetch-policy-unreviewed` and is never fetched.
 
-They are separate on purpose: one is a judgment about whether a page is the right page, the other is a judgment about whether we are allowed to fetch it at all. But they are both required, so **working this queue alone does not make the tool watch anything**. It used to be possible to finish all 152 and be told "152 confirmed, 0 still unverified" while the attempt denominator stayed at zero. Both commands now end by printing how many sources are attempt-eligible and what is blocking the rest, and `sentinel verify --list` prints the same thing before you start.
+They are separate on purpose: one is a judgment about whether a page is the right page, the other is a judgment about whether we are allowed to fetch it at all. But they are both required, so **working this queue alone does not make the tool watch anything**. It used to be possible to work the queue to the end and be told "all confirmed, 0 still unverified" while the attempt denominator stayed at zero. Both commands now end by printing how many sources are attempt-eligible and what is blocking the rest, and `sentinel verify --list` prints the same thing before you start.
 
 ```sh
 # what the registry actually watches right now, and what is stopping the rest
@@ -93,7 +93,7 @@ When you answer `n` you are asked for a reason, and then which of two things is 
 - **Flag for repair** (the default). The entry stays in the registry carrying its rejection, your name, and your reason, and is published **as `rejected`** — so nobody picks it up in the window before it is fixed. A wrong entry that is *known* to be wrong is far safer than one quietly deleted, because deleting it takes the finding with it.
 - **Record as a gap** (`--gap`). Use this when there is no right page to substitute — the state simply does not publish one. The entry leaves the source list and becomes a **named gap** with reason `wrong-page`, which is what the gap list is for: *"we do not watch this, and here is why."* The tool refuses this if another source still watches the same (jurisdiction, document class) pair, because a gap that claims we are blind to something we can see is a false confession.
 
-## How long 152 takes
+## How long all 156 sources take
 
 Measured against the real thing, honestly:
 
@@ -101,7 +101,7 @@ Measured against the real thing, honestly:
 - The **hard ones are two to five minutes**: a statute page where you have to satisfy yourself that the chapter really is the one governing this document class; a landing page where you have to decide whether a deeper page exists; anything our crawler could not fetch, where you have to open a browser.
 - Roughly a **fifth of them are hard**. So: **≈ 30 easy per 10 minutes, ≈ 30 hard at 3 minutes each.**
 
-**Call it three and a half hours for all 152**, in sittings, resumable — the tool writes each decision to `sources/registry.json` immediately, so a crash or a `q` at source 90 costs nothing.
+**Call it three and a half hours for all 156 sources**, in sittings, resumable — the tool writes each decision to `sources/registry.json` immediately, so a crash or a `q` at source 90 costs nothing.
 
 **Do the federal ones first** (`--federal-first`): passport, Social Security, Selective Service. They are six sources, they are the entries every jurisdiction's readers depend on, and they are twenty minutes.
 

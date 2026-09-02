@@ -9,6 +9,58 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A daily check that the feeds Pages serves are the feeds this repository
+  publishes** (2026-08-29), in `tools/verify_live_site.py` and
+  `.github/workflows/live-integrity.yml`. `tests/test_published_site_drift.py`
+  now holds the committed `docs/` to what the code regenerates from the
+  registry. This holds the *deployment* to the committed `docs/`, which is the
+  other half of the same sentence and the half nothing could see: Pages serving
+  an older commit, or Jekyll dropping a file, or the branch never having been
+  published, would have left all seven gate stages green while an org polling
+  `feed-us-tx.xml` read a different set of changes. The check takes every file
+  git tracks under `docs/`, which is exactly what branch-served Pages publishes,
+  fetches each over HTTPS, and fails naming every byte-level difference. It
+  refuses to pass vacuously: fewer than 100 files or fewer than a million bytes
+  in the comparison set, any fetch that is not HTTP 200, and an origin answering
+  a guaranteed-missing path with anything but 404 are all failures rather than a
+  quiet OK. `docs/.nojekyll` is deliberately zero bytes and is compared like any
+  other file, since its presence is the instruction.
+
+- **A canonical URL and social-preview metadata on the published page, and a
+  merge-blocking gate that both name this project rather than the shared origin**
+  (2026-08-28), in `src/id_churn_sentinel/core/site.py` and
+  `tests/test_site.py`. The page had no `<link rel="canonical">` and no Open
+  Graph tags at all, so a link to it previewed as a bare URL. The reason this is
+  not merely cosmetic is the deployment shape: six project sites are served from
+  the same `chelseakr.github.io` origin on *paths*, so the canonical a
+  single-domain habit produces (`/`) is not a shorter spelling of this site, it
+  is a different address that today 404s, and all six sites would claim it. The
+  new `test_the_head_names_this_project_and_not_the_shared_origin` sits in the
+  existing "servable from a subpath" section rather than starting a parallel SEO
+  suite, because it is the same deployment bug the section already holds, and it
+  asserts the subpath is present rather than merely that a canonical exists.
+  `<title>`/`og:title` and `description`/`og:description` are each rendered from
+  one constant, so they cannot drift apart. The description states no count:
+  guardrail 8 forbids a hand-written coverage number, and a number on a preview
+  card is the one nobody rechecks. There is no `og:image` because the repository
+  contains no image and inventing one would be publishing an artifact that does
+  not exist; `twitter:card` is `summary`, which promises none.
+  Observed: with the canonical line deleted the gate fails at "the page has no
+  canonical URL"; pointed at `https://chelseakr.github.io/` it fails at "is the
+  shared origin, which is a different site than this one"; with `og:description`
+  drifted from `description` it fails on their equality. Restored, it passes.
+
+- **A merge-blocking gate that the committed site describes the registry it
+  ships with** (2026-08-28), in `tests/test_source_labelling.py` and therefore
+  in stage 6 of `make verify`. Every other test in that file takes a `published`
+  fixture that publishes into a `tmp_path`, which proves the *publisher* is
+  correct and says nothing about the *commit* — and the commit is what a
+  consumer gets. The new checks re-derive every count from the registry rather
+  than remembering one, name which source ids and which gaps differ, and check
+  the rendered page as well as the JSON, because `sources.json` is what a
+  program fetches and `index.html` is what a caseworker opens. The existing
+  site-row test stopped asserting a hard-coded `156` for the same reason.
+
 - **Five named gaps closed with real, independently re-verified government sources**
   (2026-08-21): AK drivers_license (`akleg.gov`, AS 28.15 — scoped via the print
   view's `secStart`/`secEnd` query parameters, not the `#fragment` links the
@@ -80,24 +132,97 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **The published site said this project watches 152 sources; the registry says
+  156** (2026-08-28). `docs/` is the product: GitHub Pages serves the committed
+  bytes off the branch with no build step and nothing between the commit and the
+  consumer. `docs/sources.json` and `docs/index.html` were last written on
+  2026-07-19; the five-named-gaps registry change above landed on 2026-08-21 and
+  nobody re-ran `make publish`. For fourteen weeks the served inventory told
+  A4TE, Trans Lifeline and a legal-aid clinic that this project watches 152
+  sources with 12 named gaps and 6 unreachable candidates, when the registry
+  says 156, 8 and 12. Four of those published gaps were false confessions — a
+  gap claiming we are blind to something we actually watch sends a consumer
+  looking elsewhere for information we already have — and the unreachable count
+  was understated by half, in the flattering direction. Regenerated with
+  `make publish`; the run-health section also moves from "STALE · no watch run
+  receipt exists" to the real receipt, which says the last watch FAILED.
+- **The merge-blocking gate on the served bytes had never executed an
+  assertion** (2026-08-28). `test_the_committed_published_feed_holds_the_safety
+  _property` calls itself "THE GATE, on the bytes that are actually served", and
+  its whole body was a `for change in payload["changes"]` loop over a feed that
+  has held zero changes since the day it was written. It also read only
+  `changes.json`, so `feed.xml` — the surface an incumbent actually subscribes
+  to — and the 53 per-jurisdiction feeds were served bytes no test looked at.
+  Zero published changes is the correct state; passing silently over it is not.
+  The empty case now asserts the invariant it can actually make, that every
+  served artifact agrees the count is zero, which catches an RSS item with no
+  reviewed record behind it — a change that reached a consumer without passing
+  the review gate, and the failure a vacuous loop could never see. The
+  repository already refuses this shape in
+  `test_watch_never_emits_a_classified_change` ("or this test proves nothing");
+  the same guard now applies to the gate on the product.
+- **`make help` printed a coverage number nothing checked, and it was wrong**
+  (2026-08-28). The Makefile said "0 of 152 sources are human-verified" twice,
+  once inside the help text `make help` renders, against a registry of 156. It
+  was not in `DOC_PATHS`, so `sentinel coverage --check-docs` had never read it —
+  in a project whose eighth guardrail is "never hand-write a coverage number".
+  The Makefile is now gated like every other document, and the two ungated
+  counts beside it are reworded rather than left as numbers nobody checks. The
+  same stale count is corrected in `watch.yml`'s timeout comment and two
+  docstrings.
+
+- **A watch run that read nothing is no longer reported as a quiet one**
+  (2026-08-26): the fail-open that `Four green weeks that checked zero sources`
+  (#25) closed at the attempt *denominator* was still open at the observation
+  *numerator*. `attempted_count` is deliberately reachability-blind — a source we
+  tried and could not reach stays in it — so a pass in which **every** host
+  refused to answer printed `attempted: 156` with `moved`, `no-text` and
+  `url-changed` all at `0`, which is byte-for-byte what a complete pass over 156
+  pages that all matched prints. `watch.yml` branched only on those counts,
+  concluded `needs-review=false`, filed no review issue and went green, for a run
+  that had not read a single page. Confirmed by replaying the workflow's own bash
+  against real command output: an all-unreachable report produced
+  `nothing-checked=false needs-review=false` — green, silent — and `sentinel`'s
+  non-zero exit was captured into `check-status` and then never read by any step.
+  - `BaselineReport.observed` counts the sources actually READ (successful
+    retrievals minus the ones with nothing readable in them), mirroring
+    `WatchRun.observed_count`, which is how `sentinel watch` has always defined
+    the same quantity.
+  - `sentinel baseline check` emits `baseline-check-observed-count:` and
+    `baseline-check-unreachable-count:` — the latter bucket had been printed one
+    line at a time since the command was written and had no machine-readable
+    count at all — and exits non-zero when nothing was read, the same refusal it
+    already made for an empty denominator.
+  - `watch.yml` parses both (a missing marker stays loud rather than defaulting
+    to the reassuring zero), files the review queue under its own title and
+    remedy — the fix for "nothing answered" is at the network, not in the
+    verification queue — and only then goes red. A second gate fails the run if
+    the check exits non-zero for a reason no branch explains, instead of letting
+    an unexplained failure default to green.
+  - **The rule this does not break:** a state website being down is still never a
+    broken build. One unreachable source exits 0, and so do 155 of 156; only
+    reading *nothing at all* fails, which is not an outage but the monitor being
+    blind. Pinned by test in both directions.
 - **`watch.yml` now retitles the review-queue issue when it reuses one**
-  (issue #38, 2026-08-23). The workflow posts one of two mutually exclusive
-  findings each run — "nothing was attempt-eligible" or "watched sources moved
-  or went unreadable" — and reuses a single open `review-queue` issue across
-  runs rather than filing a new one weekly. The title was only ever set on
-  `issues.create`; the reuse branch called `issues.createComment` and never
-  touched the title, so an issue opened by one finding could keep that title
-  forever even after a later run's comment reported the opposite. Issue #10 is
-  the live case: it is titled "Review queue: watched sources moved" from an
-  early run, and the registry has been 0/156 attempt-eligible since, so every
-  run since has been silently posting "nothing was checked" comments onto a
-  title that says the opposite — exactly the reassuring-label-persists failure
-  this project's other gates exist to refuse, just not yet applied to the one
-  label a reviewer actually reads to triage. Fixed by calling `issues.update`
-  with the freshly computed title before/alongside `issues.createComment` in
-  the reuse branch. `tests/test_public_boundary.py` gains a regression test
-  that reads the workflow text and asserts the reuse branch calls
-  `issues.update` with the `title` variable.
+  (issue #38, 2026-08-23). The workflow posts one of three mutually exclusive
+  findings each run — "nothing was attempt-eligible", "every attempted source
+  was unreadable", or "watched sources moved" — and reuses a single open
+  `review-queue` issue across runs rather than filing a new one weekly. The
+  title was only ever set on `issues.create`; the reuse branch called
+  `issues.createComment` and never touched the title, so an issue opened by one
+  finding could keep that title forever even after a later run's comment
+  reported a different one. Issue #10 is the live case: it is titled "Review
+  queue: watched sources moved" from an early run, and the registry has been
+  0/156 attempt-eligible since, so every run since has been silently posting
+  "nothing was checked" comments onto a title that says the opposite — exactly
+  the reassuring-label-persists failure this project's other gates exist to
+  refuse, just not yet applied to the one label a reviewer actually reads to
+  triage. Fixed by calling `issues.update` with the freshly computed title
+  before `issues.createComment` in the reuse branch, targeting the same issue
+  the comment is posted to. `tests/test_public_boundary.py` gains a regression
+  test asserting the reuse branch retitles the issue it comments on, with the
+  computed `title` variable rather than any literal, and that the three
+  findings do not share a title.
 - **Registry reconciled against a real end-to-end run** (issue #10, 2026-08-22):
   `sentinel sources check` over all 156 live URLs read **144 of 156**. Two
   entries disagreed with what the run measured, and both are corrected to the

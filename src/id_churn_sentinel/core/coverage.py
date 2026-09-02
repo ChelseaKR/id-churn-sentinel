@@ -10,10 +10,19 @@ too *high*. A project whose entire pitch is "we tell you what went stale" cannot
 project whose own front page went stale.
 
 So no number about coverage is written by hand. They are all derived from
-`sources/registry.json` by :func:`coverage`, and `sentinel coverage --check-docs` re-derives
-them and fails the build if any doc disagrees. It applies the same derived-gate rule used by
-the earlier watcher: *a self-description is a fact about the code, so compute it from the
-code.*
+`sources/registry.json` by :func:`coverage` — plus one figure derived from
+`sources/baseline-hashes.json` by :func:`committed_baseline_hashes`, because the committed
+baseline is a second artifact a reader counts and it drifted the moment nothing was checking
+it — and `sentinel coverage --check-docs` re-derives them and fails the build if any doc
+disagrees. It applies the same derived-gate rule used by the earlier watcher: *a
+self-description is a fact about the code, so compute it from the code.*
+
+**What this gate does not do, said plainly, because the README used to overstate it.** It
+reads a small closed set of *phrase shapes*, listed below, and checks the numbers written in
+them. A figure stated in any other shape — a duration, a percentage, a count narrated as
+history — is invisible to it. That is the design (see the "memoir" note below), not an
+oversight, but it means "every number in the README is derived" was never a true sentence and
+no doc may claim it.
 
 **And one invariant that is worth more than all the counting.** Every (state, core document
 class) pair is either a watched source or a *named gap*, and the gate proves it both ways:
@@ -31,6 +40,7 @@ not decisions; they were omissions wearing the costume of decisions.
 
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -45,9 +55,11 @@ from id_churn_sentinel.core.registry import (
 )
 
 __all__ = [
+    "BASELINE_HASHES_PATH",
     "DOC_PATHS",
     "CoverageReport",
     "check_docs",
+    "committed_baseline_hashes",
     "completeness_violations",
     "coverage",
     "repo_root",
@@ -64,6 +76,13 @@ def repo_root() -> Path:
 # here — a claim nobody checks is a claim that will eventually be wrong.
 DOC_PATHS: tuple[str, ...] = (
     "README.md",
+    # The Makefile, because it states a coverage number and PRINTS it: `make help` renders
+    # the `##` text of every target, so "0 of N sources are human-verified" on the
+    # verify-sources target is a claim a maintainer reads before they read anything else.
+    # It sat outside this tuple saying 152 while the registry held 156, which is precisely
+    # the eighth guardrail ("never hand-write a coverage number") going unenforced in the
+    # file that runs every gate.
+    "Makefile",
     "docs/ROADMAP.md",
     "docs/CONSUMERS.md",
     "docs/RESPONSIBLE-TECH-AUDITS.md",
@@ -97,6 +116,19 @@ _UNREACHABLE_RE = re.compile(
 _VERIFIED_RE = re.compile(r"\b(\d+) of (\d+) sources are human-verified\b")
 _SOURCES_RE = re.compile(r"\b(\d+) sources\b")
 _GAPS_RE = re.compile(r"\b(\d+) named gaps?\b")
+# The committed baseline is a SECOND countable artifact, and it drifted in exactly the way
+# the registry counts would have without this gate: the README said the file retained 125
+# historical hashes while the file on disk held 145. Nothing derived it, so nothing corrected
+# it, and the number a reader uses to judge how much memory a fresh clone has was understating
+# by twenty. It gets the same treatment as every other self-description here: one fixed
+# grammar, derived from the artifact, checked on every build.
+_BASELINE_HASHES_RE = re.compile(r"\b(\d+) historical hashes\b")
+
+# Where that count comes from. It is not part of `CoverageReport`, on purpose: that report is
+# what `sources/registry.json` contains, and the baseline file is a different artifact with a
+# different provenance (hashes actually observed on a date). Folding them into one object
+# would invite a reader to think one implies the other.
+BASELINE_HASHES_PATH = "sources/baseline-hashes.json"
 
 
 def _jurisdictions_re(total: int) -> re.Pattern[str]:
@@ -172,6 +204,25 @@ def coverage(registry: Registry) -> CoverageReport:
     )
 
 
+def committed_baseline_hashes(root: Path | None = None) -> int | None:
+    """How many hashes `sources/baseline-hashes.json` actually retains.
+
+    `None` means the file is absent or unreadable, which is not the same as zero and must
+    never be reported as it: zero hashes is a real, checkable state (a clean clone has no
+    memory), while an unreadable file is us not knowing. A doc that states a hash count while
+    this returns `None` is flagged as underivable rather than silently allowed.
+    """
+    path = (root or repo_root()) / BASELINE_HASHES_PATH
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    baselines = raw.get("baselines")
+    return len(baselines) if isinstance(baselines, dict) else None
+
+
 def completeness_violations(registry: Registry) -> list[str]:
     """Prove the gap list and the source list agree about what is not watched.
 
@@ -206,8 +257,32 @@ def completeness_violations(registry: Registry) -> list[str]:
     return violations
 
 
-def _check_one_doc(relative: str, text: str, report: CoverageReport) -> list[str]:
-    """Every gated number in one document, checked against the registry."""
+def _check_baseline_hashes(relative: str, text: str, baseline_hashes: int | None) -> list[str]:
+    """Every stated count of the committed baseline's hashes, checked against the file.
+
+    `None` — the file is absent or unreadable — is a drift, not a pass. The tempting
+    behaviour is to skip the check when the artifact cannot be read, and that is how a gate
+    becomes decorative: delete the file, and every claim about it sails through.
+    """
+    drifts: list[str] = []
+    for match in _BASELINE_HASHES_RE.finditer(text):
+        if baseline_hashes is None:
+            drifts.append(
+                f"{relative}: {match.group(0)!r} — but {BASELINE_HASHES_PATH} could not be "
+                f"read, so the claim cannot be derived. A number nobody can check is a "
+                f"number nobody should print."
+            )
+        elif int(match.group(1)) != baseline_hashes:
+            drifts.append(
+                f"{relative}: {match.group(0)!r} — {BASELINE_HASHES_PATH} retains {baseline_hashes}"
+            )
+    return drifts
+
+
+def _check_one_doc(
+    relative: str, text: str, report: CoverageReport, baseline_hashes: int | None
+) -> list[str]:
+    """Every gated number in one document, checked against the artifact it describes."""
     drifts: list[str] = []
     found = False
 
@@ -252,6 +327,11 @@ def _check_one_doc(relative: str, text: str, report: CoverageReport) -> list[str
             if int(match.group(1)) != expected:
                 drifts.append(f"{relative}: {match.group(0)!r} — {verb} {expected}")
 
+    # Deliberately does NOT set `found`. Describing the committed baseline file is not
+    # describing our coverage, and letting it satisfy the "says something" check below would
+    # open the exact hole that check exists to close.
+    drifts.extend(_check_baseline_hashes(relative, text, baseline_hashes))
+
     if not found:
         # A doc that stops describing coverage at all is how this gate gets defeated without
         # anyone lying: delete the sentence, and the check has nothing left to check.
@@ -270,13 +350,16 @@ def check_docs(report: CoverageReport, root: Path | None = None) -> list[str]:
     base = root or repo_root()
     drifts: list[str] = []
     jurisdictions_re = _jurisdictions_re(report.jurisdictions_total)
+    baseline_hashes = committed_baseline_hashes(base)
 
     for relative in DOC_PATHS:
         path = base / relative
         if not path.exists():
             drifts.append(f"{relative}: missing — it is in DOC_PATHS but not on disk")
             continue
-        drifts.extend(_check_one_doc(relative, path.read_text(encoding="utf-8"), report))
+        drifts.extend(
+            _check_one_doc(relative, path.read_text(encoding="utf-8"), report, baseline_hashes)
+        )
 
     readme = base / "README.md"
     if readme.exists():

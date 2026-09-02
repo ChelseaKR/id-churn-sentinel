@@ -63,14 +63,14 @@ The hard parts are not technical. They are: (a) resisting the enormous pull towa
 | Changes classified `substantive` with no named human | **0 (unrepresentable)** | `make no-auto-classification` (4 independent layers) | merge-blocking |
 | Unreviewed/dismissed records in the published feed | **0** | `make no-unreviewed-in-feed` | merge-blocking |
 | Registry entries with a malformed/non-official/duplicate URL | 0 | `make sources-validate` | merge-blocking |
-| Line coverage | ≥90% (currently ~99%) | `make cov` | merge-blocking |
+| Branch coverage | ≥90% floor (the measurement is printed by `make cov`, not recorded here — nothing re-derives it into this table) | `make cov` | merge-blocking |
 | Tests requiring network | **0** | injected `Fetcher`; suite runs air-gapped | structural |
 | Cosmetic-churn false positives | 0 on the fixture corpus | `test_cosmetic_markup_churn_is_not_a_content_change` | merge-blocking |
 | Registry entries human-verified | **`0 of 156 sources are human-verified`** — printed on every `sources validate` run, derived by `sentinel coverage`, gated in every doc | `sentinel verify` (a human) | the **number** is gated; the **work** is not automatable |
 | **Sources published without their verification status alongside them** | **0 (unrepresentable)** — `publish()` cannot be called without the registry | `-m source_labelling` | merge-blocking (stage 6) |
 | **Registry entries claiming `verified: true` with no named human and no date** | **0 (unloadable)** | `load_registry` raises | merge-blocking (stage 5) |
 | Registry entries machine-checked (live-fetched, status + title + normalized text read) | **all 152** (2026-07-13) | `sources check` | tracked, not gated |
-| Registered sources our own fetcher cannot reach | **6** — each named with its reason in the registry | `sources check` | tracked, not gated |
+| Registered sources our own fetcher cannot reach | **12 of the 156 registered sources cannot currently be fetched** — each named with its reason in the registry | `sources check` | merge-blocking (`sentinel coverage --check-docs`, stage 5) |
 | **Coverage numbers in the docs that disagree with the registry** | **0 (unrepresentable)** | `sentinel coverage --check-docs` | merge-blocking (stage 5) |
 | **Unwatched (state, core document class) pairs that are not a NAMED GAP** | **0 (unrepresentable)** | `sentinel coverage --check-docs` | merge-blocking (stage 5) |
 | Third-party requests in the published site | **0** | `test_the_published_site_makes_no_third_party_requests` | merge-blocking (`feed_integrity`) |
@@ -83,7 +83,7 @@ The hard parts are not technical. They are: (a) resisting the enormous pull towa
 ## 8. Implementation plan
 
 ### M0 — Core (**shipped**)
-Registry with closed vocabularies + validation; SQLite snapshot store with retention; normalization + hashing; drift detection with unified passage diffs; `ChangeRecord` + the human review gate; RSS + JSON publication; the `sentinel` CLI; 7 merge-blocking gates; 143 tests, ~99% coverage, all offline.
+Registry with closed vocabularies + validation; SQLite snapshot store with retention; normalization + hashing; drift detection with unified passage diffs; `ChangeRecord` + the human review gate; RSS + JSON publication; the `sentinel` CLI; 7 merge-blocking gates; the whole suite offline, under the branch-coverage floor the metrics table above states. The measurement is not recorded here, for the reason that table gives: nothing re-derives it into this document, and `make cov` prints it.
 
 ### M1 — Verify the registry (**the next real work, and it is not code**)
 `0 of 156 sources are human-verified`. A human opens each URL, confirms it is the official page for that jurisdiction and document class, corrects it or deletes it, and flips the flag. **Nothing else in this repo is worth more than this**, and no amount of engineering substitutes for it.
@@ -95,11 +95,11 @@ What machine-checking already caught, and what it says about the honest expectat
 **Shipped 2026-07-13 — the two things that were actually in the way.** Neither of them was "someone should get round to it":
 
 1. **The product was making an implicit claim it had not earned, and now it does not.** A published table listing one official URL per (jurisdiction, document class) *reads* as a directory of official pages. It is a list of **candidates**. So the status now travels with the source everywhere it goes: a word on every row of the site (**UNVERIFIED — machine-checked, not human-confirmed** — never a colour, WCAG 2.2 AA); a `verification_status` field on every source in `sources.json`, in `changes.json`, and in **every per-jurisdiction feed**; a `source_verification` block on every change record; a count and a sentence in every RSS channel description; a `<category>` on every RSS item. `publish()` now **requires** the registry, so no code path can write an artifact without the thing that knows each source's status — and a merge-blocking gate (`-m source_labelling`, inside stage 6) asserts it on the published bytes.
-2. **The human's job was expensive, and now it is cheap.** `sentinel verify` fetches each source and prints the jurisdiction, document class, authority, URL, the page's own `<title>` and an excerpt of its normalized text, then asks one question. It records the answer **with the verifier's name and the date**, refuses to record one without a name, writes to the registry immediately (so it is resumable — a `q` at source 90 costs nothing), and supports `--jurisdiction`, `--document-class`, `--federal-first` and `--limit` so the highest-value entries go first. `sentinel coverage` prints the burn-down. A rejection is recorded with a reason and either flagged for repair or moved to the named-gap list (reason `wrong-page`). `docs/VERIFYING.md` states the question, what *not* to judge, and the honest cost: **≈3.5 hours for all 152**, in sittings.
+2. **The human's job was expensive, and now it is cheap.** `sentinel verify` fetches each source and prints the jurisdiction, document class, authority, URL, the page's own `<title>` and an excerpt of its normalized text, then asks one question. It records the answer **with the verifier's name and the date**, refuses to record one without a name, writes to the registry immediately (so it is resumable — a `q` at source 90 costs nothing), and supports `--jurisdiction`, `--document-class`, `--federal-first` and `--limit` so the highest-value entries go first. `sentinel coverage` prints the burn-down. A rejection is recorded with a reason and either flagged for repair or moved to the named-gap list (reason `wrong-page`). `docs/VERIFYING.md` states the question, what *not* to judge, and the honest cost: **≈3.5 hours for all 156 sources**, in sittings.
 
 The registry also refuses, structurally, to be *told* it is verified: an entry with `verified: true` and no named verifier and no date **does not load**. There is no hand-edit, no bulk `sed`, and no AI agent that can quietly finish this milestone on paper — which is the correct property for the one field in this repo that is a human's word.
 
-**Exit:** 152/152 verified, `verified: true` in the committed registry with a name and a date on each, and the README's "read this first" section deleted.
+**Exit:** all 156 sources verified, `verified: true` in the committed registry with a name and a date on each, and the README's "read this first" section deleted.
 
 ### M2 — Run it for real (**started 2026-07-13; the first real baseline exists**)
 

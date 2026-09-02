@@ -75,14 +75,29 @@ sources-validate: ## [5/7] Registry gate: valid entries, no dupes, AND no doc ly
 	@# different one. A
 	@# self-description is a fact about the artifact; compute it from the artifact.
 	uv run sentinel coverage --check-docs
+	@# And the third form of the same question, asked of the bytes a consumer actually fetches.
+	@# The two checks above hold the REGISTRY and the PROSE to each other. Nothing held the
+	@# PUBLISHED SITE to either: Pages serves the committed `docs/` off the branch with no build
+	@# step, so a source added to the registry without a `make publish`, or a hand-edit of a
+	@# generated file, is served exactly as written. Every existing check over docs/ asks a
+	@# property of the artifact ("is any unreviewed record served?", "does every source carry
+	@# its status?") rather than whether the artifact still matches its input, so a stale
+	@# inventory — which is not a malformed one — passed all of them.
+	@#
+	@# This regenerates the whole surface into a TEMPORARY directory and byte-compares. It
+	@# never writes into docs/: a gate that regenerated in place would repair the drift it
+	@# exists to find. Excluded, and only these: status.json and the run-health section of
+	@# index.html, which are watch-run health from the uncommitted store in var/ — they are
+	@# cross-checked against each other instead. See the module docstring.
+	uv run pytest tests/test_published_site_drift.py -q
 
 no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, no unlabelled source in ANY artifact
 	@# Two properties, one stage, because they are one discipline. The feed gate stops the
 	@# claim "a machine noticed this, so it must matter". The labelling gate stops the claim
 	@# "this URL is in your list, so it must be the right page" — which the product would
-	@# otherwise make BY OMISSION, 152 times, to people who cannot afford to act on a wrong
-	@# citation. 0 of 152 sources are human-verified, and every artifact says so, on every
-	@# source, in a machine-readable field and in a word.
+	@# otherwise make BY OMISSION, once per registered source, to people who cannot afford to
+	@# act on a wrong citation. 0 of 156 sources are human-verified, and every artifact says
+	@# so, on every source, in a machine-readable field and in a word.
 	uv run pytest -m "feed_integrity or source_labelling" -q
 
 no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_source_labelling.py)
@@ -110,11 +125,11 @@ coverage: ## Print the coverage numbers DERIVED from the registry (no network; n
 sources-check: ## Live-fetch every registry URL and report status. Liveness only — NOT verification.
 	uv run sentinel sources check
 
-verify-sources: ## THE HUMAN VERIFICATION QUEUE. 0 of 152 sources are human-verified; fix that.
+verify-sources: ## THE HUMAN VERIFICATION QUEUE. 0 of 156 sources are human-verified; fix that.
 	@# The most valuable command in this Makefile, and the only one a machine cannot run for
 	@# you. It shows a human each source's title and text and records their yes/no WITH THEIR
-	@# NAME — it refuses to record one without. ~3.5 hours for all 152, resumable, federal
-	@# sources first. See docs/VERIFYING.md.
+	@# NAME — it refuses to record one without. Roughly three and a half hours for the whole
+	@# registry, resumable, federal sources first. See docs/VERIFYING.md.
 	@printf 'Your name (recorded in the registry against every source you confirm): '; \
 	read -r name; \
 	uv run sentinel verify --verifier "$$name" --federal-first

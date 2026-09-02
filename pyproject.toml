@@ -104,8 +104,12 @@ source = ["id_churn_sentinel"]
 
 [tool.coverage.report]
 # Same 90% floor `make cov` enforces on the CLI (--cov-fail-under=90); declared here too
-# so the floor is visible in the project's single source of tool config. Measured 93%
-# on 2026-07-16 (357 tests).
+# so the floor is visible in the project's single source of tool config.
+#
+# The measured percentage is deliberately NOT recorded here. It moves with every test
+# added, nothing derives it into this file, and the note that used to sit on this line
+# ("Measured 93% on 2026-07-16 (357 tests)") was wrong on both counts by the time anyone
+# read it. The floor is the enforced fact; `make cov` prints the measurement.
 fail_under = 90
 show_missing = true
 skip_covered = false

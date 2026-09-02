@@ -12,7 +12,10 @@
 <meta property="og:description" content="Technical-alpha registry and human-review pipeline for candidate US government pages about name and gender-marker changes. No account, no tracking.">
 <meta property="og:url" content="https://chelseakr.github.io/id-churn-sentinel/">
 <meta property="og:locale" content="en_US">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://chelseakr.github.io/id-churn-sentinel/social-card.png">
+<meta property="og:image:alt" content="Plain text card reading: technical alpha, machine-checked, not human-confirmed. ID Churn Sentinel.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://chelseakr.github.io/id-churn-sentinel/social-card.png">
 <link rel="alternate" type="application/rss+xml" title="ID Churn Sentinel — reviewed changes" href="feed.xml">
 <style>
 :root { --bg:#fff; --fg:#1a1a1a; --muted:#4a4a4a; --line:#c9c9c9; --accent:#0b5d8a;
@@ -80,7 +83,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <header>
 <h1>ID Churn Sentinel</h1>
 <p class="lede"><strong>Technical alpha:</strong> a candidate-source registry and human-review pipeline for US government pages about name and gender-marker changes on identity documents. When operational, it reports that an eligible source page changed and shows the passage that changed. <strong>It never asserts what the law is.</strong></p>
-<p class="meta">Generated 29 August 2026, 02:35 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
+<p class="meta">Generated 02 September 2026, 04:26 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
 </header>
 <main id="main">
 <nav class="section-nav" aria-label="Page sections">
@@ -96,7 +99,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </nav>
 <section class="notice" aria-labelledby="verification">
 <h2 id="verification">Read this first: no human has confirmed any of these 156 sources</h2>
-<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-08-29, <strong>0 of 156 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
+<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-09-02, <strong>0 of 156 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
 <p><strong>Every source listed on this page is a <em>candidate</em> official URL.</strong> Our crawler fetched it and read its title. That is all that has happened to 156 of the 156 entries below: <strong>UNVERIFIED — machine-checked, not human-confirmed</strong>. <strong>No human has confirmed that each one is the official page it claims to be</strong> for that document class in that jurisdiction.</p>
 <p><strong>Do not rely on this list as authoritative guidance, and do not hand it to someone who will.</strong> A machine cannot tell a state's real birth-certificate page from a convincing-looking one. It cannot even reliably tell a live page from a bot-wall: one federal site answers our crawler with a page titled <q>Request Access</q> and serves it with <strong>HTTP 200</strong>. A status code is not a verification, and a title is not a verification. A person is.</p>
 <h3>What this tool does claim</h3>
@@ -114,7 +117,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <section class="notice" aria-labelledby="run-health">
 <h2 id="run-health">Run health: FAILED · CURRENT</h2>
 <p><strong>The feed's generated time is not evidence that the watcher ran.</strong> Health below comes only from persisted run and source-attempt receipts. A failed, partial, running, or stale state means feed silence must not be read as no change.</p>
-<p>Latest attempt <code>cee217f102684e719afb92fe88eb892f</code>: <strong>FAILED</strong>; scope <strong>all jurisdictions</strong>; started 2026-08-23T19:15:22.799410+00:00; completed 2026-08-23T19:15:22.801459+00:00; <strong>no source was attempt-eligible, so this run examined nothing</strong> — there is no denominator here and the zero counts are not a measurement of any page.</p>
+<p>Latest attempt <code>072bc26bf44247b5af57af754b6ad5d2</code>: <strong>FAILED</strong>; scope <strong>all jurisdictions</strong>; started 2026-08-29T17:00:52.463546+00:00; completed 2026-08-29T17:00:52.466137+00:00; <strong>no source was attempt-eligible, so this run examined nothing</strong> — there is no denominator here and the zero counts are not a measurement of any page.</p>
 <p>No successful watch run receipt exists.</p>
 <p><a href="status.json">status.json</a> carries the exact eligible, attempted, successful, and unmeasured source ID sets.</p>
 </section>

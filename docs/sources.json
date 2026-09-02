@@ -1,11 +1,11 @@
 {
   "schema_version": "2.0",
-  "generated_at": "2026-08-29T02:35:30.590755+00:00",
+  "generated_at": "2026-09-02T04:26:49.847186+00:00",
   "coverage": {
     "registered_candidates": 156,
     "attempt_eligible": 0,
     "ineligible": 156,
-    "eligibility_as_of": "2026-08-29",
+    "eligibility_as_of": "2026-09-02",
     "ineligibility_reasons": {
       "fetch-policy-unreviewed": 156,
       "unverified": 156
@@ -34,7 +34,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -55,7 +55,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -76,7 +76,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -97,7 +97,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -118,7 +118,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -139,7 +139,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -160,7 +160,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -181,7 +181,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -202,7 +202,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -223,7 +223,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -244,7 +244,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -265,7 +265,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -286,7 +286,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -307,7 +307,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -328,7 +328,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -349,7 +349,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -370,7 +370,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -391,7 +391,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -412,7 +412,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -433,7 +433,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -454,7 +454,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -475,7 +475,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -496,7 +496,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -517,7 +517,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -538,7 +538,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -559,7 +559,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -580,7 +580,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -601,7 +601,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -622,7 +622,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -643,7 +643,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -664,7 +664,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -685,7 +685,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -706,7 +706,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -727,7 +727,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -748,7 +748,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -769,7 +769,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -790,7 +790,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -811,7 +811,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -832,7 +832,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -853,7 +853,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -874,7 +874,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -895,7 +895,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -916,7 +916,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -937,7 +937,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -958,7 +958,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -979,7 +979,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1000,7 +1000,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1021,7 +1021,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1042,7 +1042,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1063,7 +1063,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1084,7 +1084,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1105,7 +1105,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1126,7 +1126,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1147,7 +1147,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1168,7 +1168,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1189,7 +1189,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1210,7 +1210,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1231,7 +1231,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1252,7 +1252,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1273,7 +1273,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1294,7 +1294,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1315,7 +1315,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1336,7 +1336,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1357,7 +1357,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1378,7 +1378,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1399,7 +1399,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1420,7 +1420,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1441,7 +1441,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1462,7 +1462,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1483,7 +1483,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1504,7 +1504,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1525,7 +1525,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1546,7 +1546,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1567,7 +1567,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1588,7 +1588,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1609,7 +1609,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1630,7 +1630,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1651,7 +1651,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1672,7 +1672,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1693,7 +1693,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1714,7 +1714,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1735,7 +1735,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1756,7 +1756,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1777,7 +1777,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1798,7 +1798,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1819,7 +1819,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1840,7 +1840,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1861,7 +1861,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1882,7 +1882,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1903,7 +1903,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1924,7 +1924,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1945,7 +1945,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1966,7 +1966,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -1987,7 +1987,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2008,7 +2008,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2029,7 +2029,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2050,7 +2050,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2071,7 +2071,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2092,7 +2092,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2113,7 +2113,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2134,7 +2134,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2155,7 +2155,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2176,7 +2176,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2197,7 +2197,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2218,7 +2218,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2239,7 +2239,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2260,7 +2260,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2281,7 +2281,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2302,7 +2302,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2323,7 +2323,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2344,7 +2344,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2365,7 +2365,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2386,7 +2386,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2407,7 +2407,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2428,7 +2428,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2449,7 +2449,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2470,7 +2470,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2491,7 +2491,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2512,7 +2512,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2533,7 +2533,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2554,7 +2554,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2575,7 +2575,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2596,7 +2596,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2617,7 +2617,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2638,7 +2638,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2659,7 +2659,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2680,7 +2680,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2701,7 +2701,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2722,7 +2722,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2743,7 +2743,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2764,7 +2764,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2785,7 +2785,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2806,7 +2806,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2827,7 +2827,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2848,7 +2848,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2869,7 +2869,7 @@
       "reachable_by_our_crawler": false,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2890,7 +2890,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2911,7 +2911,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2932,7 +2932,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2953,7 +2953,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2974,7 +2974,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -2995,7 +2995,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3016,7 +3016,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3037,7 +3037,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3058,7 +3058,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3079,7 +3079,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3100,7 +3100,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3121,7 +3121,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3142,7 +3142,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3163,7 +3163,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3184,7 +3184,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3205,7 +3205,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3226,7 +3226,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3247,7 +3247,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3268,7 +3268,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"
@@ -3289,7 +3289,7 @@
       "reachable_by_our_crawler": true,
       "notes": "",
       "attempt_eligible": false,
-      "eligibility_as_of": "2026-08-29",
+      "eligibility_as_of": "2026-09-02",
       "ineligibility_reasons": [
         "unverified",
         "fetch-policy-unreviewed"

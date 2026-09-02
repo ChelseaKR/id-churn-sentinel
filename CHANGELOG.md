@@ -132,6 +132,40 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **A remote the live-integrity sentinel could not read was reported as a
+  deploy, turning a stale live feed green** (2026-09-01). `live-integrity.yml`
+  is the only check in this repository that looks at the bytes a consumer
+  actually receives. It excuses a live-vs-published mismatch in exactly one
+  case — a newer commit deployed while the comparison ran — and established
+  that case by re-reading the remote afterwards:
+
+  ```sh
+  remote_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
+  if [ "$remote_sha" != "$expected_sha" ]; then ... exit 0; fi
+  ```
+
+  The step runs under `set -uo pipefail` (no `-e`) and never checked that
+  substitution's status, so a `git ls-remote` that failed — a network blip, an
+  auth problem, a missing ref — left `remote_sha` empty. The empty string is
+  unequal to every real sha, so **"we never found out where main is" took the
+  same branch as "main moved on"** and exited 0, printing the tell:
+  `::warning::main moved to  while this ran`, with nothing where the sha
+  belongs. One unreadable remote could report a genuinely stale set of
+  jurisdiction feeds as a clean deployment.
+
+  This is the project's primary failure mode wearing a different hat: absence
+  of evidence rendered as evidence of absence, in the one place that grades the
+  surface real consumers poll. Fixed by requiring the re-read to have succeeded
+  and returned something before it may excuse anything, and saying so out loud
+  when it did not — an unknown excuses nothing.
+
+  `tests/test_public_boundary.py` gains four tests that extract the step's
+  literal shell from the workflow and execute it against a stubbed `git`, so
+  the branching itself is exercised rather than its text: the unreadable remote
+  now surfaces the mismatch (fails against the pre-fix file), a genuine deploy
+  race is still excused, a mismatch on an unmoved `main` is still reported, and
+  a passing comparison is not turned red by a remote read that failed.
+
 - **`verify --list --limit N` reported the page size as the size of the queue**
   (2026-09-01). `--limit` is a sitting — "show me one afternoon's worth" — and
   the count beneath the listing is what someone reads while deciding whether to

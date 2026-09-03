@@ -111,15 +111,34 @@ _PAGE_TITLE = f"{SITE_TITLE} — registered candidates, gaps, and service status
 # `sentinel coverage --check-docs`, and a number on a preview card is exactly the number nobody
 # rechecks. It promises no legal meaning, per guardrail 6.
 #
-# Deliberately absent: `og:image`. Nothing in this repository is an image, and the page renders
-# no `src=` at all — `test_every_link_on_the_page_is_subpath_safe` asserts that, because a
-# subresource with a broken relative path fails silently under a Pages subpath. Pointing
-# `og:image` at a file that does not exist is a worse card than no card, and drawing one to
-# fill the slot would be inventing a published artifact. Hence `twitter:card` is `summary`,
-# which promises no image, rather than `summary_large_image`, which does.
 SITE_DESCRIPTION = (
     "Technical-alpha registry and human-review pipeline for candidate US government pages "
     "about name and gender-marker changes. No account, no tracking."
+)
+
+# The link-preview card: 1200x630, committed at `docs/social-card.png`, drawn by
+# `tools/make_social_card.py` out of this module's own `SITE_TITLE` and `SITE_DESCRIPTION`, so
+# the card cannot say something the page does not.
+#
+# It is ABSOLUTE, and it is the one URL in this file that has to be. Every other reference on
+# the page is relative because a root-absolute path breaks under the Pages subpath — but a
+# social crawler reads `og:image` out of context and cannot resolve a relative one at all, so
+# here the subpath has to be carried explicitly. `PAGES_URL` already carries it; nothing below
+# builds the URL by hand.
+#
+# This is metadata, not a subresource: no browser fetches it while rendering the page, and the
+# page still contains no `src=` of any kind (`test_every_link_on_the_page_is_subpath_safe`).
+# The earlier decision here was to omit `og:image` entirely and declare the `summary` card
+# type, because pointing at an image this repository did not publish would have been a worse
+# card than no card. That reasoning is unchanged — it is satisfied rather than overridden: the
+# image is now genuinely published, from the branch, alongside every other byte in `docs/`.
+SOCIAL_CARD_URL = f"{PAGES_URL}social-card.png"
+
+# What the card says, for a reader whose client announces the alt text instead of rendering the
+# picture. It describes the card, not the project — the project is `og:description`.
+_CARD_ALT = (
+    "Plain text card reading: technical alpha, machine-checked, not human-confirmed. "
+    "ID Churn Sentinel."
 )
 
 _CLASS_LABELS = {
@@ -207,10 +226,13 @@ def render_site(
             f'<meta property="og:description" content="{_esc(SITE_DESCRIPTION)}">',
             f'<meta property="og:url" content="{_esc(PAGES_URL)}">',
             '<meta property="og:locale" content="en_US">',
-            # `summary`, not `summary_large_image`: this repo publishes no image, and a card
-            # type that promises one it cannot supply renders worse than one that does not ask.
-            # There is no og:image for the same reason — see the note above SITE_DESCRIPTION.
-            '<meta name="twitter:card" content="summary">',
+            f'<meta property="og:image" content="{_esc(SOCIAL_CARD_URL)}">',
+            f'<meta property="og:image:alt" content="{_esc(_CARD_ALT)}">',
+            # `summary_large_image` promises an image, and `docs/social-card.png` is committed
+            # and served from the same branch as every other published byte, so the promise is
+            # kept. See the note above `SOCIAL_CARD_URL`.
+            '<meta name="twitter:card" content="summary_large_image">',
+            f'<meta name="twitter:image" content="{_esc(SOCIAL_CARD_URL)}">',
             # Feed autodiscovery: a reader who points any RSS client at this page gets the feed
             # without hunting for the URL. Relative, like every other link here — see the module
             # docstring on why a leading slash would break under a Pages subpath.

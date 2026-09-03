@@ -4,6 +4,8 @@
 
 **Status:** `Technical alpha` (M0 shipped; first real baseline 2026-07-13: **152 registered sources, 52 of 52 jurisdictions**, zero false drift on a second consecutive pass) · **Track:** Civic / trans infrastructure · **License:** [AGPL-3.0-or-later](./LICENSE) · **Runtime deps:** zero (stdlib only)
 
+**Published site:** <https://chelseakr.github.io/id-churn-sentinel/> — the registry, the named gaps, and current service status, served from the committed bytes in `docs/`. It is the canonical URL stamped into the JSON and RSS artifacts; [Consuming it](#consuming-it) has the endpoint paths.
+
 This is a noncommercial, open-source, public-interest research project. It
 offers no paid services and has no customers, sponsors, or revenue.
 

@@ -68,6 +68,7 @@ from id_churn_sentinel.core.coverage import (
 from id_churn_sentinel.core.detect import (
     MIN_REMOVAL_SILENCE,
     REMOVAL_THRESHOLD,
+    WatchReport,
     check_stability,
     watch,
 )
@@ -96,6 +97,7 @@ from id_churn_sentinel.core.registry import (
     default_registry_path,
     load_registry,
 )
+from id_churn_sentinel.core.rotation import ROTATION_THRESHOLD, RotationReport, rotation_report
 from id_churn_sentinel.core.site import REPO_URL
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
@@ -193,6 +195,33 @@ def build_parser() -> argparse.ArgumentParser:
             "permission we hold."
         ),
     )
+    rotation_cmd = sources_sub.add_parser(
+        "rotation",
+        help="name sources a reviewer keeps dismissing as editorial (reads the store; no network)",
+        description=(
+            "`sources check --twice` catches a page that re-rolls a widget on every REQUEST. "
+            "It cannot catch one that re-rolls hourly or daily, and it cannot catch a page "
+            "that starts rotating after it was registered — until now the only thing that "
+            "noticed either was a reviewer dismissing the same source as `editorial` week "
+            "after week, which is a signal that lived in one person's memory. This reads that "
+            "signal out of the review record. It suppresses nothing, normalizes nothing, and "
+            "decides nothing: repeated editorial dismissals are what a rotating page looks "
+            "like from the queue, and also what a page that is genuinely edited every week "
+            "looks like."
+        ),
+    )
+    rotation_cmd.add_argument(
+        "--threshold",
+        type=int,
+        default=ROTATION_THRESHOLD,
+        help=(
+            "consecutive editorial dismissals on one source before it is named (default "
+            f"{ROTATION_THRESHOLD} — the number RESPONSIBLE-TECH already commits to; it is a "
+            "policy in units of reviewed observations, not a measurement, and the streak "
+            "length is always printed so the evidence outlives the constant)"
+        ),
+    )
+
     check_cmd = sources_sub.add_parser(
         "check", help="fetch every source and report status (network)"
     )
@@ -510,6 +539,8 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
         return _cmd_sources_eligibility(registry, args.as_of)
     if args.sources_command == "policy":
         return _cmd_sources_policy(args)
+    if args.sources_command == "rotation":
+        return _cmd_sources_rotation(args)
     if args.sources_command == "check":
         if args.twice:
             return _cmd_sources_stability(registry, fetcher)
@@ -800,6 +831,64 @@ def _text_check_line(body: bytes, content_type: str | None) -> str:
     return f'{count} passage(s) — "{title}"'
 
 
+def _cmd_sources_rotation(args: argparse.Namespace) -> int:
+    """`sources rotation`: the store-backed half of the false-drift signal.
+
+    Not a gate, and not a network call. A source a reviewer keeps dismissing is a question
+    for a person — is this page churning, or is it genuinely edited every week? — and this
+    command's whole job is to make sure that question gets asked at all rather than dying in
+    one reviewer's memory.
+    """
+    with SnapshotStore(args.db) as store:
+        report = rotation_report(store, threshold=args.threshold)
+    _print_rotation_report(report)
+    print(report.summary())
+    return 0  # never a gate: a page that churns is not a broken build
+
+
+def _print_rotation_report(report: RotationReport) -> None:
+    """The suspects, their evidence, and — said in-band every time — what was NOT done.
+
+    The "nothing has been suppressed" line is not reassurance padding. An operator reading
+    "possible rotation" about a government page has every reason to wonder whether the tool
+    has quietly stopped alerting on it, and if they believed that, this feature would have
+    manufactured the exact wrong "no change" it exists to help prevent.
+    """
+    for suspect in report.suspects:
+        days = suspect.span.days
+        print(
+            f"  ↻ POSSIBLE ROTATION  {suspect.source_id:<28} "
+            f"{suspect.streak} consecutive editorial dismissal(s) over {days}d"
+        )
+        print(f"      {suspect.jurisdiction}/{suspect.document_class}  {suspect.url}")
+        print(
+            f"      first {suspect.first_dismissed_at.date()}, "
+            f"last {suspect.last_dismissed_at.date()}, "
+            f"dismissed by: {', '.join(suspect.reviewers)}"
+        )
+        # One runnable line per record rather than the ids joined together: the reviewer's
+        # next action is to read these diffs, and a line they have to edit before it runs is
+        # a line they do not run.
+        for change_id in suspect.change_ids:
+            print(f"      sentinel diff {change_id}")
+        if suspect.pending:
+            print(
+                f"      ({suspect.pending} observation(s) on this source are still "
+                "unreviewed and are NOT counted either way)"
+            )
+        print(
+            "      Nothing has been suppressed: this source is still watched and will still\n"
+            "      produce a change record next run. Repeated editorial dismissals are what a\n"
+            "      page with rotating content looks like from the review queue — and also what\n"
+            "      a page that is genuinely edited every week looks like. This tool is not\n"
+            "      deciding between them.\n"
+            "      Read the diffs above: if the same passage keeps moving, run\n"
+            "      `sentinel sources check --twice` on it, then either watch a stable page on\n"
+            "      that host or record the source as a GAP. Do not normalize the text away —\n"
+            "      a normalizer that hides real text can hide a real change."
+        )
+
+
 def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
     """`sources check --twice`: find the sources that would cry wolf.
 
@@ -924,6 +1013,13 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             removal_threshold=args.removal_threshold,
             min_removal_silence=timedelta(days=args.min_removal_silence_days),
         )
+        # Computed inside the store's lifetime, printed at the end of the run. The streak is
+        # a fact about the review record rather than about this pass, so it is read after
+        # every watch and not only when something changed: a source whose last three
+        # observations were dismissed as editorial is worth naming on the quiet week too,
+        # and a signal that only appears alongside an alarm is a signal nobody sees when the
+        # alarm stops being read. It cannot alter detection — `watch()` has already returned.
+        rotation = rotation_report(store)
 
     print(
         f"watch: run {report.run_id} {report.state.upper()} — "
@@ -973,13 +1069,30 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
         _print_pending_change(gone)
     for change in report.changed:
         _print_pending_change(change)
+    _print_watch_tail(report, rotation)
+    return 0
+
+
+def _print_watch_tail(report: WatchReport, rotation: RotationReport) -> None:
+    """What the operator is left holding: this run's queue, and the standing registry doubt.
+
+    The two are printed together on purpose. The queue is what to do now; the rotation block
+    is what to stop doing — and a reviewer who has just dismissed the same source for the
+    third time is the one person in a position to act on it, at the one moment they are
+    looking.
+    """
     pending = len(report.changed) + len(report.possibly_removed)
     if pending:
         print(
             f"\n{pending} change(s) recorded as UNCLASSIFIED/UNREVIEWED. "
             f"Nothing reaches the feed until a named human reviews it."
         )
-    return 0
+    if rotation.suspects:
+        print(
+            f"\n{len(rotation.suspects)} source(s) a reviewer keeps dismissing as editorial — "
+            "a question about the registry, not a finding about the world:"
+        )
+        _print_rotation_report(rotation)
 
 
 def _print_pending_change(change: ChangeRecord) -> None:

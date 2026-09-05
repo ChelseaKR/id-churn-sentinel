@@ -1298,3 +1298,126 @@ def test_baseline_check_never_counts_a_re_pointed_source_as_moved(
     # to read, and pointing a reviewer at one would send them looking for a record that was
     # never minted.
     assert "cannot show you the passage that changed" not in out_text
+
+
+def _dismiss_repeatedly(db: Path, source: Source, times: int) -> None:
+    """Record `times` weekly drift observations on one source, each dismissed as editorial by
+    a named human — the pattern a rotating page leaves in the review record."""
+    from datetime import timedelta
+
+    from id_churn_sentinel.core.changes import ChangeRecord, Significance
+
+    monday = datetime(2026, 8, 3, 9, 0, tzinfo=UTC)
+    with SnapshotStore(db) as store:
+        for week in range(times):
+            change = ChangeRecord.observed(
+                source_id=source.id,
+                jurisdiction=source.jurisdiction,
+                document_class=source.document_class,
+                url=source.url,
+                previous_hash=str(week) * 64,
+                new_hash=str(week + 1) * 64,
+                diff_excerpt="-state fish\n+state reptile",
+                observed_at=monday + timedelta(weeks=week),
+            )
+            store.record_change(change)
+            store.update_change(
+                change.reviewed_by(
+                    reviewer="A Human",
+                    significance=Significance.EDITORIAL,
+                    status=ReviewStatus.DISMISSED,
+                    reviewed_at=change.observed_at + timedelta(hours=2),
+                )
+            )
+
+
+def test_sources_rotation_names_a_source_a_reviewer_keeps_dismissing(
+    cli_registry: Path, tmp_path: Path, source: Source, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The store-backed half of the false-drift signal, at the command line. No network, no
+    registry fetch — it reads decisions humans already made and signed."""
+    db = tmp_path / "s.db"
+    _dismiss_repeatedly(db, source, 3)
+
+    assert main([*base_args(cli_registry, db), "sources", "rotation"]) == 0
+
+    out = capsys.readouterr().out
+    assert f"POSSIBLE ROTATION  {source.id}" in out
+    assert "3 consecutive editorial dismissal(s) over 14d" in out
+    assert "dismissed by: A Human" in out
+    assert out.count("sentinel diff ") == 3  # one runnable line per record, not ids joined
+    assert "1 source(s) with 2 or more consecutive editorial dismissals" in out
+
+
+def test_sources_rotation_says_out_loud_that_it_suppressed_nothing(
+    cli_registry: Path, tmp_path: Path, source: Source, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An operator reading "possible rotation" about a government page has every reason to
+    wonder whether the tool has quietly stopped alerting on it. If they believed that, this
+    feature would have manufactured the wrong "no change" it exists to help prevent — so the
+    report says what it did NOT do, in band, every time, and names the fix a person has to
+    make instead."""
+    db = tmp_path / "s.db"
+    _dismiss_repeatedly(db, source, 2)
+
+    main([*base_args(cli_registry, db), "sources", "rotation"])
+
+    out = capsys.readouterr().out
+    assert "Nothing has been suppressed" in out
+    assert "still watched and will still" in out
+    assert "This tool is not" in out and "deciding between them." in out
+    assert "Do not normalize the text away" in out
+    assert "record the source as a GAP" in out
+
+
+def test_sources_rotation_threshold_is_settable_and_the_command_is_never_a_gate(
+    cli_registry: Path, tmp_path: Path, source: Source, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = tmp_path / "s.db"
+    _dismiss_repeatedly(db, source, 2)
+
+    assert main([*base_args(cli_registry, db), "sources", "rotation", "--threshold", "3"]) == 0
+
+    out = capsys.readouterr().out
+    assert "POSSIBLE ROTATION" not in out
+    assert "no source has 3 consecutive editorial dismissal(s)" in out
+
+
+def test_watch_surfaces_repeated_editorial_dismissals_without_being_asked(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """ "Done when: repeated editorial dismissals on one source surface AUTOMATICALLY as a
+    stability problem." A diagnostic an operator has to remember to run is a diagnostic that
+    gets run once, so the weekly pass prints it — including on a quiet week, because a signal
+    that only appears alongside an alarm is one nobody sees when the alarms stop being read.
+    """
+    db = tmp_path / "s.db"
+    _dismiss_repeatedly(db, source, 2)
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    assert main([*base_args(cli_registry, db), "watch", "--jurisdiction", "TX"], fetcher=stub) == 0
+
+    out = capsys.readouterr().out
+    assert "a question about the registry, not a finding about the world" in out
+    assert f"POSSIBLE ROTATION  {source.id}" in out
+
+
+def test_watch_says_nothing_about_rotation_when_there_is_no_pattern(
+    cli_registry: Path,
+    tmp_path: Path,
+    source: Source,
+    fixture_before: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The other half of "a reviewer actually works the queue": a block that printed on every
+    run whether or not it had anything to say would be scrolled past by week three."""
+    db = tmp_path / "s.db"
+    stub = StubFetcher({source.url: (fixture_before, "text/html")})
+
+    main([*base_args(cli_registry, db), "watch", "--jurisdiction", "TX"], fetcher=stub)
+
+    assert "POSSIBLE ROTATION" not in capsys.readouterr().out

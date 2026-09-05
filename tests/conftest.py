@@ -227,3 +227,93 @@ def fixture_loose_end_tag() -> bytes:
     """A page closing its `<script>` with `</script >` — the spelling `passage-text-v1`
     failed to strip, so the same bytes normalize differently under v1 and v2."""
     return (FIXTURES / "state-page-loose-end-tag.html").read_bytes()
+
+
+# ---------------------------------------------------------------------------------------
+# PDF builders (`PDF-01`)
+# ---------------------------------------------------------------------------------------
+#
+# The suite has to exercise a *real* extractor, so it needs real PDFs — and it must stay
+# air-gapped and deterministic, so it cannot download a government form or shell out to a
+# generator. These builders emit byte-exact minimal PDFs whose every construct is chosen on
+# purpose: `simple_pdf` is a plain WinAnsi document, and the keyword arguments turn on each
+# construct the extractor is supposed to refuse or to read.
+#
+# They are builders and not fixture files because the interesting tests differ by ONE
+# construct — a filter, an encryption dictionary, a second definition of object 3 — and a
+# directory of near-identical binary blobs hides exactly the difference under test.
+
+
+def _pdf_object(number: int, body: bytes) -> bytes:
+    return b"%d 0 obj\n" % number + body + b"\nendobj\n"
+
+
+def _pdf_stream(number: int, dictionary: bytes, payload: bytes) -> bytes:
+    head = b"<< " + dictionary + b" /Length %d >>" % len(payload)
+    return _pdf_object(number, head + b"\nstream\n" + payload + b"\nendstream")
+
+
+def _pdf_document(objects: list[bytes]) -> bytes:
+    """Assemble a PDF with a trailer. The cross-reference table is deliberately omitted:
+    `core/pdf.py` does not read one (see its `_Document` docstring), so writing a fake one
+    here would test a code path that does not exist."""
+    return b"%PDF-1.4\n" + b"".join(objects) + b"trailer\n<< /Root 1 0 R >>\n%%EOF\n"
+
+
+def _escape_pdf_text(text: str) -> bytes:
+    raw = text.encode("cp1252")
+    for special in (b"\\", b"(", b")"):
+        raw = raw.replace(special, b"\\" + special)
+    return raw
+
+
+def content_stream_for(lines: list[str]) -> bytes:
+    """A `BT … ET` block placing one line per `Td`, the way every generator writes a page."""
+    out = [b"BT /F1 12 Tf 72 720 Td"]
+    for index, line in enumerate(lines):
+        if index:
+            out.append(b"0 -14 Td")
+        out.append(b"(" + _escape_pdf_text(line) + b") Tj")
+    out.append(b"ET")
+    return b"\n".join(out)
+
+
+def simple_pdf(
+    text: str = "Bring a court order.",
+    *,
+    producer: str = "",
+    encoding: bytes = b"/WinAnsiEncoding",
+    subtype: bytes = b"/Type1",
+    duplicate_object: bool = False,
+    encrypted: bool = False,
+    unsupported_filter: bool = False,
+) -> bytes:
+    """One deterministic single-page PDF.
+
+    `producer` changes the bytes without changing a character of page text, which is exactly
+    the re-render case `PDF-01` exists to tell apart from a real edit.
+    """
+    payload = content_stream_for(text.split("\n"))
+    stream_dictionary = b"/Filter /LZWDecode" if unsupported_filter else b""
+    objects = [
+        _pdf_object(1, b"<< /Type /Catalog /Pages 2 0 R >>"),
+        _pdf_object(2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
+        _pdf_object(
+            3,
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        ),
+        _pdf_stream(4, stream_dictionary, payload),
+        _pdf_object(
+            5,
+            b"<< /Type /Font /Subtype " + subtype + b" /BaseFont /Helvetica"
+            b" /Encoding " + encoding + b" >>",
+        ),
+    ]
+    if producer:
+        objects.append(_pdf_object(6, b"<< /Producer (" + _escape_pdf_text(producer) + b") >>"))
+    if duplicate_object:
+        objects.append(_pdf_object(3, b"<< /Type /Page /Parent 2 0 R >>"))
+    if encrypted:
+        objects.append(_pdf_object(7, b"<< /Encrypt 8 0 R >>"))
+    return _pdf_document(objects)

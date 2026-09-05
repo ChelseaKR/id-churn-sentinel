@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 import time
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -113,7 +114,11 @@ def test_current_representation_contract_is_registered_and_unknown_ones_fail(
     # Every contract this project has ever shipped, and nothing invented. Superseded rows are
     # kept rather than replaced — the table is append-only by trigger — because a retired
     # contract stays a true statement about how the hashes recorded under it were computed.
-    assert contracts == {("passage-text-v1", "none-v1"), ("passage-text-v2", "none-v1")}
+    assert contracts == {
+        ("passage-text-v1", "none-v1"),
+        ("passage-text-v2", "none-v1"),
+        ("passage-text-v2", "pdf-text-v1"),
+    }
 
     with pytest.raises(sqlite3.IntegrityError, match="explicit representation versions"):
         store.record_snapshot(
@@ -1179,14 +1184,16 @@ def test_legacy_attempts_are_labelled_not_backfilled(
         old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
         # Terminalize the attempt the way the pre-migration code did: without evidence, and
         # under the representation contract that was current at the time. That is the literal
-        # `passage-text-v1`, not today's NORMALIZER_VERSION — the contract registering the
-        # current normalizer may postdate the migration prefix this test rolls back to, and
-        # an old row could not have been labelled with a version that did not yet exist.
+        # `passage-text-v1`/`none-v1`, not today's NORMALIZER_VERSION/EXTRACTOR_VERSION — the
+        # contract registering either may postdate the migration prefix this test rolls back
+        # to, and an old row could not have been labelled with a version that did not yet
+        # exist. (`none-v1` became a literal here when `PDF-01` gave the build a real
+        # extractor: a store rolled back to migration 4 has never heard of `pdf-text-v1`.)
         old._conn.execute(
             "UPDATE fetch_attempts SET ok = 1, completed_at = ?, http_status = 200, "
             "content_type = 'text/html', normalizer_version = ?, extractor_version = ? "
             "WHERE run_id = ? AND source_id = 'eligible'",
-            (NOW.isoformat(), "passage-text-v1", EXTRACTOR_VERSION, run_id),
+            (NOW.isoformat(), "passage-text-v1", "none-v1", run_id),
         )
     monkeypatch.undo()
 
@@ -1200,3 +1207,105 @@ def test_legacy_attempts_are_labelled_not_backfilled(
     assert attempt.raw_sha256 == ""
     assert attempt.bytes_received is None
     assert attempt.truncated is None
+
+
+def test_a_pdf_extraction_outcome_must_match_the_hash_it_claims(store: SnapshotStore) -> None:
+    """Migration 9 (`PDF-01`), asserted at the SQL layer rather than trusted to Python.
+
+    Two new outcomes, and each is bound to the evidence it implies: a PDF read completely
+    carries a normalized-text hash (that is what "extracted" means), and a PDF refused
+    carries none (claiming one for text nobody produced is fabricated provenance). The
+    trigger enforces both directions, so a writer that bypasses `AttemptEvidence` cannot
+    record an extraction that did not happen.
+    """
+    recorded = []
+    for outcome, normalized in (("pdf-text-extracted", "b" * 64), ("pdf-extraction-refused", "")):
+        run_id = _start_run(store)
+        store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+        store.finish_fetch_attempt(
+            run_id,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="application/pdf",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
+            error="",
+            evidence=replace(
+                _ok_evidence(), normalized_sha256=normalized, extraction_outcome=outcome
+            ),
+            measured=True,
+            completed_at=NOW,
+        )
+        recorded.append(store.fetch_attempts(run_id)[0].extraction_outcome)
+
+    assert recorded == ["pdf-text-extracted", "pdf-extraction-refused"]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "normalized_sha256"),
+    [
+        ("pdf-text-extracted", "''"),  # "we read it" without the hash of what we read
+        ("pdf-extraction-refused", "'" + "b" * 64 + "'"),  # a hash of text nobody extracted
+    ],
+)
+def test_database_rejects_a_pdf_outcome_paired_with_the_wrong_hash(
+    store: SnapshotStore, outcome: str, normalized_sha256: str
+) -> None:
+    run_id = _start_run(store)
+    store.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+
+    with pytest.raises(sqlite3.IntegrityError, match="complete fetch evidence"):
+        store._conn.execute(
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ?, final_url = url, "  # noqa: S608 — parametrized test SQL over module literals
+            "raw_sha256 = ?, bytes_received = 8, truncated = 0, "
+            f"extraction_outcome = '{outcome}', normalized_sha256 = {normalized_sha256}, "
+            "normalizer_version = ?, extractor_version = ? "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (NOW.isoformat(), "a" * 64, NORMALIZER_VERSION, EXTRACTOR_VERSION, run_id),
+        )
+
+
+def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Migration 9 rebuilds `fetch_attempts`, because SQLite cannot widen a CHECK in place.
+
+    A rebuild is a table drop, and a table drop is where evidence gets quietly lost or
+    relabelled. So: write a row under the pre-migration schema, migrate, and assert the row
+    comes back byte-identical — same outcome, same hashes, same error class. `binary-no-extractor`
+    in particular must still say `binary-no-extractor`: it is a statement about a fetch that
+    happened when no extractor existed, and rewriting it to `pdf-extraction-refused` would
+    restate the past to match the present.
+    """
+    db = tmp_path / "pre-pdf.db"
+    pre_pdf = tuple(migration for migration in store_module._MIGRATIONS if migration[0] <= 8)
+    monkeypatch.setattr(store_module, "_MIGRATIONS", pre_pdf)
+    with SnapshotStore(db) as old:
+        run_id = _start_run(old)
+        old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+        old.finish_fetch_attempt(
+            run_id,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="application/pdf",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version="none-v1",
+            error="",
+            evidence=replace(
+                _ok_evidence(), normalized_sha256="", extraction_outcome="binary-no-extractor"
+            ),
+            measured=True,
+            completed_at=NOW,
+        )
+    monkeypatch.undo()
+
+    with SnapshotStore(db) as migrated:
+        attempt = migrated.fetch_attempts(run_id)[0]
+
+    assert attempt.extraction_outcome == "binary-no-extractor"
+    assert attempt.extractor_version == "none-v1"
+    assert attempt.normalized_sha256 == ""
+    assert attempt.raw_sha256 == "a" * 64
+    assert attempt.ok is True

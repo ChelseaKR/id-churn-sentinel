@@ -453,12 +453,23 @@ def diff_excerpt(
     *,
     source_url: str,
     renormalized_from: str | None = None,
+    binary: bool = False,
+    extraction_detail: str = "",
 ) -> str:
     """A unified diff of the normalized passages, truncated to a reviewable size.
 
-    Binary sources (PDFs) normalize to empty text and cannot be diffed. Rather than emit a
-    misleading empty diff, say so plainly — the reviewer needs to know that the honest next
-    step is to open both documents themselves.
+    A binary source this build cannot read — a non-PDF attachment, or a PDF `core/pdf.py`
+    refused — has no text on either side and cannot be diffed. Rather than emit a misleading
+    empty diff, say so plainly, and name the refusal: the reviewer needs to know that the
+    honest next step is to open both documents themselves, and the operator needs to know
+    *why* we could not do it for them.
+
+    **A PDF read on one side and refused on the other is not a diff either, and this is the
+    trap the parameter exists to close.** Extraction is per-document, so a form that gains a
+    filter or an encryption dictionary between two weeks yields text on the left and nothing
+    on the right. Passing those to `difflib` renders every passage of the form as *deleted* —
+    a diff that says the document was emptied, about a document nobody read. Refused
+    explicitly instead.
 
     `renormalized_from` names the contract the baseline was *recorded* under when it had to
     be re-derived from retained bytes to be comparable. It is stated to the reviewer rather
@@ -467,10 +478,24 @@ def diff_excerpt(
     side is a re-derivation rather than the text as stored.
     """
     note = _renormalization_note(renormalized_from)
-    if not previous_text and not current_text:
+    if binary and bool(previous_text) != bool(current_text):
+        read, unread = (
+            ("the previous", "this week's") if previous_text else ("this week's", "the previous")
+        )
         return note + (
-            "(no text diff available — this source is a binary document, e.g. a PDF; its "
-            f"bytes changed. Open {source_url} and compare against the retained snapshot.)"
+            f"(NO text diff is shown, and the omission is deliberate: {read} version of this "
+            f"document was read and {unread} was not"
+            f"{f' ({extraction_detail})' if extraction_detail else ''}. Diffing them would "
+            "render the whole document as added or removed, which would be a claim about the "
+            f"document rather than about our reading of it. The bytes changed. Open "
+            f"{source_url} and compare it against the retained snapshot.)"
+        )
+    if not previous_text and not current_text:
+        reason = f" ({extraction_detail})" if extraction_detail else ""
+        return note + (
+            "(no text diff available — this source is a binary document, e.g. a PDF, whose "
+            f"text this build did not read{reason}; its bytes changed. Open {source_url} and "
+            "compare against the retained snapshot.)"
         )
 
     lines = difflib.unified_diff(
@@ -483,9 +508,21 @@ def diff_excerpt(
     )
     text = "\n".join(lines)
     if not text:
-        # Reachable when the hash changed but normalized text did not — i.e. a binary
-        # source, or a change confined to bytes the normalizer strips. Both mean: a human
-        # has to look at the artifact, not at our summary of it.
+        # The hash moved and the text did not. For HTML that is markup churn. For a PDF that
+        # is the distinction this whole extractor exists to draw — a re-render, a new build
+        # date, a re-subset font — and it is stated as an observation, never as an all-clear:
+        # the extractor reads page content streams, so a change confined to an annotation,
+        # an image or embedded metadata lands here too, and only a person can tell those
+        # apart.
+        if binary:
+            return note + (
+                "(the file changed and its extracted page text did NOT. That is what a "
+                "re-render looks like — a new build date, a re-subset font, recompressed "
+                "streams. It is also what a change outside the page text looks like (an "
+                "annotation, an image, embedded metadata), because this extractor reads page "
+                f"content. It is NOT a finding that the document is unchanged. Open "
+                f"{source_url} to decide which.)"
+            )
         return note + (
             "(the content hash changed but the normalized text did not differ — the change "
             f"is in markup or in non-text bytes. Open {source_url} to inspect.)"
@@ -554,10 +591,11 @@ def _comparable_baseline(
 def _is_unmeasurable(normalized_text: str, content_type: str | None) -> bool:
     """True when a successful fetch produced nothing this tool can compare (issue #19).
 
-    Binary content is excluded, and the exclusion is not a special case bolted on: an opaque
-    body's normalized text is empty *by design* (`EXTRACTOR_VERSION = "none-v1"` — there is no
-    PDF extractor), its detection hash covers the raw bytes rather than the empty string, and
-    comparing those hashes week to week is a real, honest measurement. A text/HTML body that
+    Binary content is excluded, and the exclusion is not a special case bolted on: a body the
+    extractor did not read has empty normalized text *by design* — there is no extractor for a
+    non-PDF binary, and a PDF `core/pdf.py` refuses is one it will not stand behind — while its
+    detection hash covers the raw bytes rather than the empty string, so comparing those hashes
+    week to week is a real, honest measurement either way. A text/HTML body that
     normalizes to zero passages is the opposite: the hash covers nothing, every page with no
     text shares it, and comparing it to itself proves only that we are still not reading
     anything.
@@ -677,6 +715,7 @@ def _watch_authorized_sources(
             new_hash=new_hash,
             normalized=normalized,
             content_type=result.content_type,
+            extraction_detail=evidence.extraction_detail,
             observed_at=result.fetched_at,
             run_id=run_id,
         )
@@ -693,6 +732,7 @@ def _compare_against_baseline(
     new_hash: str,
     normalized: str,
     content_type: str | None,
+    extraction_detail: str,
     observed_at: datetime,
     run_id: str | None,
 ) -> None:
@@ -773,6 +813,8 @@ def _compare_against_baseline(
             normalized,
             source_url=source.url,
             renormalized_from=baseline.renormalized_from,
+            binary=kind_for_content_type(content_type) == ContentKind.BINARY,
+            extraction_detail=extraction_detail,
         ),
         observed_at=observed_at,
     )

@@ -179,6 +179,35 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **A source with no committed baseline was compared against nothing, counted as
+  an observation, and was invisible to the weekly job** (2026-09-05, closes #51).
+  `unbaselined` is the one `baseline check` bucket that sits *inside* the
+  observation numerator: those pages were fetched and read, and what is missing is
+  a hash worth comparing them against. Every other not-compared bucket is either
+  subtracted from `observed` (`no-text`, `unreachable`) or has its own
+  machine-readable marker (`url-changed`); this one had neither a marker nor a
+  branch in `watch.yml`, and a single quiet `?  no committed baseline:` line in the
+  CLI where its siblings get a loud block. So a pass in which **not one source had
+  a hash to compare against** printed a healthy `observed`, `moved=0`,
+  `needs-review=false`, exit 0 and a green tick — the same shape as a complete pass
+  over pages that all matched. Reachable today rather than hypothetically:
+  `sources/baseline-hashes.json` holds 145 baselines against a registry of 156, so
+  eleven sources become uncompared the moment the verification burn-down makes any
+  of them attempt-eligible.
+  - `sentinel baseline check` emits `baseline-check-unbaselined-count:` on every
+    run, including the zero-attempt refusal, so a workflow can tell a real zero
+    from a missing line.
+  - The bucket prints as loudly as its siblings — `⊘ NO COMMITTED BASELINE (NOT
+    compared, no drift claimed either way)` — with a footer naming the remedy
+    (`sentinel watch && sentinel baseline write`).
+  - `watch.yml` parses the marker (a missing one stays loud rather than defaulting
+    to the reassuring zero), branches on it into the human-review queue, and names
+    the count and its remedy in the issue body.
+  - **The semantics are unchanged.** `unbaselined` still counts toward
+    `BaselineReport.observed`, because the page really was read; the fix is that
+    the number can no longer be the *only* thing a caller sees. Whether the
+    numerator should be split into "read" and "compared" is left open.
+
 - **A remote the live-integrity sentinel could not read was reported as a
   deploy, turning a stale live feed green** (2026-09-01). `live-integrity.yml`
   is the only check in this repository that looks at the bytes a consumer

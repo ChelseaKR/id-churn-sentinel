@@ -730,6 +730,179 @@ UPDATE run_sources SET observation_outcome = 'legacy-unknown' WHERE attempted = 
 ALTER TABLE source_health ADD COLUMN streak_started_at TEXT;
 """,
     ),
+    (
+        9,
+        "v1-pdf-text-extraction-outcomes",
+        # `PDF-01`. A bounded PDF extractor now exists (`core/pdf.py`), which splits the old
+        # single answer for a non-text body into three: text/HTML normalized as before, a body
+        # nothing could read, and — new — a PDF read completely, whose evidence carries a real
+        # normalized-text hash alongside a detection hash still taken over the whole file.
+        #
+        # Two new outcomes rather than a reinterpretation of the old ones, because
+        # `binary-no-extractor` is a statement about rows already written: "there was no
+        # extractor". Widening it to also mean "there was one and it declined" would silently
+        # restate the past. `pdf-extraction-refused` is the new fact, and it is deliberately
+        # separate from `pdf-text-extracted` so that the set of documents this subset cannot
+        # read stays countable — the only honest basis for widening the subset later.
+        #
+        # SQLite cannot alter a CHECK constraint, so the table is rebuilt. Every row is copied
+        # column-for-column with no reinterpretation; the triggers are recreated because
+        # DROP TABLE takes them with it, and the evidence rule inside them gains exactly one
+        # clause: an extracted PDF must carry a normalized hash, a refused one must not.
+        """
+ALTER TABLE fetch_attempts RENAME TO fetch_attempts_pre_pdf;
+
+CREATE TABLE fetch_attempts (
+    run_id             TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    source_id          TEXT NOT NULL,
+    url                TEXT NOT NULL,
+    attempted_at       TEXT NOT NULL,
+    completed_at       TEXT,
+    ok                 INTEGER CHECK (ok IN (0, 1)),
+    http_status        INTEGER,
+    content_type       TEXT NOT NULL DEFAULT '',
+    error              TEXT NOT NULL DEFAULT '',
+    normalizer_version TEXT NOT NULL DEFAULT '',
+    extractor_version  TEXT NOT NULL DEFAULT '',
+    final_url          TEXT NOT NULL DEFAULT '',
+    redirect_chain     TEXT NOT NULL DEFAULT '[]',
+    raw_sha256         TEXT NOT NULL DEFAULT '',
+    normalized_sha256  TEXT NOT NULL DEFAULT '',
+    bytes_received     INTEGER CHECK (bytes_received IS NULL OR bytes_received >= 0),
+    byte_limit         INTEGER CHECK (byte_limit IS NULL OR byte_limit > 0),
+    truncated          INTEGER CHECK (truncated IN (0, 1)),
+    extraction_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (extraction_outcome IN
+               ('', 'text-normalized', 'binary-no-extractor', 'pdf-text-extracted',
+                'pdf-extraction-refused', 'legacy-unknown')),
+    error_class        TEXT NOT NULL DEFAULT ''
+        CHECK (error_class IN
+               ('', 'non-https-scheme', 'robots-disallowed', 'body-too-large',
+                'http-error', 'unreachable', 'legacy-unknown')),
+    PRIMARY KEY (run_id, source_id),
+    FOREIGN KEY (run_id, source_id) REFERENCES run_sources(run_id, source_id)
+        ON DELETE RESTRICT
+);
+
+INSERT INTO fetch_attempts (
+    run_id, source_id, url, attempted_at, completed_at, ok, http_status, content_type,
+    error, normalizer_version, extractor_version, final_url, redirect_chain, raw_sha256,
+    normalized_sha256, bytes_received, byte_limit, truncated, extraction_outcome, error_class
+)
+SELECT
+    run_id, source_id, url, attempted_at, completed_at, ok, http_status, content_type,
+    error, normalizer_version, extractor_version, final_url, redirect_chain, raw_sha256,
+    normalized_sha256, bytes_received, byte_limit, truncated, extraction_outcome, error_class
+FROM fetch_attempts_pre_pdf;
+
+DROP TABLE fetch_attempts_pre_pdf;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_representation_versions
+BEFORE UPDATE OF ok, normalizer_version, extractor_version ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_representation_versions
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome IN ('text-normalized', 'pdf-text-extracted')
+              AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome IN ('binary-no-extractor', 'pdf-extraction-refused')
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome IN ('text-normalized', 'pdf-text-extracted')
+              AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome IN ('binary-no-extractor', 'pdf-extraction-refused')
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+
+INSERT INTO representation_contracts (normalizer_version, extractor_version)
+VALUES ('passage-text-v2', 'pdf-text-v1');
+""",
+    ),
 )
 
 # What one attempted source's bytes turned out to be worth, as a closed vocabulary. See

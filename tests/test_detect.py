@@ -36,7 +36,7 @@ from id_churn_sentinel.core.normalize import (
 from id_churn_sentinel.core.registry import Source
 from id_churn_sentinel.core.store import SnapshotStore
 
-from .conftest import StubFetcher
+from .conftest import StubFetcher, simple_pdf
 
 
 def test_a_first_sighting_is_never_drift(
@@ -215,8 +215,10 @@ def test_snapshots_are_retained_so_a_diff_is_reproducible(
 def test_binary_drift_is_reported_honestly_as_undiffable(
     source: Source, store: SnapshotStore
 ) -> None:
-    """A PDF changed. We say so, and we say we cannot diff it — rather than emitting an
-    empty diff a reviewer might read as 'nothing important changed'."""
+    """A PDF the extractor would not stand behind changed. We say so, and we say we cannot
+    diff it — rather than emitting an empty diff a reviewer might read as 'nothing important
+    changed'. This is the behaviour `PDF-01` leaves exactly where it found it, which is the
+    point: an extractor that refuses costs a reviewer nothing they were not already paying."""
     pdf = StubFetcher({source.url: (b"%PDF-1.7 v1", "application/pdf")})
     watch([source], store, pdf)
     pdf.set(source.url, b"%PDF-1.7 v2", "application/pdf")
@@ -226,6 +228,76 @@ def test_binary_drift_is_reported_honestly_as_undiffable(
     assert len(report.changed) == 1
     assert "binary document" in report.changed[0].diff_excerpt
     assert source.url in report.changed[0].diff_excerpt
+
+
+def test_a_changed_pdf_produces_a_reviewable_text_diff(
+    source: Source, store: SnapshotStore
+) -> None:
+    """`PDF-01`, end to end, and the reason the issue was filed.
+
+    Before extraction a PDF source could report exactly one thing — that the bytes moved —
+    which a reviewer cannot classify. Now the changed sentence is in the diff, and the
+    reviewer's decision takes seconds instead of a download and a side-by-side read."""
+    before = simple_pdf("A court order is required.\nFee: $11.")
+    after = simple_pdf("A certified court order is required.\nFee: $11.")
+    pdf = StubFetcher({source.url: (before, "application/pdf")})
+    watch([source], store, pdf)
+    pdf.set(source.url, after, "application/pdf")
+
+    report = watch([source], store, pdf)
+
+    excerpt = report.changed[0].diff_excerpt
+    assert "-a court order is required." in excerpt
+    assert "+a certified court order is required." in excerpt
+    assert "fee: $11." in excerpt  # unchanged context, so the reviewer sees where it sits
+    assert "binary document" not in excerpt
+
+
+def test_a_pdf_re_render_still_alerts_and_says_the_text_did_not_move(
+    source: Source, store: SnapshotStore
+) -> None:
+    """The other half of the issue, and the half that must not become an all-clear.
+
+    A re-render moves the bytes and not a character of the page. It still produces a change
+    record — detection is over the whole file, so a change the extractor cannot see is never
+    silently dropped — and the excerpt tells the reviewer which case they are in, while
+    explicitly refusing to conclude the document is unchanged."""
+    pdf = StubFetcher({source.url: (simple_pdf("A court order is required."), "application/pdf")})
+    watch([source], store, pdf)
+    pdf.set(
+        source.url,
+        simple_pdf("A court order is required.", producer="Acrobat Distiller 9"),
+        "application/pdf",
+    )
+
+    report = watch([source], store, pdf)
+
+    assert len(report.changed) == 1, "a re-render must still be detected, not suppressed"
+    excerpt = report.changed[0].diff_excerpt
+    assert "extracted page text did NOT" in excerpt
+    assert "NOT a finding that the document is unchanged" in excerpt
+
+
+def test_a_pdf_readable_on_one_side_only_refuses_to_diff(
+    source: Source, store: SnapshotStore
+) -> None:
+    """The trap that makes this feature dangerous if it is done naively.
+
+    Extraction is per-document, so a form that gains an encryption dictionary between two
+    weeks yields text on the left and nothing on the right. Handing those to `difflib` prints
+    every passage of the form as DELETED — a diff that says the document was emptied, about a
+    document nobody read. The comparison is refused instead, and the refusal names which side
+    was unreadable and why."""
+    pdf = StubFetcher({source.url: (simple_pdf("A court order is required."), "application/pdf")})
+    watch([source], store, pdf)
+    pdf.set(source.url, simple_pdf("A court order is required.", encrypted=True), "application/pdf")
+
+    report = watch([source], store, pdf)
+
+    excerpt = report.changed[0].diff_excerpt
+    assert "NO text diff is shown" in excerpt
+    assert "encrypted" in excerpt
+    assert "-a court order is required." not in excerpt  # nothing is claimed to be removed
 
 
 def test_diff_excerpt_is_truncated_but_says_so() -> None:

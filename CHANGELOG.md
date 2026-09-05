@@ -9,6 +9,55 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **An automated slow-rotation detector, so repeated editorial dismissals on one
+  source surface as a stability problem** (2026-09-05, closes #60), in
+  `src/id_churn_sentinel/core/rotation.py`, `sentinel sources rotation`,
+  `make sources-rotation`, and `tests/test_rotation.py`.
+  `sentinel sources check --twice` catches per-*request* rotation and nothing
+  else. A widget that re-rolls hourly, daily, or per cache generation passes it
+  cleanly and drifts week over week anyway — `azdot.gov/mvd` did exactly that and
+  was caught by the weekly run — and a page that *starts* rotating after it was
+  registered is not covered by a registration-time check at all. The only thing
+  that ever noticed either was a reviewer dismissing the same source as
+  `editorial` week after week, which is a signal that lived inside one person's
+  memory. It is now read out of the review record: consecutive editorial
+  dismissals per source, with the streak, the elapsed span, the change ids, and
+  the named humans who signed them. `sentinel watch` prints it at the end of
+  every pass, including a quiet one, because a signal that only appears alongside
+  an alarm is one nobody sees when the alarms stop being read.
+
+  **It suppresses nothing, and says so in band every time.** Muting a "rotating"
+  source, weighting it down, or teaching the normalizer to strip the passage that
+  keeps moving would each hide a real policy change behind a heuristic — on a page
+  a reviewer has already been trained to ignore, which is the worst place in the
+  system to put a silent failure. A flagged source is watched on exactly the same
+  terms as any other and still produces a change record on the next real edit,
+  asserted by a test written for that purpose. The report also refuses to choose
+  between the two readings: repeated editorial dismissals are what a rotating page
+  looks like from the queue, and equally what a page that is genuinely edited every
+  week looks like. Both are printed; neither is picked.
+
+  **It classifies nothing**, and that is covered by
+  `make no-auto-classification` rather than merely compatible with it — every
+  number is a count of decisions a named human already signed. A *confirmed*
+  observation breaks a streak (a human deciding the page really moved is the
+  strongest available evidence that it is not merely churning); an *unreviewed*
+  one neither extends nor breaks it, but is counted and reported, so a streak read
+  off a backed-up queue says that it is one. A dismissal left `unclassified` also
+  breaks it, which is a stated blind spot rather than a hidden one.
+
+  The threshold is **2**, and it is not a number invented here:
+  `docs/RESPONSIBLE-TECH-AUDITS.md` §A already committed to "a reviewer dismissing
+  the same source as `editorial` twice running". Choosing 3 to feel safer would
+  have replaced a stated commitment with an unmeasured preference — the
+  `REMOVAL_THRESHOLD` mistake in a new place. It is a policy in units of reviewed
+  observations, says so, is settable with `--threshold`, and the streak length is
+  always printed so the evidence outlives the constant. The span is printed beside
+  it because a count of observations is not a duration, and is deliberately not
+  gated on. Nothing about any of this reaches a published artifact: it is registry
+  health, and a consumer polling `changes.json` is owed observations about
+  government pages rather than our misgivings about our own source list.
+
 - **A daily check that the feeds Pages serves are the feeds this repository
   publishes** (2026-08-29), in `tools/verify_live_site.py` and
   `.github/workflows/live-integrity.yml`. `tests/test_published_site_drift.py`

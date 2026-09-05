@@ -80,7 +80,10 @@ from id_churn_sentinel.core.eligibility import (
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.normalize import (
     CURRENT_CONTRACT,
+    EXTRACTION_OUTCOME_PDF_REFUSED,
+    EXTRACTION_OUTCOME_PDF_TEXT,
     ContentKind,
+    content_evidence,
     kind_for_content_type,
     normalize_html,
     normalize_text,
@@ -779,7 +782,7 @@ def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
         # `sentinel sources check | tee log` sees nothing at all until the run ends — and
         # sees *nothing* if they lose patience and Ctrl-C it.
         print(line, flush=True)
-        if result.ok and kind_for_content_type(result.content_type) != ContentKind.BINARY:
+        if result.ok:
             print(f"        {_text_check_line(result.body, result.content_type)}", flush=True)
     print(f"sources check: {len(registry) - failures}/{len(registry)} reachable")
     return 0  # never a gate — an outage is not a build failure
@@ -787,6 +790,8 @@ def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
 
 def _text_check_line(body: bytes, content_type: str | None) -> str:
     """The passage count and page title a human would otherwise have to open the URL to see."""
+    if kind_for_content_type(content_type) == ContentKind.BINARY:
+        return _binary_check_line(body, content_type)
     decoded = body.decode("utf-8", errors="replace")
     normalized = (
         normalize_html(decoded)
@@ -798,6 +803,28 @@ def _text_check_line(body: bytes, content_type: str | None) -> str:
     if count == 0:
         return f'⚠ 0 passages — "{title}" — JS shell, soft 404, or bot-wall are typical causes'
     return f'{count} passage(s) — "{title}"'
+
+
+def _binary_check_line(body: bytes, content_type: str | None) -> str:
+    """Whether a PDF source will produce a reviewable diff — the thing a maintainer adding
+    one needs to know, and could previously only find out by watching it for a week.
+
+    A refusal is printed with its reason rather than hidden, for two reasons. It tells the
+    maintainer what this source's weekly alert will actually look like (`the bytes changed`,
+    with no passages), which is a fair thing to know before registering it. And across the
+    registry it makes the population of documents the extractor cannot read *countable*,
+    which is the only honest basis for deciding whether to widen the subset — see
+    `core/pdf.py`.
+    """
+    evidence = content_evidence(body, content_type)
+    if evidence.extraction_outcome == EXTRACTION_OUTCOME_PDF_TEXT:
+        return f"{len(passages(evidence.normalized_text))} PDF passage(s) extracted — diffable"
+    if evidence.extraction_outcome == EXTRACTION_OUTCOME_PDF_REFUSED:
+        return (
+            f"⚠ PDF NOT extracted ({evidence.extraction_detail}) — this source can only ever "
+            "report that its bytes changed"
+        )
+    return "binary, no extractor — this source can only ever report that its bytes changed"
 
 
 def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:

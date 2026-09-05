@@ -9,6 +9,53 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **PDF text extraction, so a PDF source produces a reviewable diff rather than
+  "the bytes changed"** (2026-09-05, closes #58), in
+  `src/id_churn_sentinel/core/pdf.py`, `core/normalize.py`, `core/detect.py`,
+  store migration 9, and `tests/test_pdf.py`. `us-ssa-ss5-form` and the Michigan
+  MCL PDFs could report exactly one fact, and it is a fact a reviewer cannot act
+  on: a re-render carrying a new build date and a form that now demands a court
+  order arrive as the same alert. The extractor is standard library only (`zlib`,
+  `re`) — the zero-runtime-dependency rule is not bent for this — and it reads
+  page content streams and Form XObjects, uncompressed or `FlateDecode`, with
+  characters mapped either by the document's own `/ToUnicode` CMap or by an
+  explicitly declared `WinAnsi`/`MacRoman` encoding.
+
+  **Detection deliberately did not move to the extracted text.** Hashing the
+  text is the obvious implementation and would have made every change the
+  extractor cannot see — an annotation appearance, an embedded image, page
+  metadata — into a silent "no change", which is the failure the risk register
+  puts first. So the hash still covers the whole file and extraction supplies
+  only the diff: the bytes strictly contain the text, so a page edit cannot
+  escape the hash, while an edit outside the page text still mints a record whose
+  excerpt says the page text is identical *and explicitly declines to say the
+  document is unchanged*.
+
+  **There is no partial extraction.** One character code that the document's own
+  font map does not cover refuses the whole document, because a form extracted
+  three-quarters of the way is a confident diff with the changed quarter missing,
+  and a reviewer reads that as "nothing changed here". Refusals are named rather
+  than swallowed — `encrypted`, `duplicate-object-definition` (an incrementally
+  updated file: only the cross-reference table says which definition is current,
+  and being right most of the time is the property this project trusts least),
+  `unsupported-filter/<name>`, `unsupported-font/Type3`,
+  `unsupported-encoding/<name>`, `unmappable-character-code` — and
+  `sentinel sources check` now prints each PDF source's outcome, so a maintainer
+  adding one learns up front whether it will ever be diffable, and the population
+  this subset cannot read is countable rather than assumed.
+
+  The extractor version moves `none-v1` → `pdf-text-v1`, which is a new
+  representation contract (`passage-text-v2/pdf-text-v1`); existing baselines are
+  re-derived from their retained bytes under it exactly as a normalizer bump is,
+  so the first pass reports the transition instead of a wall of drift. Migration
+  9 rebuilds `fetch_attempts` to widen the `extraction_outcome` CHECK — SQLite
+  cannot alter one in place — copying every row column-for-column and recreating
+  its six triggers, whose evidence rule gains exactly one clause: an extracted
+  PDF must carry a normalized-text hash and a refused one must not. The two new
+  outcomes are added to the closed vocabulary rather than folded into
+  `binary-no-extractor`, whose meaning — *there was no extractor* — stays a true
+  statement about rows already written.
+
 - **A daily check that the feeds Pages serves are the feeds this repository
   publishes** (2026-08-29), in `tools/verify_live_site.py` and
   `.github/workflows/live-integrity.yml`. `tests/test_published_site_drift.py`

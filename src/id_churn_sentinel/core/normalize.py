@@ -16,9 +16,16 @@ human can read. The hash is taken over that same passage-segmented text, so the 
 the diff are always derived from exactly the same bytes — a hash change can never be
 reported without a diff being computable from the same normalization.
 
-Non-text content (PDFs — many states publish the operative instructions only as a PDF)
-is hashed as *raw bytes*, without lossy normalization, and carries no text diff. Saying
-"this PDF changed, go look" is honest; pretending to diff bytes we cannot read is not.
+Non-text content is hashed as *raw bytes*, without lossy normalization. **Detection stays
+there even for a PDF we can read.** Many states publish the operative instructions only as
+a PDF, and `core/pdf.py` now extracts the page text of the subset it can read completely —
+but that text is a *diff surface*, not a detection surface. The hash still covers the whole
+file, so a change in bytes the extractor does not read (an annotation, an image, a font
+subset) still produces a change record. Hashing the extracted text instead would have made
+every such change invisible, which is the wrong "no change" the risk register puts first.
+A PDF the extractor refuses is exactly where it was before: hashed losslessly, carrying no
+text, and honest about it. Saying "this PDF changed, go look" is honest; pretending to diff
+bytes we could not read is not.
 """
 
 from __future__ import annotations
@@ -28,10 +35,18 @@ import html
 import re
 from dataclasses import dataclass
 
+from id_churn_sentinel.core.pdf import (
+    PDF_EXTRACTOR_VERSION,
+    extract_pdf_text,
+    looks_like_pdf,
+)
+
 __all__ = [
     "CURRENT_CONTRACT",
     "EXTRACTION_OUTCOMES",
     "EXTRACTION_OUTCOME_BINARY_OPAQUE",
+    "EXTRACTION_OUTCOME_PDF_REFUSED",
+    "EXTRACTION_OUTCOME_PDF_TEXT",
     "EXTRACTION_OUTCOME_TEXT",
     "EXTRACTOR_VERSION",
     "NORMALIZER_VERSION",
@@ -66,10 +81,13 @@ __all__ = [
 # comparisons; refresh it with `sentinel watch && sentinel baseline write`.
 NORMALIZER_VERSION = "passage-text-v2"
 
-# Binary extraction is intentionally not implemented in the alpha. Persisting that fact is
-# still provenance: a future PDF extractor must never make an old raw-byte hash look as if it
-# came from extracted text.
-EXTRACTOR_VERSION = "none-v1"
+# Which extractor produced the text a hash was taken over. `none-v1` (the alpha) meant "no
+# extractor exists, so a non-text body is opaque bytes"; `pdf-text-v1` means "the bounded PDF
+# extractor in `core/pdf.py` was available, and either read a PDF completely or refused it by
+# name". The value is persisted, and it is the reason an old raw-byte hash can never be
+# mistaken for one taken over extracted text. Widening the PDF subset changes what the same
+# bytes extract to, so it is a version bump, not an edit.
+EXTRACTOR_VERSION = PDF_EXTRACTOR_VERSION
 
 
 def representation_contract(normalizer_version: str, extractor_version: str) -> str:
@@ -224,28 +242,64 @@ def excerpt(normalized: str, *, max_passages: int = 12, max_chars: int = 900) ->
 def content_hash(body: bytes, content_type: str | None) -> tuple[str, str]:
     """Return ``(sha256_hex, normalized_text)`` for a fetched body.
 
-    For binary content the normalized text is empty and the hash covers the raw bytes —
-    lossless, but undiffable. For HTML/text the hash covers the *normalized* text, which
-    is the whole point: the hash and the diff cannot disagree about what the content was.
+    For HTML/text the hash covers the *normalized* text, which is the whole point: the hash
+    and the diff cannot disagree about what the content was.
+
+    For binary content the hash covers the **raw bytes** — lossless — and the text is
+    whatever `core/pdf.py` could read completely, or empty when it read nothing. The hash
+    deliberately does not follow the text here, and the asymmetry is the safety property:
+    the bytes strictly contain the extracted text, so text cannot change without the hash
+    changing, while a change the extractor cannot see still moves the hash. Hashing the
+    extracted text would have inverted that and made every unreadable change a silent
+    "no change".
     """
     kind = kind_for_content_type(content_type)
     if kind == ContentKind.BINARY:
-        return hashlib.sha256(body).hexdigest(), ""
+        return hashlib.sha256(body).hexdigest(), _extracted_text(body)[0]
 
     decoded = body.decode("utf-8", errors="replace")
     normalized = normalize_html(decoded) if kind == ContentKind.HTML else normalize_text(decoded)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest(), normalized
 
 
-# What extraction actually happened to a body, as a closed vocabulary (`DATA-04`). Two
-# values because the alpha has exactly two behaviours: text/HTML is normalized to passages;
-# everything else is hashed as opaque bytes because no extractor exists (`EXTRACTOR_VERSION
-# = "none-v1"`). A future PDF extractor (`PDF-01`) adds outcomes here — it must never
-# reuse these two, for the same reason it must never reuse a normalizer version: an
-# outcome's meaning is frozen the first time it is persisted.
+def _extracted_text(body: bytes) -> tuple[str, str]:
+    """``(normalized_text, refusal_reason)`` for opaque bytes. One of the two is always empty.
+
+    Non-PDF binaries are not attempted at all — there is genuinely no extractor for a `.docx`
+    — and are reported with an empty reason so they are never confused with a PDF this build
+    tried to read and would not stand behind.
+    """
+    if not looks_like_pdf(body):
+        return "", ""
+    extraction = extract_pdf_text(body)
+    if not extraction.extracted:
+        return "", extraction.refusal
+    return normalize_text(extraction.text), ""
+
+
+# What extraction actually happened to a body, as a closed vocabulary (`DATA-04`).
+#
+# The first two are the alpha's, and their meanings are frozen: `text-normalized` is
+# text/HTML normalized to passages, and `binary-no-extractor` is a body hashed as opaque
+# bytes because no extractor for it exists — which is still true of every non-PDF binary.
+#
+# `PDF-01` adds two rather than reusing either, because "we did not try" and "we tried and
+# would not stand behind the result" are different facts about the evidence, and a reader six
+# months from now cannot recover the difference from a value that covers both. Nor may either
+# new value be folded into `binary-no-extractor`: a store holding rows written before this
+# build must keep meaning what it meant when it was written.
 EXTRACTION_OUTCOME_TEXT = "text-normalized"
 EXTRACTION_OUTCOME_BINARY_OPAQUE = "binary-no-extractor"
-EXTRACTION_OUTCOMES = frozenset({EXTRACTION_OUTCOME_TEXT, EXTRACTION_OUTCOME_BINARY_OPAQUE})
+EXTRACTION_OUTCOME_PDF_TEXT = "pdf-text-extracted"
+EXTRACTION_OUTCOME_PDF_REFUSED = "pdf-extraction-refused"
+EXTRACTION_OUTCOMES = frozenset(
+    {
+        EXTRACTION_OUTCOME_TEXT,
+        EXTRACTION_OUTCOME_BINARY_OPAQUE,
+        EXTRACTION_OUTCOME_PDF_TEXT,
+        EXTRACTION_OUTCOME_PDF_REFUSED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,10 +308,24 @@ class ContentEvidence:
 
     ``detection_sha256`` is byte-for-byte the hash :func:`content_hash` returns — the one
     the detector compares against baselines. It is carried here *by equality, tested*, so
-    evidence and detection can never quietly diverge: for text content it equals
-    ``normalized_sha256``; for opaque binary content it equals ``raw_sha256`` and
-    ``normalized_sha256`` is empty, because claiming a "normalized-text hash" for bytes
-    that produced no text would be fabricated provenance.
+    evidence and detection can never quietly diverge.
+
+    Three shapes, and the third is the new one:
+
+    * **text/HTML** — ``detection_sha256 == normalized_sha256``; the hash is over the text.
+    * **binary this build did not read** — ``detection_sha256 == raw_sha256`` and
+      ``normalized_sha256`` is empty, because claiming a "normalized-text hash" for bytes
+      that produced no text would be fabricated provenance.
+    * **a PDF this build read completely** — ``detection_sha256 == raw_sha256`` *and*
+      ``normalized_sha256`` is a real hash of the extracted text. Both are true at once
+      and neither is redundant: detection is over the whole file, and the normalized hash
+      records what the diff was computed from. They are different questions, so they get
+      different fields rather than one field with a footnote.
+
+    ``extraction_detail`` names *why* a PDF was not read (`encrypted`,
+    `unsupported-filter/LZWDecode`, …) and is empty otherwise. It is evidence, not a log
+    line: the population of documents this extractor refuses is what would justify widening
+    it, and an unrecorded refusal is an unmeasurable one.
     """
 
     raw_sha256: str
@@ -265,24 +333,41 @@ class ContentEvidence:
     detection_sha256: str
     normalized_text: str
     extraction_outcome: str
+    extraction_detail: str = ""
 
 
 def content_evidence(body: bytes, content_type: str | None) -> ContentEvidence:
     """Distinct raw/normalized hashes plus the extraction outcome for one fetched body."""
     raw_sha256 = hashlib.sha256(body).hexdigest()
-    detection_sha256, normalized_text = content_hash(body, content_type)
     if kind_for_content_type(content_type) == ContentKind.BINARY:
+        # Extracted once, here, and the detection hash restated rather than recomputed
+        # through `content_hash` — running a whole PDF parse twice per fetch to reach the
+        # same answer is a cost an unattended weekly job should not pay.
+        normalized_text, refusal = _extracted_text(body)
+        detection_sha256 = raw_sha256
+        if not normalized_text:
+            return ContentEvidence(
+                raw_sha256=raw_sha256,
+                normalized_sha256="",
+                detection_sha256=detection_sha256,
+                normalized_text="",
+                extraction_outcome=(
+                    EXTRACTION_OUTCOME_PDF_REFUSED if refusal else EXTRACTION_OUTCOME_BINARY_OPAQUE
+                ),
+                extraction_detail=refusal,
+            )
         return ContentEvidence(
             raw_sha256=raw_sha256,
-            normalized_sha256="",
+            normalized_sha256=hashlib.sha256(normalized_text.encode("utf-8")).hexdigest(),
             detection_sha256=detection_sha256,
-            normalized_text="",
-            extraction_outcome=EXTRACTION_OUTCOME_BINARY_OPAQUE,
+            normalized_text=normalized_text,
+            extraction_outcome=EXTRACTION_OUTCOME_PDF_TEXT,
         )
+    text_detection_sha256, text = content_hash(body, content_type)
     return ContentEvidence(
         raw_sha256=raw_sha256,
-        normalized_sha256=detection_sha256,
-        detection_sha256=detection_sha256,
-        normalized_text=normalized_text,
+        normalized_sha256=text_detection_sha256,
+        detection_sha256=text_detection_sha256,
+        normalized_text=text,
         extraction_outcome=EXTRACTION_OUTCOME_TEXT,
     )

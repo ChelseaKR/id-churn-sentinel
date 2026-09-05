@@ -12,6 +12,8 @@ import hashlib
 
 from id_churn_sentinel.core.normalize import (
     EXTRACTION_OUTCOME_BINARY_OPAQUE,
+    EXTRACTION_OUTCOME_PDF_REFUSED,
+    EXTRACTION_OUTCOME_PDF_TEXT,
     EXTRACTION_OUTCOME_TEXT,
     ContentKind,
     content_evidence,
@@ -21,6 +23,8 @@ from id_churn_sentinel.core.normalize import (
     normalize_text,
     passages,
 )
+
+from .conftest import simple_pdf
 
 
 def test_cosmetic_markup_churn_is_not_a_content_change(
@@ -125,12 +129,20 @@ def test_passages_drops_blank_lines() -> None:
     assert passages("") == []
 
 
-def test_binary_content_is_hashed_as_raw_bytes_with_no_text() -> None:
-    """A PDF cannot be diffed, and pretending otherwise would be a lie a reviewer would act
-    on. Hash the bytes losslessly; return no text."""
+def test_binary_content_is_hashed_as_raw_bytes() -> None:
+    """Binary detection is over the raw bytes, whether or not any text came out.
+
+    Unreadable bytes yield no text, and pretending otherwise would be a lie a reviewer would
+    act on. A readable PDF yields text — and the digest is *still* the digest of the whole
+    file, not of the text, which is what keeps a change outside the page text visible."""
     digest, text = content_hash(b"%PDF-1.7 binary\x00\xff", "application/pdf")
     assert text == ""
-    assert len(digest) == 64
+    assert digest == hashlib.sha256(b"%PDF-1.7 binary\x00\xff").hexdigest()
+
+    readable = simple_pdf("Bring a court order.")
+    digest, text = content_hash(readable, "application/pdf")
+    assert text == "bring a court order."
+    assert digest == hashlib.sha256(readable).hexdigest()
 
 
 def test_content_type_routing() -> None:
@@ -173,15 +185,69 @@ def test_content_evidence_for_html_distinguishes_raw_and_normalized_hashes() -> 
     assert evidence.extraction_outcome == EXTRACTION_OUTCOME_TEXT
 
 
-def test_content_evidence_for_binary_claims_no_normalized_hash() -> None:
-    """A PDF produced no text, so its evidence says so: the raw hash is the detection
-    hash, and the normalized hash is empty rather than a hash of emptiness — claiming a
-    normalized-text hash for bytes that yielded no text would be fabricated provenance."""
-    body = b"%PDF-1.7 binary\x00\xff"
-    evidence = content_evidence(body, "application/pdf")
+def test_content_evidence_for_unreadable_binary_claims_no_normalized_hash() -> None:
+    """Bytes nobody read produced no text, so their evidence says so: the raw hash is the
+    detection hash, and the normalized hash is empty rather than a hash of emptiness —
+    claiming a normalized-text hash for bytes that yielded no text would be fabricated
+    provenance.
+
+    The two ways to get here are named apart. A `.docx` gets `binary-no-extractor` (nothing
+    tried); a PDF the extractor would not stand behind gets `pdf-extraction-refused` plus the
+    reason. Folding them together would lose the only fact that says whether widening the
+    extractor would help."""
+    body = b"PK\x03\x04 not a pdf at all"
+    evidence = content_evidence(body, "application/octet-stream")
 
     assert evidence.raw_sha256 == hashlib.sha256(body).hexdigest()
     assert evidence.detection_sha256 == evidence.raw_sha256
     assert evidence.normalized_sha256 == ""
     assert evidence.normalized_text == ""
     assert evidence.extraction_outcome == EXTRACTION_OUTCOME_BINARY_OPAQUE
+    assert evidence.extraction_detail == ""
+
+    junk_pdf = b"%PDF-1.7 binary\x00\xff"
+    refused = content_evidence(junk_pdf, "application/pdf")
+    assert refused.detection_sha256 == refused.raw_sha256
+    assert refused.normalized_sha256 == ""
+    assert refused.normalized_text == ""
+    assert refused.extraction_outcome == EXTRACTION_OUTCOME_PDF_REFUSED
+    assert refused.extraction_detail  # the reason is recorded, not swallowed
+
+
+def test_content_evidence_for_a_readable_pdf_keeps_detection_on_the_whole_file() -> None:
+    """The safety property `PDF-01` turns on, asserted rather than described.
+
+    A PDF this build can read carries BOTH hashes and they are different things: detection
+    stays over the raw bytes, and the normalized hash records what the diff was computed
+    from. If detection ever followed the extracted text, a change in bytes the extractor does
+    not read — an annotation, an image, embedded metadata — would stop producing a change
+    record at all, which is the wrong "no change" this project's risk register puts first."""
+    body = simple_pdf("Bring a certified court order.")
+    evidence = content_evidence(body, "application/pdf")
+
+    assert evidence.extraction_outcome == EXTRACTION_OUTCOME_PDF_TEXT
+    assert evidence.detection_sha256 == hashlib.sha256(body).hexdigest()
+    assert evidence.normalized_sha256 != evidence.detection_sha256
+    assert (
+        evidence.normalized_sha256
+        == hashlib.sha256(evidence.normalized_text.encode("utf-8")).hexdigest()
+    )
+    assert evidence.normalized_text == "bring a certified court order."
+    assert evidence.extraction_detail == ""
+
+
+def test_a_pdf_whose_text_is_unchanged_still_moves_the_detection_hash() -> None:
+    """The same property from the other side, and the reason it is not merely tidy.
+
+    Two PDFs with identical page text and different bytes — a re-render — must still be
+    *detected*, so that a human decides whether the difference matters. What extraction buys
+    is that the reviewer can now see the text did not move; what it must never buy is silence.
+    """
+    first = simple_pdf("Bring a court order.", producer="Alpha 1.0")
+    second = simple_pdf("Bring a court order.", producer="Beta 9.9")
+
+    first_hash, first_text = content_hash(first, "application/pdf")
+    second_hash, second_text = content_hash(second, "application/pdf")
+
+    assert first_text == second_text == "bring a court order."
+    assert first_hash != second_hash

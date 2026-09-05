@@ -15,10 +15,11 @@ import pytest
 from id_churn_sentinel.cli import build_parser, main
 from id_churn_sentinel.core.changes import ChangeKind, ReviewStatus
 from id_churn_sentinel.core.fetch import FetchResult
+from id_churn_sentinel.core.normalize import CURRENT_CONTRACT
 from id_churn_sentinel.core.registry import Source, default_registry_path
 from id_churn_sentinel.core.store import SnapshotStore
 
-from .conftest import StubFetcher, eligible_source_entry
+from .conftest import StubFetcher, eligible_source_entry, simple_pdf
 from .test_detect import record_v1_baseline
 
 
@@ -1045,7 +1046,10 @@ def test_watch_explains_a_normalizer_bump_once_instead_of_alarming_per_source(
 
     out = capsys.readouterr().out
     assert "1 source(s) re-baselined onto a new normalizer, NOT drift" in out
-    assert "passage-text-v1/none-v1 → passage-text-v2/none-v1" in out
+    # Derived, not transcribed: the destination is whatever contract this build computes
+    # under, so a later extractor or normalizer bump does not turn this assertion into a
+    # stale literal that has to be hand-edited to stay green.
+    assert f"passage-text-v1/none-v1 → {CURRENT_CONTRACT}" in out
     assert "cannot report drift here, and cannot hide it either" in out
     assert "1 changed" not in out
     assert "✎ drift:" not in out  # the marker a reviewer scans for; no alarm was raised
@@ -1298,3 +1302,34 @@ def test_baseline_check_never_counts_a_re_pointed_source_as_moved(
     # to read, and pointing a reviewer at one would send them looking for a record that was
     # never minted.
     assert "cannot show you the passage that changed" not in out_text
+
+
+def test_sources_check_says_whether_a_pdf_source_will_ever_be_diffable(
+    tmp_path: Path, source: Source, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """CLAUDE.md guardrail 7 tells a maintainer to read a candidate's normalized text before
+    registering it. For a PDF there was nothing to read, so the guardrail could not be
+    followed and the source's weekly alert quality was a surprise a week later. Now the check
+    answers it up front — and names the refusal when there is one, so the population the
+    extractor cannot read is countable rather than assumed."""
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps(
+            {"registry_version": "1.0", "sources": [eligible_source_entry(source)]}, indent=2
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    db = tmp_path / "s.db"
+    readable = StubFetcher(
+        {source.url: (simple_pdf("A court order is required."), "application/pdf")}
+    )
+
+    assert main([*base_args(registry_path, db), "sources", "check"], fetcher=readable) == 0
+    assert "PDF passage(s) extracted — diffable" in capsys.readouterr().out
+
+    refused = StubFetcher({source.url: (simple_pdf(encrypted=True), "application/pdf")})
+    assert main([*base_args(registry_path, db), "sources", "check"], fetcher=refused) == 0
+    out = capsys.readouterr().out
+    assert "PDF NOT extracted (encrypted)" in out
+    assert "can only ever report that its bytes changed" in out

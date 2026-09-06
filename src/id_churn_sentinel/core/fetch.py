@@ -323,6 +323,11 @@ class HttpFetcher:
         self._respect_robots = respect_robots
         self._max_bytes = max_bytes
         self._robots: dict[str, RobotFileParser | None] = {}
+        # Hosts whose robots.txt exceeded the read cap. Recorded rather than only
+        # returned, because a truncation is otherwise indistinguishable from a clean
+        # permissive read: no log line, no counter, no marker. Something silent is
+        # exactly what this repository's guardrail 4 is about.
+        self._oversized_robots: set[str] = set()
         # Per-host crawl spacing. The clock and sleep are injectable so the whole seam stays
         # offline-testable — a fake clock asserts the spacing maths with no wall-clock wait.
         self._min_host_interval = min_host_interval
@@ -511,6 +516,16 @@ class HttpFetcher:
             return True
         return parser.can_fetch(self._user_agent, url)
 
+    @property
+    def oversized_robots(self) -> frozenset[str]:
+        """Hosts whose robots.txt was larger than the read cap, so its policy is unknown.
+
+        Non-empty means this run granted itself permission it could not verify, on the
+        existing unreadable-is-permissive rule. Surfaced so that a caller, an operator, or
+        a later gate can see it happen instead of inferring it from silence.
+        """
+        return frozenset(self._oversized_robots)
+
     def _load_robots(self, scheme: str, host: str) -> RobotFileParser | None:
         """Fetch and parse one host's robots.txt, with a bounded timeout.
 
@@ -528,11 +543,39 @@ class HttpFetcher:
         )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:  # noqa: S310
-                raw = response.read(_MAX_ROBOTS_BYTES)
+                # One byte past the cap, so a full read and a truncated one are
+                # distinguishable. Reading exactly the cap cannot tell them apart.
+                raw = response.read(_MAX_ROBOTS_BYTES + 1)
         except urllib.error.HTTPError as exc:
             exc.close()  # the error carries the live response stream; do not leak it
             return None
         except (urllib.error.URLError, TimeoutError, OSError):
+            return None
+
+        if len(raw) > _MAX_ROBOTS_BYTES:
+            # A severed robots.txt is one we could not read, not one that permits us.
+            #
+            # The cap itself is right and stays: an unbounded read from an unattended
+            # weekly cron against government servers is the hazard the docstring above
+            # is about. What was wrong was handing a *capped* read to the parser as
+            # though it were a *complete* one. Two things followed, and the second is
+            # the worse one:
+            #
+            #   1. Any `Disallow` past the cap was absent from the parsed policy, so it
+            #      read as permission -- an unread tail rendered as a permission verdict.
+            #   2. A file severed mid-line parses into rules nobody wrote. A truncated
+            #      path in a `Disallow:` is a different, broader-allowing rule, and a
+            #      truncation inside a `User-agent:` block reattaches the directives
+            #      after it to the wrong agent. Not merely missing rules: invented ones.
+            #
+            # Returning None routes this into the existing unreadable path, which this
+            # repository already treats as permissive and documents as such. So the
+            # permission granted is unchanged; what stops is parsing a severed file and
+            # believing the result. Whether an unreadable robots.txt should instead be
+            # fail-closed is a real question and a different one -- it would move the
+            # rule for every unreadable robots.txt, not just oversized ones, and that is
+            # the owner's call (see issue #53, options B and C).
+            self._oversized_robots.add(host)
             return None
 
         parser = RobotFileParser()

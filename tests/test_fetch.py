@@ -16,6 +16,8 @@ import urllib.request
 from email.message import Message
 from http.client import HTTPMessage
 from typing import Any
+from urllib.parse import urlparse
+from urllib.robotparser import RobotFileParser
 
 import pytest
 
@@ -714,3 +716,93 @@ def test_a_host_declaring_no_crawl_delay_keeps_our_own_floor(
     fetcher.fetch(URL + "/two")
 
     assert clock.slept == [2.0]
+
+
+class TestASeveredRobotsTxtIsNotAPolicy:
+    """A robots.txt larger than the read cap was parsed as though it were complete.
+
+    The cap is right and stays -- an unbounded read from an unattended weekly cron
+    against government servers is the hazard `_load_robots`' docstring is about. What
+    was wrong was handing a capped read to the parser as a complete one.
+    """
+
+    def _oversized(self, *, tail: bytes) -> bytes:
+        """A robots.txt that exceeds the cap, with `tail` past the boundary."""
+        filler = b"# padding\n" * ((fetch_mod._MAX_ROBOTS_BYTES // 10) + 1)
+        assert len(filler) > fetch_mod._MAX_ROBOTS_BYTES
+        return b"User-agent: *\nAllow: /\n" + filler + tail
+
+    def test_a_disallow_past_the_cap_no_longer_reads_as_permission(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The first consequence: an unread tail rendered as a permission verdict."""
+        route(monkeypatch, robots=self._oversized(tail=b"\nUser-agent: *\nDisallow: /\n"))
+        fetcher = HttpFetcher()
+        # The permission granted is unchanged -- an unreadable robots.txt is permissive
+        # here by an existing, documented policy -- but it is now reached by the
+        # unreadable path rather than by parsing a severed file and believing it.
+        assert fetcher._robots_allow(URL) is True
+        assert fetcher._robots[urlparse(URL).netloc] is None, (
+            "a truncated robots.txt must not be handed to the parser as a policy"
+        )
+
+    def test_the_truncation_is_visible_rather_than_silent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Guardrail 4's real complaint: nobody would ever see it happen."""
+        route(monkeypatch, robots=self._oversized(tail=b"\nDisallow: /private\n"))
+        fetcher = HttpFetcher()
+        fetcher._robots_allow(URL)
+        assert urlparse(URL).netloc in fetcher.oversized_robots
+
+    def test_a_file_severed_mid_line_cannot_invent_a_rule(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The consequence the issue weighted, and the one that is not merely 'missing
+        rules': a truncated path in a `Disallow:` is a *different, broader-allowing* rule
+        than the one the publisher wrote.
+
+        Asserted against the real stdlib parser, by parsing the severed bytes directly and
+        showing the rule it yields is one nobody wrote -- then showing the fetcher no
+        longer consults such a parser at all.
+        """
+        written = b"User-agent: *\nDisallow: /private-records/\n"
+        severed = written[: len(written) - len(b"records/\n")]
+        assert severed.endswith(b"Disallow: /private-")
+
+        invented = RobotFileParser()
+        invented.parse(severed.decode().splitlines())
+        # The publisher forbade /private-records/. The severed file forbids a *wider*
+        # prefix, so it answers differently on a path they never mentioned.
+        assert invented.can_fetch("*", "https://example.gov/private-records/x") is False
+        assert invented.can_fetch("*", "https://example.gov/private-elsewhere") is False, (
+            "the severed rule reaches a path the written one never covered"
+        )
+
+        # And the fetcher no longer builds such a parser: an oversized read is unreadable.
+        route(monkeypatch, robots=self._oversized(tail=b"\nDisallow: /private-"))
+        fetcher = HttpFetcher()
+        fetcher._robots_allow(URL)
+        assert fetcher._robots[urlparse(URL).netloc] is None
+
+    def test_a_robots_txt_at_exactly_the_cap_is_still_read(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The boundary must not become an off-by-one that discards good policy."""
+        body = b"User-agent: *\nDisallow: /blocked\n"
+        body += b"#" * (fetch_mod._MAX_ROBOTS_BYTES - len(body))
+        assert len(body) == fetch_mod._MAX_ROBOTS_BYTES
+
+        route(monkeypatch, robots=body)
+        fetcher = HttpFetcher()
+        assert fetcher._robots_allow("https://example.gov/blocked") is False, (
+            "a complete robots.txt exactly at the cap must still be honoured"
+        )
+        assert fetcher.oversized_robots == frozenset()
+
+    def test_an_ordinary_robots_txt_is_unaffected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        route(monkeypatch, robots=b"User-agent: *\nDisallow: /nope\n")
+        fetcher = HttpFetcher()
+        assert fetcher._robots_allow("https://example.gov/nope") is False
+        assert fetcher._robots_allow("https://example.gov/fine") is True
+        assert fetcher.oversized_robots == frozenset()

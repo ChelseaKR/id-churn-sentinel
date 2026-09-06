@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/evidence-bundle-v1.schema.json",
+  "title": "ID Churn Sentinel evidence bundle manifest v1",
+  "description": "The manifest at the root of a portable evidence bundle: the raw bytes, normalized texts, contract versions, fetch receipts and re-derivable diff behind ONE published change, packaged so a third party can check the claim without the operator's store, the operator's network, or the operator's word. Written by `sentinel evidence export <change-id> --out DIR`; re-checked by `sentinel evidence verify DIR`, which recomputes every hash listed here, refuses any file this manifest does not list, re-runs normalization under the recorded contract version, re-derives the diff, and confirms the bytes hash to the values the published change record cites. Bundles are not signed: the signing trust model is SEC-03/ENG-06 and deliberately out of scope here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "tool",
+    "exported_at",
+    "change_id",
+    "source_id",
+    "jurisdiction",
+    "document_class",
+    "url",
+    "observed_at",
+    "previous_hash",
+    "new_hash",
+    "sides",
+    "published_excerpt_is_rederivable",
+    "published_excerpt_note",
+    "change_path",
+    "diff_path",
+    "fetch_attempts_path",
+    "files"
+  ],
+  "properties": {
+    "manifest_version": { "type": "string", "enum": ["1.0"] },
+    "tool": { "type": "string", "const": "id-churn-sentinel" },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the bundle was written. NOT when the change was observed, and never used as evidence about the source."
+    },
+    "change_id": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "jurisdiction": { "type": "string", "minLength": 2 },
+    "document_class": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "pattern": "^https://" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "previous_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The detection hash of the baseline, exactly as the published change record carries it. `verify` recomputes this from before/raw.bin under the recorded hashing regime; that recomputation is the bundle's tie to the feed."
+    },
+    "new_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sides": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "description": "The two retained snapshots. A bundle always carries both: export refuses, and writes nothing, when either has been pruned out of the store.",
+      "properties": {
+        "before": { "$ref": "#/$defs/side" },
+        "after": { "$ref": "#/$defs/side" }
+      }
+    },
+    "published_excerpt_is_rederivable": {
+      "type": "boolean",
+      "description": "MEASURED at export time, not asserted: the exporter re-derives the published excerpt from the two normalized texts and records whether it came out identical. It does not when the excerpt carries a re-normalization provenance note or hit its character budget, neither of which is a function of the two texts alone. When false, `verify` reports the published-excerpt check as SKIPPED with `published_excerpt_note` as the reason — it does not fail an honest bundle, and it does not report a pass for a check it never ran."
+    },
+    "published_excerpt_note": {
+      "type": "string",
+      "description": "Why the excerpt is not re-derivable. Empty when it is."
+    },
+    "change_path": { "type": "string", "const": "change.json" },
+    "diff_path": { "type": "string", "const": "diff.patch" },
+    "fetch_attempts_path": { "type": "string", "const": "fetch-attempts.json" },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every file in the bundle except this manifest, with its SHA-256 and length. `verify` fails on the FIRST listed file whose bytes disagree, naming it — and separately fails on any file present in the directory that is not listed here, because an unlisted file is verified by nothing and read by whoever opens the handover.",
+      "items": { "$ref": "#/$defs/file" }
+    }
+  },
+  "$defs": {
+    "side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_sha256",
+        "hashing_regime",
+        "content_type",
+        "normalizer_version",
+        "extractor_version",
+        "representation_contract",
+        "fetched_at",
+        "http_status",
+        "raw_path",
+        "normalized_path"
+      ],
+      "properties": {
+        "content_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "hashing_regime": {
+          "type": "string",
+          "enum": ["normalized-text", "raw-bytes"],
+          "description": "Which regime produced `content_sha256`. Text and HTML are hashed over the normalized text; anything binary is hashed over the raw bytes, losslessly, so a change the extractor cannot read still moves the hash. Derived at export by finding which regime reproduces the stored hash — never assumed."
+        },
+        "content_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The Content-Type the body was read under, taken from the fetch receipt that recorded these exact bytes. Required: without it a verifier cannot re-run normalization, and export refuses rather than shipping bytes nobody can re-derive."
+        },
+        "normalizer_version": { "type": "string", "minLength": 1 },
+        "extractor_version": { "type": "string", "minLength": 1 },
+        "representation_contract": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The two versions as one contract string. `verify` FAILS CLOSED, naming the version, when this build does not implement it: re-deriving under a different normalizer and reporting agreement would be worse than reporting nothing."
+        },
+        "fetched_at": { "type": "string", "format": "date-time" },
+        "http_status": {
+          "oneOf": [{ "type": "integer" }, { "type": "null" }],
+          "description": "The status the fetch returned, or null when the store recorded none. Null is an absence and is never rendered as a status."
+        },
+        "raw_path": { "type": "string", "pattern": "^(before|after)/raw\\.bin$" },
+        "normalized_path": {
+          "type": "string",
+          "pattern": "^(before|after)/normalized\\.txt$"
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+          "description": "Bundle-relative, POSIX-separated. Never absolute and never traversing upward."
+        },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

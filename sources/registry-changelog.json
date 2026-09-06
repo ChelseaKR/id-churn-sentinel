@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "statement": "Every event here is derived from two committed revisions of sources/registry.json by `sentinel registry changelog`. An event says what the registry said on either side. It makes no claim about the page at the URL, and none about the law.",
+  "unrecorded_before": {
+    "revision": "b2b50258165aa3c4b5b040a3f6a4dbe40b319aece97d50e6d3bfea67280432b6",
+    "statement": "Events before this registry revision are UNRECORDED. This log begins at the revision named here; the registry changed before it, and those changes are absent from this file because they were never derived, not because they did not happen. Do not read the earliest event in this log as the registry's first change."
+  },
+  "events": []
+}

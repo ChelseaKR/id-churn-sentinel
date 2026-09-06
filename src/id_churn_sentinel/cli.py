@@ -40,6 +40,7 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from id_churn_sentinel import __version__
 from id_churn_sentinel.core.baseline import (
@@ -92,6 +93,14 @@ from id_churn_sentinel.core.normalize import (
     normalize_text,
     page_title,
     passages,
+)
+from id_churn_sentinel.core.probe import (
+    HttpProber,
+    Prober,
+    dumps_report,
+    probe_report,
+    render_report,
+    run_probe,
 )
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import (
@@ -340,6 +349,39 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     stale_cmd.add_argument("--json", action="store_true", help="machine-readable output")
+
+    probe_cmd = sub.add_parser(
+        "probe",
+        help="one HEAD per eligible source: availability only, no body, no snapshot (network)",
+        description=(
+            "The channel docs/THRESHOLD-EVIDENCE.md names and nothing implemented. "
+            "REMOVAL_THRESHOLD and MIN_REMOVAL_SILENCE are guesses because weekly sampling "
+            "cannot resolve a sub-weekly outage in principle — you cannot measure the length "
+            "of something you look at once every seven days. This sends ONE HEAD request per "
+            "eligible source and records whether the URL answered and how fast. It reads no "
+            "body, writes no snapshot, creates no change record, and is never counted as a "
+            "watch observation: a source that probed fine is not a source that was read."
+        ),
+    )
+    probe_cmd.add_argument("--db", type=Path, default=DEFAULT_DB, help="snapshot store path")
+    probe_cmd.add_argument("--jurisdiction", help="limit to one jurisdiction, e.g. TX or US")
+    probe_cmd.add_argument("--json", action="store_true", help="machine-readable output")
+    probe_sub = probe_cmd.add_subparsers(dest="probe_command")
+    probe_report_cmd = probe_sub.add_parser(
+        "report",
+        help="derive outage episodes from the probe record (no network)",
+        description=(
+            "Outage episodes per source, with censoring reported rather than rounded away. An "
+            "episode whose start or end this channel never saw has no measured length: it is "
+            "excluded from every distribution here and counted separately, because a mean "
+            "outage length taken over only the outages that happened to end is exactly the "
+            "shape of number this project exists not to publish. Lengths are counted in "
+            "PROBES, not hours, because the probe cadence is operator configuration."
+        ),
+    )
+    probe_report_cmd.add_argument("--db", type=Path, default=DEFAULT_DB, help="snapshot store")
+    probe_report_cmd.add_argument("--source-id", help="limit to one source")
+    probe_report_cmd.add_argument("--json", action="store_true", help="machine-readable output")
 
     verify_cmd = sub.add_parser(
         "verify",
@@ -596,18 +638,22 @@ def main(
     *,
     fetcher: Fetcher | None = None,
     ask: Callable[[str], str] | None = None,
+    prober: Prober | None = None,
 ) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        return _dispatch(args, fetcher, ask)
+        return _dispatch(args, fetcher, ask, prober)
     except SentinelError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
 
 def _dispatch(
-    args: argparse.Namespace, fetcher: Fetcher | None, ask: Callable[[str], str] | None
+    args: argparse.Namespace,
+    fetcher: Fetcher | None,
+    ask: Callable[[str], str] | None,
+    prober: Prober | None = None,
 ) -> int:
     registry = load_registry(args.registry)
     if args.command == "sources":
@@ -622,8 +668,8 @@ def _dispatch(
         return _cmd_verify(args, registry, fetcher, ask)
     if args.command == "coverage":
         return _cmd_coverage(args, registry)
-    if args.command == "watch":
-        return _cmd_watch(args, registry, fetcher)
+    if args.command in {"watch", "probe"}:
+        return _dispatch_network_command(args, registry, fetcher, prober)
     if args.command == "diff":
         return _cmd_diff(args)
     if args.command in {"review", "approve", "correct", "withdraw"}:
@@ -750,6 +796,106 @@ def _cmd_registry_changelog(args: argparse.Namespace, registry: Registry) -> int
         return 1
     target.write_text(dumps_changelog(document), encoding="utf-8")
     print(f"appended {len(fresh)} event(s) to {target}.")
+    return 0
+
+
+def _dispatch_network_command(
+    args: argparse.Namespace,
+    registry: Registry,
+    fetcher: Fetcher | None,
+    prober: Prober | None,
+) -> int:
+    """The two commands that touch the network, kept apart on purpose.
+
+    `watch` gets a `Fetcher` and `probe` gets a `Prober`, and neither can be handed the
+    other's client. A prober that could reach `watch`, or a fetcher that could reach `probe`,
+    is one refactor away from a body request on the availability channel.
+    """
+    if args.command == "watch":
+        return _cmd_watch(args, registry, fetcher)
+    return _dispatch_probe(args, registry, prober)
+
+
+def _dispatch_probe(args: argparse.Namespace, registry: Registry, prober: Prober | None) -> int:
+    if getattr(args, "probe_command", None) == "report":
+        return _cmd_probe_report(args)
+    return _cmd_probe(args, registry, prober)
+
+
+def _cmd_probe(args: argparse.Namespace, registry: Registry, prober: Prober | None) -> int:
+    """One HEAD pass, recorded to `probes` and to nothing else.
+
+    Exit 0 whether or not anything was reachable. An outage is the fact this channel exists to
+    record; turning it into a non-zero exit would make a working measurement look like a
+    broken tool, and would make the daily job red for as long as a state website is down.
+    """
+    active = prober if prober is not None else HttpProber()
+    as_of = datetime.now(UTC).date()
+    started = datetime.now(UTC)
+    run_id = uuid4().hex
+    run = run_probe(
+        registry,
+        active,
+        as_of=as_of,
+        run_id=run_id,
+        now=started,
+        jurisdiction=args.jurisdiction,
+    )
+    with SnapshotStore(args.db) as store:
+        store.record_probe_run(
+            run_id,
+            as_of=as_of.isoformat(),
+            probed_at=started.isoformat(),
+            results=[
+                (
+                    source_id,
+                    result.url,
+                    result.outcome,
+                    result.status,
+                    result.latency_ms,
+                    result.tls_ok,
+                    result.redirect_target,
+                    result.error,
+                )
+                for source_id, result in run.results
+            ],
+        )
+
+    counts = run.counts()
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "as_of": as_of.isoformat(),
+                    "probed_at": started.isoformat(),
+                    "attempted": run.attempted,
+                    "skipped": run.skipped,
+                    "outcomes": counts,
+                },
+                indent=2,
+            )
+        )
+        return 0
+    print(f"probe run {run_id} ({as_of.isoformat()})")
+    print(f"  attempted: {run.attempted}   not measured: {run.skipped}")
+    for outcome, count in counts.items():
+        print(f"    {outcome:<20} {count}")
+    print(
+        "\nThis run read no page bodies and created no observations. A source that probed "
+        "reachable is NOT a source that was watched."
+    )
+    return 0
+
+
+def _cmd_probe_report(args: argparse.Namespace) -> int:
+    with SnapshotStore(args.db) as store:
+        rows = store.probes(source_id=args.source_id)
+    report = probe_report(rows)
+    if args.json:
+        print(dumps_report(report), end="")
+        return 0
+    print(render_report(report), end="")
     return 0
 
 

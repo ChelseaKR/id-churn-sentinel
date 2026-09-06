@@ -362,6 +362,47 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   schema needs; it refuses a keyword it does not implement rather than passing it, so the
   constraint had to be implemented rather than assumed.
 
+- **`sentinel probe` — a HEAD-only availability channel, so an outage can be measured
+  instead of guessed** (2026-09-06, closes #74). New `core/probe.py`, store migration 10
+  (`probes`), the `probe` and `probe report` verbs, `make probe-daily` / `make probe-report`,
+  and `.github/workflows/probe.yml`. `REMOVAL_THRESHOLD` and `MIN_REMOVAL_SILENCE` are
+  guesses, and `docs/THRESHOLD-EVIDENCE.md` §5 explains why the weekly watch can never stop
+  them being guesses: weekly sampling cannot resolve a sub-weekly outage *in principle*. That
+  document named this channel as the honest alternative and nothing implemented it.
+
+  One `HEAD` per eligible source per run — roughly a seventh of a fetch's byte cost — inside
+  the fetcher's own politeness posture. `HttpFetcher.may_request` and
+  `space_before_request` are now public and are *reused* rather than reimplemented: two
+  crawlers in one repository that each decided robots.txt for themselves would eventually
+  decide it differently, and two channels each politely waiting two seconds are one impolite
+  channel.
+
+  **A probe is not a watch, and the separation is asserted rather than trusted.** No body, no
+  hash, no snapshot, no baseline, no change record. `record_probe_run` has no parameter
+  through which a body or a hash could arrive, `watch` and `probe` are handed different
+  clients (`Fetcher` vs `Prober`) so neither can be given the other's, and
+  `tests/test_probe.py` counts rows in `snapshots`, `changes`, `source_health` and
+  `watch_runs` after a probe run and requires all four to be zero. A source that probed
+  reachable is **not** a source that was read.
+
+  **Censoring is reported, never rounded away.** An episode whose start or end this channel
+  never saw has no measured length: it is excluded from every distribution and counted
+  separately as left-, right- or both-ends censored, and with no measured episode the
+  distribution's figures are `null` with a stated reason rather than `0` — which would read
+  as "outages lasted no time". Lengths are counted in **probes**, not hours, because the
+  cadence is operator configuration and a duration in hours would silently rewrite history
+  the day it changed. A 405 is `head_unsupported`, never an outage and never retried as
+  `GET`; a test asserts the outcome vocabulary partitions into exactly three disjoint buckets,
+  because the filter order currently hides an overlap and would go on hiding one.
+
+  `status.json` gains an **optional** `availability` block (schema 1.2, additive). Absent
+  means the channel has not run — deliberately, since a block full of zeroes would publish
+  "no outages" over the top of "no measurements", which is the defect this channel exists to
+  remove from the thresholds. `state` is watch health and does not move because a probe ran.
+
+  **This does not close #59.** The channel is the apparatus; the data still has to accumulate
+  through it before a threshold can be derived from measured durations.
+
 ### Fixed
 
 - **A source with no committed baseline was compared against nothing, counted as

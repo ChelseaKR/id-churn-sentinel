@@ -16,7 +16,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
         sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
-        no-auto-classification verify verify-sources watch \
+        no-auto-classification verify verify-sources watch probe-daily probe-report \
         watch-weekly baseline-write baseline-check publish serve clean
 
 help: ## Show this help
@@ -152,6 +152,23 @@ sources-rotation: ## Name sources a reviewer keeps dismissing as editorial (read
 
 watch: ## Run a watch pass over every source (retains the bytes; produces passage diffs)
 	uv run sentinel watch
+
+probe-daily: ## HEAD-only availability pass. NOT a watch: no body, no snapshot, no observation.
+	@# The channel docs/THRESHOLD-EVIDENCE.md names (#74). Weekly sampling cannot resolve a
+	@# sub-weekly outage in principle, so REMOVAL_THRESHOLD and MIN_REMOVAL_SILENCE are guesses
+	@# and will stay guesses until something measures availability more often than the watch
+	@# does. One HEAD per eligible source, roughly a seventh of a fetch's byte cost, inside the
+	@# same robots/crawl-spacing posture the fetcher uses (`HttpFetcher.may_request` /
+	@# `space_before_request` are shared, not reimplemented).
+	@#
+	@# Same billing caveat as watch-weekly below: put this in cron rather than trusting a
+	@# scheduled workflow that somebody else's spending limit can stop.
+	@#
+	@#   11 6 * * *  cd /path/to/id-churn-sentinel && make probe-daily >> var/probe.log 2>&1
+	uv run sentinel probe
+
+probe-report: ## Outage episodes derived from the probe record, with censoring counted (no network)
+	uv run sentinel probe report
 
 baseline-write: ## Commit the store's current hashes to sources/baseline-hashes.json
 	uv run sentinel baseline write

@@ -1,0 +1,121 @@
+# The daily HEAD-only availability probe — an operational job, NOT a build step, and NOT a watch.
+#
+# `REMOVAL_THRESHOLD` and `MIN_REMOVAL_SILENCE` are guesses, and docs/THRESHOLD-EVIDENCE.md
+# explains why the weekly watch can never stop them being guesses: weekly sampling cannot
+# resolve a sub-weekly outage in principle. This job is the channel that document names — one
+# HEAD request per eligible source per day, roughly a seventh of a fetch's byte cost.
+#
+# WHAT THIS JOB MAY NOT DO. It reads no page body, writes no snapshot, creates no change
+# record, and its results are never counted as watch observations. A source that probed
+# reachable is NOT a source that was read, and the day a probe row reaches the watch
+# denominator is the day this feed starts claiming pages were checked that nobody read.
+# `tests/test_probe.py` asserts the separation on the store; this file is the operational half.
+#
+# ── ON HOSTED CI, AND WHY THIS FILE IS NOT THE ONLY ANSWER ───────────────────────────────
+# Identical caveat to watch.yml. This repository's owner has an account-wide GitHub Actions
+# spending limit, and scheduled workflows are the first thing it stops. **Do not assume this
+# file ever runs.** Everything it does is one command on any machine — `make probe-daily` —
+# and the whole point of an availability history is that it is CONTINUOUS. A gap in the probe
+# record is a gap in the outage evidence, and a gap reads as uptime unless somebody is careful.
+# Put it in cron:
+#
+#   11 6 * * *  cd /path/to/id-churn-sentinel && make probe-daily >> var/probe.log 2>&1
+#
+# ── POLITENESS (docs/RESPONSIBLE-TECH-AUDITS.md §D) ──────────────────────────────────────
+# One HEAD per source per day, sharing the fetcher's robots.txt handling and its per-host
+# crawl spacing (`HttpFetcher.may_request` / `space_before_request`, reused rather than
+# reimplemented, because two channels each politely waiting two seconds are one impolite
+# channel). A host that answers 405 is recorded as `head_unsupported` and is NEVER retried as
+# GET: falling back to a body request would turn a cheap availability channel into a second
+# crawl on a host that has just told us no.
+name: probe
+
+on:
+  schedule:
+    # 06:11 UTC daily, an hour before the weekly watch and offset off the hour so we are not
+    # part of a thundering herd of cron jobs hitting state websites at :00.
+    - cron: "11 6 * * *"
+  workflow_dispatch:
+    inputs:
+      jurisdiction:
+        description: "Limit to one jurisdiction (e.g. TX, US). Blank = the whole registry."
+        required: false
+        default: ""
+
+# Read the code, and that is all. This job files no issue and commits nothing: unlike the
+# watch, a probe has nothing for a human to review — it is a measurement, not a finding.
+permissions:
+  contents: read
+
+concurrency:
+  group: probe
+  cancel-in-progress: false # never interrupt a run mid-crawl; let it finish and be polite
+
+jobs:
+  probe:
+    name: probe
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    # A HEAD per source with a 15s bound and 2s of per-host spacing. Well clear of the whole
+    # registry, and far below Actions' six-hour default so a genuine hang is bounded.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.28"
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install
+        run: make install
+
+      # Exits 0 whether or not anything was reachable. An outage is the fact this channel
+      # exists to record; a red job for a state website being down teaches the humans to
+      # ignore this workflow, and then they ignore it on the day that matters.
+      - name: sentinel probe
+        env:
+          JURISDICTION: ${{ inputs.jurisdiction }}
+        run: |
+          set -o pipefail
+          args=()
+          if [[ -n "$JURISDICTION" ]]; then
+            args+=(--jurisdiction "$JURISDICTION")
+          fi
+          uv run sentinel probe "${args[@]}" | tee probe-report.txt
+
+      # THE DENOMINATOR, read before anything else. `attempted: 0` is what a run over a
+      # registry with no attempt-eligible source looks like, and it is byte-identical in every
+      # other respect to a run in which every source answered. Branching on the reachable count
+      # alone would read "we probed nothing" as "everything was up" — the fail-open this
+      # repository exists to refuse, and with 0 of 156 sources attempt-eligible it is the
+      # branch this job actually takes.
+      - name: Reconcile the attempt denominator
+        run: |
+          attempted="$(sed -n 's/^  attempted: *\([0-9]*\).*/\1/p' probe-report.txt | tail -n 1)"
+          if [[ ! "$attempted" =~ ^[0-9]+$ ]]; then
+            echo "::error::probe emitted no attempt count; cannot tell whether anything was probed at all"
+            exit 1
+          fi
+          if [[ "$attempted" -eq 0 ]]; then
+            echo "::warning::0 sources were attempt-eligible. This run measured NOTHING, and its silence is not evidence that any source was available."
+          fi
+          echo "attempted=${attempted}"
+
+      # The probe store is not committed (var/ holds megabytes of retained government HTML and
+      # is gitignored), so a hosted runner has no memory of yesterday. The summary is published
+      # as an artifact rather than silently discarded — an availability history that only ever
+      # exists inside one job is not a history.
+      - name: Upload the probe record
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: probe-record
+          path: |
+            probe-report.txt
+          retention-days: 90

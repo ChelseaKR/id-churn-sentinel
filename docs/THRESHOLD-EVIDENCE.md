@@ -218,6 +218,28 @@ So there are two honest options, and they should be chosen between deliberately:
 Until one of those happens, `REMOVAL_THRESHOLD = 3` remains what it has always been: a
 reasonable guess, labelled as a guess, now at least guarding the quantity it names.
 
+### Addendum, 2026-09-06: the second option now exists (#74)
+
+`sentinel probe` implements the HEAD-only channel described above — one `HEAD` per eligible
+source per run, robots-respecting, sharing the fetcher's per-host crawl spacing, recording
+only reachability, status, latency, TLS outcome and redirect target. It reads no body, writes
+no snapshot, creates no change record, and its rows are never counted as watch observations;
+`tests/test_probe.py` asserts that separation against the database rather than trusting it.
+
+`sentinel probe report` derives outage episodes from that table and reports censoring
+explicitly: an episode whose start or end the channel never saw has **no measured length** and
+appears in no distribution, counted separately as left-, right- or both-ends censored. That is
+the same discipline this document applies to the existing record — every failure we have ever
+observed is right-censored — carried into the tool rather than left as a caveat somebody has
+to remember.
+
+**This does not answer §5, and nothing here should be read as if it did.** The channel is the
+apparatus; the data is what has to accumulate through it. Deriving `REMOVAL_THRESHOLD` from
+measured outage durations remains #59, and remains blocked until this channel has run for long
+enough to produce episodes with both ends observed. Episode lengths are counted in *probes*,
+not hours, precisely so that a change to the probe cadence cannot silently rewrite a history
+of durations.
+
 ---
 
 *Audit performed 2026-08-19 against the store and registry as committed. Every figure here

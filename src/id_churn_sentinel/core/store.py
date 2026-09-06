@@ -28,12 +28,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from types import TracebackType
+from typing import Any
 from uuid import uuid4
 
 from id_churn_sentinel.core.changes import (
@@ -901,6 +902,49 @@ END;
 
 INSERT INTO representation_contracts (normalizer_version, extractor_version)
 VALUES ('passage-text-v2', 'pdf-text-v1');
+""",
+    ),
+    (
+        10,
+        "v1-head-only-availability-probes",
+        # The channel `docs/THRESHOLD-EVIDENCE.md` names and nothing implemented (#74). Its own
+        # table, deliberately unrelated to `watch_runs`: a probe is not a watch, and the day a
+        # probe row can be joined into the watch denominator is the day the feed starts
+        # claiming pages were checked that nobody read.
+        #
+        # There is no `body`, no `raw_sha256` and no `normalized_sha256` column, and their
+        # absence is the point rather than an omission — a schema that could hold a hash is a
+        # schema someone will eventually write one into.
+        #
+        # `outcome` is CHECK-constrained to the closed vocabulary in `core/probe.py`. Note what
+        # is NOT collapsed: `head_unsupported` (a 405, an absence of measurement) is a distinct
+        # value from `unreachable` (an outage), because folding them would publish a host's
+        # refusal to answer HEAD as downtime.
+        """
+CREATE TABLE IF NOT EXISTS probes (
+    run_id          TEXT NOT NULL,
+    source_id       TEXT NOT NULL,
+    url             TEXT NOT NULL,
+    probed_at       TEXT NOT NULL CHECK (julianday(probed_at) IS NOT NULL),
+    as_of           TEXT NOT NULL,
+    outcome         TEXT NOT NULL
+        CHECK (outcome IN ('reachable', 'http_error', 'unreachable', 'tls_error',
+                           'robots_disallowed', 'head_unsupported', 'not_eligible')),
+    http_status     INTEGER,
+    latency_ms      INTEGER CHECK (latency_ms IS NULL OR latency_ms >= 0),
+    tls_ok          INTEGER CHECK (tls_ok IN (0, 1)),
+    redirect_target TEXT NOT NULL DEFAULT '',
+    detail          TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (run_id, source_id),
+    -- A reachable probe that recorded no status is a row that cannot be checked against the
+    -- thing it claims. An outcome this channel did not measure may not carry a latency:
+    -- a duration attached to a request that was never made is a fabricated measurement.
+    CHECK (outcome <> 'reachable' OR http_status IS NOT NULL),
+    CHECK (outcome NOT IN ('robots_disallowed', 'not_eligible') OR latency_ms IS NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_probes_source_time ON probes (source_id, probed_at, run_id);
+CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
 """,
     ),
 )
@@ -1866,6 +1910,54 @@ class SnapshotStore:
         if row is None:
             raise StoreError(f"unknown watch run: {run_id!r}")
         return self._row_to_watch_run(row)
+
+    def record_probe_run(
+        self,
+        run_id: str,
+        *,
+        as_of: str,
+        probed_at: str,
+        results: Sequence[tuple[str, str, str, int | None, int | None, bool | None, str, str]],
+    ) -> None:
+        """Persist one HEAD pass. Writes to `probes` and to nothing else.
+
+        Every argument this method accepts is availability evidence. There is deliberately no
+        parameter through which a body, a hash or an observation could arrive, so "a probe run
+        never writes a snapshot" is a property of the signature rather than of the caller's
+        good behaviour.
+        """
+        self._conn.executemany(
+            "INSERT OR REPLACE INTO probes (run_id, source_id, url, probed_at, as_of, outcome,"
+            " http_status, latency_ms, tls_ok, redirect_target, detail)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id,
+                    source_id,
+                    url,
+                    probed_at,
+                    as_of,
+                    outcome,
+                    status,
+                    latency,
+                    None if tls_ok is None else int(tls_ok),
+                    redirect_target,
+                    detail,
+                )
+                for source_id, url, outcome, status, latency, tls_ok, redirect_target, detail in results
+            ],
+        )
+        self._conn.commit()
+
+    def probes(self, *, source_id: str | None = None) -> tuple[dict[str, Any], ...]:
+        """Every recorded probe, oldest first. The only input `core/probe` reports over."""
+        where = " WHERE source_id = ?" if source_id else ""
+        params = (source_id,) if source_id else ()
+        rows = self._conn.execute(
+            f"SELECT * FROM probes{where} ORDER BY source_id, probed_at, run_id",  # noqa: S608 — literal clause, bound value
+            params,
+        ).fetchall()
+        return tuple(dict(row) for row in rows)
 
     def latest_watch_run(
         self,

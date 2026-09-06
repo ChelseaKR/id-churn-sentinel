@@ -271,6 +271,46 @@ The following is a complete schema-valid illustrative record. Its source is deli
 
 **`significance` and `reviewer` are never machine-set** — see `docs/RESPONSIBLE-TECH-AUDITS.md` §B.
 
+### Which of *your* pages cite something that has since changed
+
+The feed tells you a government page changed. It does not tell you which of your own pages depend on it. `sentinel stale` closes that gap without an account, a subscriber list, or a network call: you keep a manifest of your pages on your own machine, and the command reads a published artifact you already have a copy of.
+
+```json
+{
+  "schema_version": "1.0",
+  "site": "Example legal-aid clinic",
+  "pages": [
+    {
+      "id": "tx-name-change",
+      "title": "Changing your name on a Texas driver's licence",
+      "url": "https://example.org/guides/tx-name-change",
+      "last_reviewed": "2026-06-01",
+      "cites": [
+        "https://www.dps.texas.gov/section/driver-license/change-name-your-driver-license-or-id"
+      ]
+    }
+  ]
+}
+```
+
+```sh
+# against the committed docs/changes.json, from a clean clone, offline
+uv run sentinel stale --manifest my-site.json
+
+# or against any conforming feed document you have downloaded
+uv run sentinel stale --manifest my-site.json --changes changes.json --json
+```
+
+Three things to know before you rely on it.
+
+**A citation we do not watch is never reported as current.** Every citation is `matched`, `host_only`, or `unwatched`, and the vocabulary is closed. `host_only` means this registry watches a different page on that host — our silence about *your* page means nothing at all. URL matching is exact after a conservative normalization (scheme and host lowercased, default port dropped, fragment dropped); trailing slashes and query strings are **not** stripped, so a citation differing only by a slash is `host_only` rather than a guess.
+
+**Staleness is measured from `observed_at`** — when the government page was observed to change — not from the date a reviewer confirmed it. A source that changed on 2026-05-01 and was confirmed on 2026-07-01 is not stale for a page you reviewed on 2026-06-01: you reviewed it after the source moved. Both dates travel on every row so you can see which was used, and the report states `"compared_on": "observed_at"`.
+
+**Only what a human published can appear.** A row exists only for a change that is `confirmed`, not withdrawn, and — if it is `substantive` — independently approved. `docs/changes.json` can never carry anything else, but `--changes` accepts any file, so the rule is re-applied at your edge rather than assumed. The summary reports both `changes_considered` and `changes_in_input`, so you can always see whether something was filtered.
+
+A row says: a source this page cites was observed to change after the page's own last-reviewed date, and a named human confirmed the change. It does not say your page is wrong, and it says nothing about what the law is.
+
 ### The registry changes, and that history is now derivable
 
 Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's licence" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.

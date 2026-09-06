@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/consumer-manifest-v1.schema.json",
+  "title": "ID Churn Sentinel consumer page manifest v1",
+  "description": "A consumer-authored list of THEIR OWN pages, each naming the government source URLs it cites and the date a person last reviewed it. Read by `sentinel stale`. This file never leaves the consumer's machine and is never sent anywhere: there is no account, no subscriber list, and no network call in the command that reads it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pages"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "site": {
+      "type": "string",
+      "description": "A name for the site or organization, echoed back in the report. Optional and purely for the reader."
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/page" }
+    }
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "last_reviewed", "cites"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Your identifier for the page. Unique within the manifest; echoed in every row."
+        },
+        "title": { "type": "string" },
+        "url": {
+          "type": "string",
+          "pattern": "^https://",
+          "description": "Where your page lives. Optional; never fetched."
+        },
+        "last_reviewed": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "The date a person last reviewed this page. Staleness is measured from here against each change's `observed_at` — when the government page was observed to change — NOT against the date a reviewer confirmed it. A source that changed before your review date is not stale for you, even if it was confirmed afterwards."
+        },
+        "cites": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The government source URLs this page cites. Matched against the registry exactly, after a conservative normalization (scheme and host lowercased, default port dropped, fragment dropped). Trailing slashes and query strings are NOT stripped: a citation differing only by a slash is reported as `host_only`, which is true, rather than as `matched`, which would be a guess.",
+          "items": { "type": "string", "pattern": "^https://" }
+        }
+      }
+    }
+  }
+}

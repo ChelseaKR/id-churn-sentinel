@@ -230,6 +230,56 @@ jobs:
             echo "needs-review=false" >> "$GITHUB_OUTPUT"
           fi
 
+          # THE OBSERVATION RATE, reported and deliberately NOT gated on.
+          #
+          # Everything above is all-or-nothing: the blind-run refusal fires at
+          # observed == 0 and nowhere else. So a run that read 1 of 156 sources, and
+          # found that one unchanged, printed every drift count at zero and exited 0 --
+          # byte-identical to a complete, clean pass. 99.4% blindness and a full sweep
+          # are the same green tick. The reasoning that made observed == 0 a refusal
+          # applies just as much at 155 of 156; the rule simply drew its line at the far
+          # end.
+          #
+          # This does not move that line, and choosing where it should sit is
+          # deliberately not decided here. The comment at the tail of this file states
+          # the position on purpose -- "One unreachable source exits 0, and so do 155 of
+          # 156; only reading *nothing at all* fails" -- and it is protecting against the
+          # worse failure: a badge that goes red for ordinary government-website outages
+          # trains a reviewer to ignore it, and then they ignore it the week a page is
+          # quietly rewritten. docs/THRESHOLD-EVIDENCE.md already records that the
+          # observation history cannot support deriving an outage distribution, so a
+          # threshold picked today would be picked from nothing.
+          #
+          # What it does is stop the rate being invisible. A number nobody can see is a
+          # number nobody can later derive a threshold from, so the honest first step is
+          # to record it: every run now prints the rate to the job summary, and any run
+          # that already reaches a human carries it in the issue body. No exit status
+          # changes.
+          if [[ "$attempted_count" -gt 0 ]]; then
+            observation_rate="$(awk -v o="$observed_count" -v a="$attempted_count" \
+              'BEGIN { printf "%.1f", (o * 100) / a }')"
+          else
+            observation_rate="n/a"
+          fi
+          echo "observation-rate=${observation_rate}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Observation rate"
+            echo
+            if [[ "$observation_rate" == "n/a" ]]; then
+              echo "**No sources were attempted**, so there is no rate to report. This run"
+              echo "is not evidence that nothing changed."
+            else
+              echo "Read **${observed_count}** of **${attempted_count}** attempted source(s)"
+              echo "(**${observation_rate}%**); **${unreachable_count}** never answered."
+              echo
+              echo "This figure is reported, not enforced. A low rate does not fail this job:"
+              echo "government sites go down, and a badge that reddens for that teaches a"
+              echo "reviewer to ignore it. It is recorded so the rate is visible week to week,"
+              echo "and so a future threshold can be derived from observed history rather than"
+              echo "chosen from none (see docs/THRESHOLD-EVIDENCE.md, issue #52)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload the report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -253,6 +303,7 @@ jobs:
           NOTHING_OBSERVED: ${{ steps.check.outputs.nothing-observed }}
           UNREACHABLE_COUNT: ${{ steps.check.outputs.unreachable-count }}
           OBSERVED_COUNT: ${{ steps.check.outputs.observed-count }}
+          OBSERVATION_RATE: ${{ steps.check.outputs.observation-rate }}
         with:
           script: |
             const fs = require('fs');
@@ -264,6 +315,7 @@ jobs:
             const unbaselinedCount = process.env.UNBASELINED_COUNT;
             const unreachableCount = process.env.UNREACHABLE_COUNT;
             const observedCount = process.env.OBSERVED_COUNT;
+            const observationRate = process.env.OBSERVATION_RATE;
             const nothingChecked = process.env.NOTHING_CHECKED === 'true';
             const nothingObserved = process.env.NOTHING_OBSERVED === 'true';
             // Three different findings need three different sentences, and the wrong one is
@@ -313,6 +365,11 @@ jobs:
                   '**or could not be read at all.**',
                   '',
                   `Sources attempted: **${attemptedCount}**.`,
+                  // How much of the sweep this finding actually rests on. A queue filed
+                  // by a run that read 3 of 156 sources says the same words as one that
+                  // read all 156, and a reviewer cannot tell them apart from the drift
+                  // counts alone -- those count what was found, never what was looked at.
+                  `Sources actually read: **${observedCount}** of ${attemptedCount} (**${observationRate}%**); **${unreachableCount}** never answered.`,
                   `Sources moved this run: **${movedCount}**.`,
                   `Sources that answered with no extractable text: **${noTextCount}**.`,
                   `Sources registered at a different URL than their baseline was taken from: **${urlChangedCount}**.`,

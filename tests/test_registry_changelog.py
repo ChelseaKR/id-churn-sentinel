@@ -9,6 +9,7 @@ and the diff refuses to return at all if it can see a field difference no event 
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ from id_churn_sentinel.core.registry import (
     UNVERIFIED,
     VERIFIED,
     Registry,
+    default_registry_path,
     load_registry,
 )
 from id_churn_sentinel.core.registry_changelog import (
@@ -487,20 +489,65 @@ def test_an_unresolvable_reference_names_what_it_tried(tmp_path: Path) -> None:
         read_registry_at("no-such-revision-anywhere")
 
 
-def test_the_real_history_reproduces_the_michigan_move_to_a_named_gap() -> None:
-    """An end-to-end check against this repository's own commits.
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(  # noqa: S603 — fixed argument vector in a throwaway repo
+        ["git", *args],  # noqa: S607 — resolved from PATH, as `read_registry_at` itself does
+        cwd=root,
+        check=True,
+    )
 
-    The proposal cites Michigan's SCAO form moving from a source to a named gap as one of the
-    events the registry's history contains and nothing could show. This asserts the derived
-    log actually contains it, against real revisions rather than a fixture.
+
+def _git_repo(tmp_path: Path, revisions: list[list[Any]]) -> Path:
+    """A throwaway git repository whose history is a sequence of registries.
+
+    The suite deliberately does not read *this* repository's history. `actions/checkout`
+    fetches a shallow tree, so a test that resolves a real commit passes locally and fails in
+    CI with `invalid object name` — which is a test that only runs on a developer's machine,
+    and therefore a gate that cannot fail where it matters. Building the history the test
+    needs exercises exactly the same `git show` path with no dependency on checkout depth.
     """
-    before = read_registry_at("fc7c621")
-    events = diff_registries(before, load_registry())
+    root = tmp_path / "repo"
+    (root / "sources").mkdir(parents=True)
+    _git(root, "init", "-q")
+    _git(root, "config", "user.email", "t@example.invalid")
+    _git(root, "config", "user.name", "Test")
+    for index, sources in enumerate(revisions):
+        (root / "sources" / "registry.json").write_text(
+            json.dumps({"registry_version": "1.0", "sources": sources, "gaps": []}, indent=2),
+            encoding="utf-8",
+        )
+        _git(root, "add", "sources/registry.json")
+        _git(root, "commit", "-q", "-m", f"revision {index}")
+    return root
 
-    moved = [event for event in events if event.kind == "moved_to_gap"]
-    assert [event.subject_id for event in moved] == ["mi-scao-pc51-name-change-petition"]
-    assert moved[0].reason == "robots-disallowed"
-    assert any(event.kind == "url_changed" for event in events)
+
+def test_a_revision_is_resolved_out_of_git_and_diffed_against_the_working_tree(
+    tmp_path: Path,
+) -> None:
+    """The `git show <rev>:sources/registry.json` path, end to end."""
+    root = _git_repo(
+        tmp_path,
+        [
+            [_source(url="https://old.example/x")],
+            [_source(url="https://new.example/x")],
+        ],
+    )
+
+    before = read_registry_at("HEAD~1", root=root)
+    after = read_registry_at("HEAD", root=root)
+    (event,) = diff_registries(before, after)
+
+    assert event.kind == "url_changed"
+    assert (event.from_value, event.to_value) == (
+        "https://old.example/x",
+        "https://new.example/x",
+    )
+
+
+def test_a_revision_may_also_be_given_as_an_explicit_git_pathspec(tmp_path: Path) -> None:
+    root = _git_repo(tmp_path, [[_source()], [_source(url="https://moved.example/x")]])
+    registry = read_registry_at("HEAD:sources/registry.json", root=root)
+    assert registry.sources[0].url == "https://moved.example/x"
 
 
 # ---- the published schema -----------------------------------------------------------------
@@ -536,11 +583,37 @@ def test_the_committed_changelog_validates_against_its_published_schema() -> Non
     assert _violations(load_changelog()) == []
 
 
-def test_a_derived_log_over_real_revisions_validates() -> None:
-    """Not an empty document: the log this repository's own history produces."""
-    before = read_registry_at("fc7c621")
-    events = diff_registries(before, load_registry())
-    assert events, "the fixture revision span produces no events; the check would be vacuous"
+def test_a_populated_log_validates_against_the_schema(tmp_path: Path) -> None:
+    """Not an empty document: one carrying an event of every kind the diff can produce."""
+    before = _registry(
+        tmp_path,
+        "b",
+        [_source(), _source("nv-old", jurisdiction="NV"), _source("mi-scao", jurisdiction="MI")],
+        [_gap("AK", "drivers_license", "blocked-403")],
+    )
+    after = _registry(
+        tmp_path,
+        "a",
+        [
+            _source(url="https://swapped.example/x", verification=_CONFIRMED),
+            _source("az-new", jurisdiction="AZ"),
+        ],
+        [
+            _gap("MI", "drivers_license", "robots-disallowed"),
+            _gap("VT", "drivers_license", "tls-unverifiable"),
+        ],
+    )
+    events = diff_registries(before, after)
+    kinds = {event.kind for event in events}
+    assert {
+        "url_changed",
+        "verified",
+        "added",
+        "removed",
+        "moved_to_gap",
+        "gap_opened",
+        "gap_closed",
+    } <= kinds, kinds
     assert _violations(changelog_document(events, unrecorded_before="0" * 64)) == []
 
 
@@ -593,19 +666,41 @@ def test_the_schema_rejects_an_event_kind_outside_the_vocabulary() -> None:
 # ---- the command, and the gate it feeds ---------------------------------------------------
 
 
-def test_the_command_prints_a_document_derived_from_two_real_revisions(
-    capsys: pytest.CaptureFixture[str],
+def _swap_pair(tmp_path: Path) -> list[str]:
+    """A prior revision of the COMMITTED registry, one URL back.
+
+    The later side is the committed registry itself, so the derived event's `to` is the URL the
+    registry actually carries and `--append` reconciles. A fixture pair would not: `reconcile`
+    would correctly refuse a log describing a registry this repository has never had.
+    """
+    raw = json.loads(default_registry_path().read_text(encoding="utf-8"))
+    subject = raw["sources"][0]
+    previous = json.loads(json.dumps(raw))
+    previous["sources"][0]["url"] = "https://an-earlier-page.example/x"
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(json.dumps(previous, indent=2), encoding="utf-8")
+    after.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+    assert subject["url"] != previous["sources"][0]["url"]
+    return ["--from", str(before), "--to", str(after)]
+
+
+def test_the_command_prints_a_document_derived_from_two_revisions(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["registry", "changelog", "--from", "2718b37", "--to", "b0115c5"]) == 0
+    assert main(["registry", "changelog", *_swap_pair(tmp_path)]) == 0
     document = json.loads(capsys.readouterr().out)
     assert [event["kind"] for event in document["events"]] == ["url_changed"]
-    assert document["events"][0]["subject_id"] == "ny-courts-name-change"
+    assert (
+        document["events"][0]["subject_id"]
+        == json.loads(default_registry_path().read_text(encoding="utf-8"))["sources"][0]["id"]
+    )
 
 
 def test_the_command_output_is_byte_identical_across_runs(
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    argv = ["registry", "changelog", "--from", "2718b37", "--to", "b0115c5"]
+    argv = ["registry", "changelog", *_swap_pair(tmp_path)]
     assert main(argv) == 0
     first = capsys.readouterr().out
     assert main(argv) == 0
@@ -683,7 +778,7 @@ def test_append_refuses_a_revision_pair_the_log_already_records(
     target.write_text(dumps_changelog(seed_document(load_registry())), encoding="utf-8")
     monkeypatch.setattr(cli_module, "default_changelog_path", lambda *a, **k: target)
 
-    argv = ["registry", "changelog", "--from", "2718b37", "--to", "b0115c5", "--append"]
+    argv = ["registry", "changelog", *_swap_pair(tmp_path), "--append"]
     assert main(argv) == 0
     appended = json.loads(target.read_text(encoding="utf-8"))
     assert len(appended["events"]) == 1

@@ -1833,6 +1833,21 @@ class SnapshotStore:
         ).fetchall()
         return tuple(_row_to_fetch_attempt(row) for row in rows)
 
+    def fetch_attempts_for_source(self, source_id: str) -> tuple[FetchAttempt, ...]:
+        """Every persisted attempt against one source, across every run, oldest first.
+
+        The run-scoped reader above answers "what did this run do?". This one answers "what
+        do we hold about these bytes?" — the question an evidence export asks, because
+        `snapshots` records no run id and the content type a body was read under lives only
+        on its attempt. Read-only, and ordered so a caller reading it as a history reads it
+        forwards.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM fetch_attempts WHERE source_id = ? ORDER BY attempted_at, run_id",
+            (source_id,),
+        ).fetchall()
+        return tuple(_row_to_fetch_attempt(row) for row in rows)
+
     def finish_watch_run(
         self,
         run_id: str,

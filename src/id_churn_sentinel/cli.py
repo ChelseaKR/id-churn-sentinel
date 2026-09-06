@@ -11,6 +11,8 @@
     sentinel baseline write                        commit the store's hashes to sources/
     sentinel baseline check                        drift vs the COMMITTED baseline (no store)
     sentinel diff <change-id>                      the full diff for one change
+    sentinel evidence export <id> --out DIR        a portable bundle a third party can check
+    sentinel evidence verify DIR                   recheck one, offline, with no store
     sentinel review --list [--jurisdiction TX]     the pending REVIEW queue (no network, no writes)
     sentinel review <change-id> --reviewer ...     the human gate on a CHANGE
     sentinel publish --out docs/                   the site, the feeds, the inventory
@@ -30,6 +32,12 @@ injected the same way, so the interactive verify loop is testable without a term
 Exit codes: 0 success, 1 a real failure (invalid registry, unknown id, refused review), 2
 argparse usage error. `watch` exits 0 when it *finds* drift — drift is the tool working, not
 the tool failing. Only `sources validate` is merge-blocking.
+
+The two `evidence` commands narrow 2 to a third meaning, and it is the one a consumer's
+script has to be able to tell apart from a mismatch: `evidence verify` exits 0 verified, 1
+a mismatch with the first failing file named, 2 the bundle could not be read at all, and
+`evidence export` exits 2 when it refuses — a pruned snapshot, a removal escalation, a
+populated destination — having written nothing.
 """
 
 from __future__ import annotations
@@ -80,6 +88,14 @@ from id_churn_sentinel.core.eligibility import (
     evaluate_source,
     parse_as_of,
     registry_revision,
+)
+from id_churn_sentinel.core.evidence import (
+    EXIT_UNREADABLE,
+    EXIT_VERIFIED,
+    BundleError,
+    export_bundle,
+    render_verification,
+    verify_bundle,
 )
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.normalize import (
@@ -545,6 +561,61 @@ def build_parser() -> argparse.ArgumentParser:
     diff_cmd = sub.add_parser("diff", help="show the full diff for one change")
     diff_cmd.add_argument("change_id")
 
+    evidence_cmd = sub.add_parser(
+        "evidence",
+        help="export or re-check a portable evidence bundle for one change (no network)",
+        description=(
+            "A published change record carries hashes and an excerpt; the bytes that prove it "
+            "live in the operator's store in var/ and are pruned to the newest few snapshots "
+            "per source. An evidence bundle is a directory an operator hands over: both sides' "
+            "raw bytes, both normalized texts, the contract versions, the fetch receipts, the "
+            "re-derivable diff, the published record, and a manifest hashing every file. "
+            "`verify` recomputes all of it from a clean clone, with no store and no network."
+        ),
+    )
+    evidence_sub = evidence_cmd.add_subparsers(dest="evidence_command", required=True)
+    evidence_export = evidence_sub.add_parser(
+        "export",
+        help="write the evidence bundle for one change, or refuse and write nothing",
+        description=(
+            "Refuses rather than exporting half an argument: a change whose baseline or "
+            "current snapshot has been pruned names the missing side and writes nothing, and "
+            "a removal escalation is refused because there are no `after` bytes at all. "
+            "Exporting at review time is what pins the bytes against retention."
+        ),
+    )
+    evidence_export.add_argument("change_id")
+    evidence_export.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        metavar="DIR",
+        help="destination directory; must not already contain anything",
+    )
+    evidence_verify = evidence_sub.add_parser(
+        "verify",
+        help="recompute every claim a bundle makes about itself (0 verified, 1 mismatch, 2 unreadable)",
+        description=(
+            "Recomputes every listed hash, refuses any file the manifest does not list, "
+            "re-runs normalization under the recorded contract version and fails closed on a "
+            "version this build does not implement, re-derives the diff, and checks that the "
+            "bytes hash to the values the published record cites. A check that could not run "
+            "is reported as SKIPPED with its reason and is never counted as a pass."
+        ),
+    )
+    evidence_verify.add_argument("bundle", type=Path, metavar="DIR")
+    evidence_verify.add_argument(
+        "--changes",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help=(
+            "a published changes.json to cross-check the bundle's record against. Omitted, "
+            "that one check reports SKIPPED — it is not silently treated as agreement."
+        ),
+    )
+    evidence_verify.add_argument("--json", action="store_true", help="machine-readable output")
+
     review_cmd = sub.add_parser("review", help="record a HUMAN review of one change")
     review_cmd.add_argument(
         "change_id", nargs="?", default=None, help="the change to review (omit with --list)"
@@ -670,8 +741,8 @@ def _dispatch(
         return _cmd_coverage(args, registry)
     if args.command in {"watch", "probe"}:
         return _dispatch_network_command(args, registry, fetcher, prober)
-    if args.command == "diff":
-        return _cmd_diff(args)
+    if args.command in {"diff", "evidence"}:
+        return _dispatch_evidence_command(args)
     if args.command in {"review", "approve", "correct", "withdraw"}:
         return _dispatch_change_command(args)
     return _cmd_publish(args, registry)
@@ -682,6 +753,42 @@ def _dispatch_consumer_command(args: argparse.Namespace, registry: Registry) -> 
     if args.command == "stale":
         return _cmd_stale(args, registry)
     return _cmd_registry_changelog(args, registry)
+
+
+def _dispatch_evidence_command(args: argparse.Namespace) -> int:
+    """The three read-only commands over one recorded change and its retained bytes."""
+    if args.command == "diff":
+        return _cmd_diff(args)
+    if args.evidence_command == "export":
+        return _cmd_evidence_export(args)
+    return _cmd_evidence_verify(args)
+
+
+def _cmd_evidence_export(args: argparse.Namespace) -> int:
+    """Write one bundle, or refuse with exit 2 having written nothing."""
+    try:
+        with SnapshotStore(args.db) as store:
+            result = export_bundle(store, args.change_id, args.out)
+    except BundleError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_UNREADABLE
+    print(f"evidence bundle for change {result.change_id} written to {result.bundle}")
+    for name in result.files:
+        print(f"  {name}")
+    print("")
+    print("Hand over the whole directory. A third party re-checks it with no store and no")
+    print(f"network:  sentinel evidence verify {result.bundle}")
+    return EXIT_VERIFIED
+
+
+def _cmd_evidence_verify(args: argparse.Namespace) -> int:
+    """Re-check one bundle. The exit code is the answer; the report says which check said so."""
+    result = verify_bundle(args.bundle, changes_path=args.changes)
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(render_verification(result))
+    return result.exit_code
 
 
 def _dispatch_change_command(args: argparse.Namespace) -> int:

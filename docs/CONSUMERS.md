@@ -311,6 +311,35 @@ Three things to know before you rely on it.
 
 A row says: a source this page cites was observed to change after the page's own last-reviewed date, and a named human confirmed the change. It does not say your page is wrong, and it says nothing about what the law is.
 
+### Checking a change six months later, without taking our word for it
+
+A published record carries hashes and an excerpt. The bytes that produced them live in the operator's SQLite store, and that store keeps only the newest few snapshots per source — so an editor or a journalist who wants to re-check a claim next spring has, today, nothing but our word. A diff you cannot reproduce later is a claim, not evidence.
+
+`sentinel evidence` closes that. An **evidence bundle** is a directory an operator hands over: the raw bytes of both sides, both normalized texts, the normalizer and extractor contract versions, the fetch receipts (status, final URL, redirect chain, byte bounds, timestamps), the re-derivable unified diff, the published change record, and a manifest hashing every file. Its shape is `docs/schema/evidence-bundle-v1.schema.json`.
+
+```sh
+# the operator, at review time — this is what pins the bytes against retention
+uv run sentinel evidence export <change-id> --out bundle/
+
+# you, six months later, on a clean clone, with no store and no network
+uv run sentinel evidence verify bundle/
+
+# and, if you kept the feed you fetched, cross-check the record against it
+uv run sentinel evidence verify bundle/ --changes changes.json
+```
+
+`verify` recomputes every hash in the manifest, refuses any file the manifest does not list, re-runs normalization over the raw bytes under the recorded contract version, re-derives the diff, and confirms that the bytes hash to the values the *published* record cites. Exit `0` verified, `1` a mismatch with the first failing file named, `2` the directory could not be read as a bundle at all.
+
+Four things to know before you rely on it.
+
+**A check that could not run is reported as `SKIPPED`, with its reason, and is never counted as a pass.** Run without `--changes`, the feed cross-check has no document to compare against and says so; the closing line then reads *"VERIFIED, with 1 check(s) NOT RUN"* rather than the unqualified word. Every check named in the report appears in every report, including the ones an earlier failure stopped it from reaching — a check that quietly disappears is indistinguishable from one that passed.
+
+**A contract version this build does not implement fails closed, by name.** Re-deriving text under a different normalizer and then reporting agreement would be worse than reporting nothing.
+
+**Export refuses rather than exporting half.** A change whose baseline or current snapshot has been pruned names the missing side and writes nothing; a removal escalation is refused outright, because nothing answered and there are no `after` bytes to carry. Export at review time.
+
+**Bundles are not signed.** Every hash in a bundle can be recomputed from the bundle, which is what makes it checkable offline; it is not what makes it attributable to us. Signing is a separate trust model and is not implemented. If provenance matters to you, compare the bundle's record against the feed you fetched over TLS from the canonical URL — that is what `--changes` is for — and note that the bundle also carries no internal reviewer rationale, only the published shape.
+
 ### The registry changes, and that history is now derivable
 
 Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's licence" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.

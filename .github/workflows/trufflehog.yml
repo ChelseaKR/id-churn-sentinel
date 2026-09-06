@@ -18,7 +18,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: trufflehog-${{ github.ref }}
+  # Per-commit on push and schedule; per-branch on pull requests. See the longer note in ci.yml.
+  # This workflow runs on `push: [main]`, so under a ref-only key a second push cancelled the
+  # history scan of the commit before it — and an unscanned commit is indistinguishable from a
+  # clean one afterwards, which is the failure this scan exists to prevent.
+  group: trufflehog-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: true
 
 jobs:

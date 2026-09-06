@@ -32,7 +32,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keyed by COMMIT for push and schedule, and by branch only for pull requests.
+  #
+  # With the key at `${{ github.ref }}` alone, every push to `main` shared one group named
+  # `ci-refs/heads/main`, and `cancel-in-progress: true` then cancelled the run still working on
+  # the previous commit. Push twice in the time one run takes — a merge followed by a follow-up,
+  # which is the normal shape here — and the first commit is never verified by anything. It does
+  # not go red; it gets no verdict at all, and a cancelled run reads as "no signal", not as a
+  # failure, so nothing about the repository looks wrong afterwards.
+  #
+  # `github.sha` is per-commit, so on `main` each commit now keeps its own run to completion. On a
+  # pull request the branch key is still what you want — a new push there should cancel the stale
+  # run, because only the tip needs a verdict and the intermediate states are not merge bases.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: true
 
 jobs:

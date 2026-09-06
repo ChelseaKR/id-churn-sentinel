@@ -115,6 +115,46 @@ def test_secret_scan_pins_its_runtime_and_never_floats_to_latest() -> None:
     assert "extra_args: --only-verified" in workflow
 
 
+#: Workflows that run on `push:`, where a ref-only concurrency key silently drops a verdict.
+_PUSH_TRIGGERED_WORKFLOWS = ("ci.yml", "trufflehog.yml")
+
+
+def test_push_triggered_workflows_key_concurrency_per_commit_not_per_branch() -> None:
+    """A commit on `main` must keep its own run; a cancelled run is no verdict, not a pass.
+
+    With the group at `${{ github.ref }}` alone, every push to `main` shared one group and
+    `cancel-in-progress: true` cancelled the run still working on the previous commit. Push twice
+    inside one run's duration — a merge plus a follow-up, the normal shape here — and the first
+    commit is verified by nothing. It never goes red, so nothing looks wrong afterwards: GitHub
+    reports the run as `cancelled`, which is no signal at all rather than a failure.
+
+    Asserted against the workflow text, the established pattern here for `.github/workflows`
+    invariants (see `test_secret_scan_pins_its_runtime_and_never_floats_to_latest`), because the
+    property lives in the YAML and not in any importable module.
+
+    `codeql.yml` is deliberately not in this list: it has no `push:` trigger, so its ref-only key
+    only ever groups pull-request and weekly-schedule runs, where cancelling the stale run is what
+    you want.
+    """
+    for name in _PUSH_TRIGGERED_WORKFLOWS:
+        workflow = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+        group = re.search(r"^concurrency:\n(?:\s*#.*\n)*\s*group:\s*(.+)$", workflow, re.MULTILINE)
+        assert group is not None, f"{name} declares no concurrency group"
+        key = group.group(1)
+        assert "github.sha" in key, (
+            f"{name} keys concurrency on the ref alone, so a second push to main cancels the "
+            f"previous commit's run and that commit gets no verdict: {key}"
+        )
+        assert "github.event_name == 'pull_request'" in key, (
+            f"{name} must still collapse superseded pull-request runs by branch: {key}"
+        )
+        # The trigger this protects has to actually be present, or the assertion above is a
+        # tautology that would keep passing if `push:` were ever removed.
+        assert re.search(r"^on:\n(?:.*\n)*?\s*push:", workflow, re.MULTILINE), (
+            f"{name} is listed as push-triggered but declares no push trigger"
+        )
+
+
 def test_watch_workflow_branches_on_what_it_read_not_only_on_what_it_selected() -> None:
     """The weekly job must not read an all-blind run as a quiet one.
 

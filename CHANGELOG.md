@@ -7,6 +7,35 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A commit on `main` could get no CI verdict at all, and nothing looked wrong**
+  (2026-09-06), in `.github/workflows/ci.yml`, `.github/workflows/trufflehog.yml`
+  and `tests/test_public_boundary.py`. Both workflows run on `push: [main]` and
+  both keyed `concurrency` on `${{ github.ref }}` alone, so every push to `main`
+  shared a single group. With `cancel-in-progress: true`, a second push cancelled
+  the run still working on the previous commit.
+
+  Push twice inside one run's duration — a merge followed by a follow-up, the
+  normal shape of work here — and the earlier commit is verified by nothing. The
+  failure is quiet in the worst way: the commit does not go red, it simply has no
+  verdict, and GitHub reports the abandoned run as `cancelled`, which reads as no
+  signal rather than as a failure. For `trufflehog.yml` the same key meant a
+  commit's full-history secret scan could be dropped, and an unscanned commit is
+  indistinguishable afterwards from a clean one.
+
+  The group now carries `${{ github.sha }}` for `push` and `schedule` while
+  pull requests keep the branch key, so each commit on `main` keeps its own run to
+  completion and a superseded pull-request run is still collapsed. `codeql.yml` is
+  deliberately unchanged: it has no `push:` trigger, so its ref-only key only ever
+  groups pull-request and weekly-schedule runs, where cancelling the stale run is
+  the wanted behaviour.
+
+  The test asserts the property against the YAML — the established pattern here —
+  and also asserts that each workflow it names really does declare a `push:`
+  trigger, so the check cannot quietly become a tautology if that trigger is ever
+  removed.
+
 ### Added
 
 - **PDF text extraction, so a PDF source produces a reviewable diff rather than

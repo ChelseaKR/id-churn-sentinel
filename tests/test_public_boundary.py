@@ -109,10 +109,18 @@ def test_secret_scan_pins_its_runtime_and_never_floats_to_latest() -> None:
     # `main`'s is the newer decision and the one in the tree, so this asserts the
     # invariant both satisfy — the action's `version` input defaults to "latest",
     # which is what silently changed the scanner underneath a SHA-pinned action.
+    #
+    # This used to also assert `extra_args: --only-verified`, which pinned a tier
+    # selection that CANNOT FAIL on a revoked credential: TruffleHog files a
+    # credential the provider has rejected under `unverified`, and revocation is
+    # the normal end state of a real leak. That assertion has been replaced by the
+    # detector exclusion it was really carrying — the Lob half of the same fix —
+    # and the result tiers are now asserted, with the measurement behind them, in
+    # tests/test_trufflehog_workflow.py.
     workflow = (ROOT / ".github" / "workflows" / "trufflehog.yml").read_text(encoding="utf-8")
     assert "version: latest" not in workflow
     assert re.search(r'version:\s*"?3\.\d+\.\d+', workflow), "scanner runtime is not pinned"
-    assert "extra_args: --only-verified" in workflow
+    assert "--exclude-detectors=Lob" in workflow
 
 
 #: Workflows that run on `push:`, where a ref-only concurrency key silently drops a verdict.

@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+import id_churn_sentinel.core.rotation as rotation_module
 from id_churn_sentinel.cli import build_parser, main
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, ReviewStatus, Significance
 from id_churn_sentinel.core.detect import (
@@ -38,6 +39,7 @@ from id_churn_sentinel.core.detect import (
 )
 from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.registry import Source
+from id_churn_sentinel.core.rotation import rotation_report
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.errors import ReviewError, StoreError
 
@@ -306,3 +308,59 @@ def test_the_cli_watch_command_leaves_everything_unreviewed(
         assert len(recorded) == 1
         assert recorded[0].significance is Significance.UNCLASSIFIED
         assert recorded[0].review_status is ReviewStatus.UNREVIEWED
+
+
+def test_the_rotation_detector_reads_human_decisions_and_cannot_make_one(
+    tmp_path: Path, source: Source
+) -> None:
+    """Layer 1, extended to the slow-rotation detector — the newest place a heuristic could
+    grow a hat.
+
+    `sentinel sources rotation` counts how often a *named human* has dismissed one source as
+    `editorial`. That is a fact about our own review record, and stating it is the point. The
+    two ways it could become a classification are both closed here: it is given no vocabulary
+    to write one (nothing in the module constructs a `ChangeRecord` or calls `reviewed_by`),
+    and the records it reads come back afterwards carrying exactly the significance, status
+    and reviewer the human left on them.
+
+    The third way — acting on its own conclusion by muting the source — is a different
+    failure and is covered where it belongs, in `tests/test_rotation.py`.
+    """
+    monday = datetime(2026, 8, 3, 9, 0, tzinfo=UTC)
+    db = tmp_path / "rotation.db"
+    with SnapshotStore(db) as store:
+        for week in range(3):
+            change = ChangeRecord.observed(
+                source_id=source.id,
+                jurisdiction=source.jurisdiction,
+                document_class=source.document_class,
+                url=source.url,
+                previous_hash=str(week) * 64,
+                new_hash=str(week + 1) * 64,
+                diff_excerpt="-state fish\n+state reptile",
+                observed_at=monday + timedelta(weeks=week),
+            )
+            store.record_change(change)
+            store.update_change(
+                change.reviewed_by(
+                    reviewer="A Named Human",
+                    significance=Significance.EDITORIAL,
+                    status=ReviewStatus.DISMISSED,
+                    reviewed_at=change.observed_at + timedelta(hours=2),
+                )
+            )
+
+    parameters = inspect.signature(rotation_report).parameters
+    assert "significance" not in parameters
+    assert "reviewer" not in parameters
+    source_text = Path(rotation_module.__file__).read_text(encoding="utf-8")
+    assert "reviewed_by" not in source_text
+    assert "ChangeRecord.observed" not in source_text
+
+    with SnapshotStore(db) as store:
+        report = rotation_report(store)
+        assert report.suspects[0].streak == 3
+        for change in store.changes():
+            assert change.reviewer == "A Named Human"
+            assert change.significance is Significance.EDITORIAL
+            assert change.review_status is ReviewStatus.DISMISSED

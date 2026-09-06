@@ -141,6 +141,15 @@ sources-stability: ## Fetch every source TWICE; name the false-drift sources. Ru
 	@# each host, so it is an operator's diagnostic — never the weekly job.
 	uv run sentinel sources check --twice
 
+sources-rotation: ## Name sources a reviewer keeps dismissing as editorial (reads the store)
+	@# The half of the false-drift signal `sources-stability` cannot see. `--twice` catches a
+	@# page that re-rolls a widget on every REQUEST; it cannot catch one that re-rolls hourly,
+	@# and it cannot catch a page that STARTS rotating after it was registered. What notices
+	@# those is a reviewer dismissing the same source as `editorial` week after week — a signal
+	@# that used to live in one person's memory. `sentinel watch` prints this automatically;
+	@# this target is for reading it without running a pass. It suppresses nothing.
+	uv run sentinel sources rotation
+
 watch: ## Run a watch pass over every source (retains the bytes; produces passage diffs)
 	uv run sentinel watch
 

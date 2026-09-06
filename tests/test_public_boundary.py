@@ -150,6 +150,31 @@ def test_watch_workflow_branches_on_what_it_read_not_only_on_what_it_selected() 
     assert "steps.check.outputs.check-status != '0'" in workflow
 
 
+def test_watch_workflow_sees_a_source_that_was_compared_against_nothing() -> None:
+    """A source with no committed baseline is the one bucket `observed` cannot expose.
+
+    A blind or unreachable page is subtracted from the observation numerator, so a pass made
+    entirely of them trips the all-blind refusal above. A source with no committed hash is
+    not: the page was read, it counts as observed, and it was still compared against nothing.
+    With no marker and no branch, a pass in which not one source had a baseline printed a
+    healthy numerator, zero drift, `needs-review=false`, and went green (issue #51).
+    """
+    workflow = (ROOT / ".github" / "workflows" / "watch.yml").read_text(encoding="utf-8")
+
+    # The marker is parsed, and a missing one is loud rather than assumed to be zero.
+    assert "baseline-check-unbaselined-count" in workflow
+    assert "cannot tell how many sources were compared against nothing" in workflow
+
+    # And it reaches the human-review queue, on the same branch as the other buckets that
+    # were read but not compared.
+    review_branch = re.search(
+        r'elif \[\[ "\$moved_count" -gt 0(?:[^\n]*)"\$unbaselined_count" -gt 0 \]\]; then\n'
+        r'(?:.*\n)*?\s*echo "needs-review=true"',
+        workflow,
+    )
+    assert review_branch, "a source compared against nothing must reach the review queue"
+
+
 def test_watch_workflow_never_fails_for_a_source_merely_being_down() -> None:
     """The rule the gate above must not break, pinned so a later edit cannot quietly widen it.
 

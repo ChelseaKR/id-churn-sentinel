@@ -231,6 +231,15 @@ class BaselineReport:
         nothing in it) are excluded. `unbaselined` and `url_changed` ARE observations: the
         page was fetched and read, and what is missing is a hash worth comparing it against,
         not the page.
+
+        That is a claim about *reading*, and it is deliberately not a claim about *comparing* —
+        so this number can never be the only thing a caller reads. Both of those buckets are
+        counted here AND reported on their own machine-readable lines by `baseline check`
+        (`baseline-check-unbaselined-count`, `baseline-check-url-changed-count`), because a
+        pass in which every source was read and not one had a baseline to compare against is a
+        healthy `observed` with zero drift — the same shape as a complete pass over pages that
+        all matched (issue #51). The numerator says what was looked at; the buckets say what
+        was actually held against something, and a caller needs both.
         """
         return len(self.matched) + len(self.moved) + len(self.unbaselined) + len(self.url_changed)
 

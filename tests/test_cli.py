@@ -841,6 +841,65 @@ def test_baseline_check_emits_a_zero_no_text_count_when_every_page_was_readable(
     out_text = capsys.readouterr().out
     assert "baseline-check-no-text-count: 0" in out_text
     assert "NO EXTRACTABLE TEXT" not in out_text
+    # Same property, same reason, for the bucket that had no marker at all (issue #51): a
+    # workflow must be able to read a real zero rather than infer one from a missing line.
+    assert "baseline-check-unbaselined-count: 0" in out_text
+    assert "NO COMMITTED BASELINE" not in out_text
+
+
+def test_baseline_check_counts_a_source_it_compared_against_nothing(
+    cli_registry: Path,
+    source: Source,
+    fixture_before: bytes,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A source with no committed hash is read and then compared against nothing.
+
+    It is the one not-compared bucket that stays INSIDE the observation numerator — the page
+    really was read — so unlike a blind or unreachable source it cannot make the run fail the
+    all-blind refusal. Without its own marker, a pass in which not one source had a baseline
+    prints a healthy `observed`, `moved: 0`, and exits 0: byte-identical to a complete pass
+    over pages that all matched (issue #51).
+    """
+    db = tmp_path / "s.db"
+    out = tmp_path / "baseline-hashes.json"
+
+    # Only `source` is fetched here, so only `source` gets a committed baseline written.
+    main(
+        [*base_args(cli_registry, db), "watch"],
+        fetcher=StubFetcher({source.url: (fixture_before, "text/html")}),
+    )
+    assert main([*base_args(cli_registry, db), "baseline", "write", "--out", str(out)]) == 0
+    capsys.readouterr()
+
+    # Now BOTH sources answer with a readable page. `ca-dmv` is read for the first time and
+    # has nothing on file to be held against.
+    exit_code = main(
+        [
+            *base_args(cli_registry, tmp_path / "never-written.db"),
+            "baseline",
+            "check",
+            "--baselines",
+            str(out),
+        ],
+        fetcher=StubFetcher(
+            {
+                source.url: (fixture_before, "text/html"),
+                "https://www.dmv.ca.gov/portal/x": (fixture_before, "text/html"),
+            }
+        ),
+    )
+
+    out_text = capsys.readouterr().out
+    assert exit_code == 0  # never a gate; a first sight is not a broken build
+    assert "baseline-check-unbaselined-count: 1" in out_text
+    # It must never reach the number a workflow alerts a human with as "a page moved": this
+    # source was not compared against anything at all.
+    assert "baseline-check-moved-count: 0" in out_text
+    assert "NO COMMITTED BASELINE (NOT compared, no drift claimed either way): ca-dmv" in out_text
+    assert "1 source(s) have NO committed baseline" in out_text
+    assert "sentinel watch && sentinel baseline write" in out_text
 
 
 def test_baseline_check_refuses_to_call_a_run_that_read_nothing_a_clean_result(
@@ -1212,6 +1271,9 @@ def test_baseline_check_fails_closed_when_no_source_was_attempted(
     # The denominator marker exists and is zero, so a workflow can branch on the one number
     # that distinguishes "nothing moved" from "nothing was looked at".
     assert "baseline-check-attempted-count: 0" in captured.out
+    # And every numerator marker is emitted on this path too, or its absence here would be
+    # indistinguishable from a bug in the command that prints it.
+    assert "baseline-check-unbaselined-count: 0" in captured.out
 
 
 def test_baseline_check_publishes_its_attempt_denominator_on_a_real_run(

@@ -1115,6 +1115,7 @@ def _refuse_empty_baseline_check() -> int:
     print("baseline-check-cross-contract-count: 0")
     print("baseline-check-no-text-count: 0")
     print("baseline-check-url-changed-count: 0")
+    print("baseline-check-unbaselined-count: 0")
     print("baseline-check-unreachable-count: 0")
     print("baseline-check-observed-count: 0")
     print(
@@ -1174,7 +1175,15 @@ def _print_baseline_buckets(report: BaselineReport) -> None:
             flush=True,
         )
     for source_id in report.unbaselined:
-        print(f"  ?  no committed baseline: {source_id}", flush=True)
+        # Read, and then compared against nothing: there is no committed hash for this source,
+        # so the one thing this command does was not done to it. Printed as loudly as the other
+        # two not-compared buckets, and for the identical reason — a single quiet `?` line next
+        # to a MOVED block reads as housekeeping, when what it actually says is that this run
+        # establishes nothing about that page. A first pass over a source cannot find drift.
+        print(
+            f"  ⊘ NO COMMITTED BASELINE (NOT compared, no drift claimed either way): {source_id}",
+            flush=True,
+        )
     for source_id, baselined_url, registry_url in report.url_changed:
         # The registry points this source id somewhere else now, so the committed hash is
         # about a page this run never fetched. Reported loudly and as its own thing: calling
@@ -1274,6 +1283,14 @@ def _cmd_baseline_check(
     # to the MOVED count: that count is what a workflow alerts a human with as "a source is no
     # longer what the baseline said", and this is a source we could not check at all.
     print(f"baseline-check-url-changed-count: {len(report.url_changed)}")
+    # Sources with no committed hash at all, and the only bucket in this block that is INSIDE
+    # the observation numerator below (issue #51). That makes it the one bucket a workflow
+    # cannot infer: a blind or unreachable page is at least subtracted from `observed`, so a
+    # pass made entirely of them fails the refusal below — but a pass in which every source was
+    # read and NOT ONE had a baseline to compare against prints a healthy `observed`, zero
+    # drift, and exits 0. Its own machine-readable line for the same reason as the four above,
+    # and it must never be added to the MOVED count: these pages were not compared at all.
+    print(f"baseline-check-unbaselined-count: {len(report.unbaselined)}")
     # Sources that never answered. This bucket has been printed one line at a time since the
     # command was written and had NO machine-readable count, so the only number a workflow
     # could see about it was the one it was missing. An outage at one source is not a build
@@ -1314,6 +1331,15 @@ def _cmd_baseline_check(
             "read. This run says nothing about whether those pages changed — a human has to\n"
             "open them, and a source that keeps landing here belongs in the GAPS block of\n"
             "sources/registry.json (`spa-no-text`), not in a reviewer's queue."
+        )
+    if report.unbaselined:
+        print(
+            f"\n{len(report.unbaselined)} source(s) have NO committed baseline. Those pages were\n"
+            "fetched and read, and then compared against nothing: there is no hash on file to\n"
+            "compare them against. This run says nothing about whether they changed — a first\n"
+            "pass over a source cannot find drift, and a zero MOVED count is not evidence that\n"
+            "they were quiet. They stay uncompared every week until a baseline is minted:\n"
+            "  sentinel watch && sentinel baseline write"
         )
     if report.moved_across_contracts:
         # Said once, loudly, and only when it applies. This command holds hashes and no

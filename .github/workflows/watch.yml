@@ -155,6 +155,18 @@ jobs:
             echo "::error::baseline check emitted no 'baseline-check-url-changed-count:' line; cannot decide whether any baseline describes a page we no longer watch"
             exit 1
           fi
+          # Sources with no committed baseline at all (issue #51). Read, and then compared
+          # against nothing, because there is no hash on file to compare them to — so they can
+          # never raise the MOVED count, for the same reason a blind page cannot. Unlike a blind
+          # page, though, they DO count as observed: a pass in which every source was read and
+          # NOT ONE had a baseline prints a healthy observation numerator with every drift count
+          # at zero, which is byte-identical to a complete pass over pages that all matched, and
+          # this job called that green. Missing marker is loud, as above.
+          unbaselined_count="$(sed -n 's/^baseline-check-unbaselined-count: //p' watch-report.txt | tail -n 1)"
+          if [[ ! "$unbaselined_count" =~ ^[0-9]+$ ]]; then
+            echo "::error::baseline check emitted no 'baseline-check-unbaselined-count:' line; cannot tell how many sources were compared against nothing"
+            exit 1
+          fi
           # Sources that never answered at all. Read so the branch below can tell "one state
           # website is down" from "not one host answered" — the same number for two facts that
           # are nothing alike. Missing marker is loud, as above.
@@ -177,6 +189,7 @@ jobs:
             exit 1
           fi
           echo "url-changed-count=${url_changed_count}" >> "$GITHUB_OUTPUT"
+          echo "unbaselined-count=${unbaselined_count}" >> "$GITHUB_OUTPUT"
           echo "moved-count=${moved_count}" >> "$GITHUB_OUTPUT"
           echo "no-text-count=${no_text_count}" >> "$GITHUB_OUTPUT"
           echo "unreachable-count=${unreachable_count}" >> "$GITHUB_OUTPUT"
@@ -202,7 +215,12 @@ jobs:
             echo "nothing-checked=false" >> "$GITHUB_OUTPUT"
             echo "nothing-observed=true" >> "$GITHUB_OUTPUT"
             echo "needs-review=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 || "$url_changed_count" -gt 0 ]]; then
+          # `unbaselined_count` sits in this branch rather than in one of the two above it
+          # because it is not a blind run: those pages WERE read. What they were not is
+          # compared, which is the same thing the no-text and url-changed counts say — and all
+          # three reach a person for the same reason, that a source nothing is being held
+          # against is a source nobody is watching, however green the run looks.
+          elif [[ "$moved_count" -gt 0 || "$no_text_count" -gt 0 || "$url_changed_count" -gt 0 || "$unbaselined_count" -gt 0 ]]; then
             echo "nothing-checked=false" >> "$GITHUB_OUTPUT"
             echo "nothing-observed=false" >> "$GITHUB_OUTPUT"
             echo "needs-review=true" >> "$GITHUB_OUTPUT"
@@ -230,6 +248,7 @@ jobs:
           NO_TEXT_COUNT: ${{ steps.check.outputs.no-text-count }}
           ATTEMPTED_COUNT: ${{ steps.check.outputs.attempted-count }}
           URL_CHANGED_COUNT: ${{ steps.check.outputs.url-changed-count }}
+          UNBASELINED_COUNT: ${{ steps.check.outputs.unbaselined-count }}
           NOTHING_CHECKED: ${{ steps.check.outputs.nothing-checked }}
           NOTHING_OBSERVED: ${{ steps.check.outputs.nothing-observed }}
           UNREACHABLE_COUNT: ${{ steps.check.outputs.unreachable-count }}
@@ -242,6 +261,7 @@ jobs:
             const noTextCount = process.env.NO_TEXT_COUNT;
             const attemptedCount = process.env.ATTEMPTED_COUNT;
             const urlChangedCount = process.env.URL_CHANGED_COUNT;
+            const unbaselinedCount = process.env.UNBASELINED_COUNT;
             const unreachableCount = process.env.UNREACHABLE_COUNT;
             const observedCount = process.env.OBSERVED_COUNT;
             const nothingChecked = process.env.NOTHING_CHECKED === 'true';
@@ -296,6 +316,7 @@ jobs:
                   `Sources moved this run: **${movedCount}**.`,
                   `Sources that answered with no extractable text: **${noTextCount}**.`,
                   `Sources registered at a different URL than their baseline was taken from: **${urlChangedCount}**.`,
+                  `Sources with no committed baseline, read and compared against nothing: **${unbaselinedCount}**.`,
                 ];
             // The remedy differs as much as the finding does. Handing a reviewer
             // `sentinel diff <change-id>` when no change exists sends them looking for a
@@ -341,6 +362,13 @@ jobs:
                   'would be true of a page nobody can read. Those entries are not drift and not a',
                   'no-change result; they are pages a human has to open, and a source that keeps',
                   'landing there belongs in the GAPS block of `sources/registry.json` (`spa-no-text`).',
+                  '',
+                  'A source with **no committed baseline** was not compared against anything either,',
+                  'for a different reason: the page was read fine, and there is simply no hash on file',
+                  'to hold it against. That is not drift and not a no-change result — it is a source',
+                  'nobody is watching yet, and it stays that way every week until a baseline exists.',
+                  'Mint the missing ones with `uv run sentinel watch && uv run sentinel baseline write`',
+                  'and commit `sources/baseline-hashes.json`.',
                   '',
                   'This is a machine observation about bytes at a URL. It is **not** a finding that',
                   'the law changed, and nothing here is published to the feed. A named human must run',

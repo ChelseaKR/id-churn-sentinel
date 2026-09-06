@@ -339,6 +339,52 @@ def test_a_page_with_no_extractable_text_is_not_compared_against_the_baseline(
     assert "0 match the committed baseline" in report.summary()
 
 
+def test_the_observation_deficit_accounts_for_every_source_attempted(
+    source: Source, fixture_before: bytes
+) -> None:
+    """`observed + unreachable + no_text == total`, over every mix of buckets.
+
+    The weekly job reports an observation *rate* (issue #52) and names the remainder that was
+    not read. That remainder is only trustworthy if the two buckets it names are the whole of
+    it — otherwise the summary prints a percentage next to a shortfall it cannot explain, and
+    a reader completes the sentence themselves in the reassuring direction ("the rest were
+    fine"). It is an identity rather than an estimate because `check_baselines` puts each
+    source in exactly one bucket — every branch of its loop `continue`s — and `observed` is
+    defined as everything except the two that were not read.
+
+    Pinned here, on the Python side, because `.github/workflows/watch.yml` now *asserts* it
+    from the printed markers and fails the run when it does not hold. A bucket added to
+    `BaselineReport` without being added to `observed` would break the hosted job at 07:11 on
+    a Monday; this test breaks the merge instead.
+    """
+    readable = replace(source, id="ca-dmv", url="https://www.dmv.ca.gov/portal/x")
+    blind = replace(source, id="ny-dmv", url="https://dmv.ny.gov/x")
+    down = replace(source, id="il-sos", url="https://www.ilsos.gov/x")
+
+    report = check_baselines(
+        [source, readable, blind, down],
+        StubFetcher(
+            {
+                source.url: (fixture_before, "text/html"),
+                readable.url: (fixture_before, "text/html"),
+                blind.url: (b"<html><head><script>x</script></head></html>", "text/html"),
+                # `down` is deliberately absent: StubFetcher models an outage by omission.
+            }
+        ),
+        {},
+    )
+
+    assert report.total == 4
+    assert report.observed == 2
+    assert [entry[0] for entry in report.no_text] == [blind.id]
+    assert [entry[0] for entry in report.unreachable] == [down.id]
+    assert report.observed + len(report.unreachable) + len(report.no_text) == report.total, (
+        "the observation deficit no longer accounts for every attempted source: a bucket "
+        "exists that is neither counted as read nor named as one of the two ways of not "
+        "having read it, so the reported rate would describe a population nothing can name"
+    )
+
+
 def test_a_binary_source_is_still_compared_normally(source: Source) -> None:
     """A PDF normalizes to empty text by design and its hash covers the raw bytes, so it is a
     real measurement and must not be swept into the unreadable bucket."""

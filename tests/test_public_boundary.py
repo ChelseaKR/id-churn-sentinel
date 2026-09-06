@@ -237,6 +237,70 @@ def test_watch_workflow_never_fails_for_a_source_merely_being_down() -> None:
         )
 
 
+def test_watch_workflow_reports_an_observation_rate_whose_remainder_it_can_name() -> None:
+    """The rate the job reports must not sit next to an unexplained shortfall.
+
+    The blind-run refusal fires at `observed == 0` and nowhere else, so a run that read 1 of
+    156 sources and found it unchanged prints every drift count at zero and exits 0 —
+    byte-identical to a complete pass. Issue #52 is the question of where that line belongs;
+    the answer to it is a product judgment and is deliberately not made here. What *is* made
+    here is that the rate is reported, and that the reader can account for the whole of it.
+
+    `check_baselines` puts every attempted source in exactly one bucket, and `observed`
+    excludes exactly the two that were not read, so
+
+        observed + unreachable + no-text == attempted
+
+    is an identity (pinned on the Python side by
+    `tests/test_baseline.py::test_the_observation_deficit_accounts_for_every_source_attempted`).
+    Naming only the unreachable count leaves the reader to complete the sentence, and the
+    completion anyone reaches for is the reassuring one — "the rest were read and were fine".
+    So the summary names both halves, and the step refuses to print a rate over a population
+    it cannot describe rather than printing one and hoping.
+
+    Asserted against the workflow text, the established pattern here for `.github/workflows`
+    invariants (see `test_secret_scan_pins_its_runtime_and_never_floats_to_latest`), because
+    the property lives in the YAML and not in any importable module.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "watch.yml").read_text(encoding="utf-8")
+
+    # The rate is derived from what was read over what was attempted — never from a drift
+    # count, and never hand-written.
+    rate = re.search(
+        r'observation_rate="\$\(awk -v o="\$observed_count" -v a="\$attempted_count"',
+        workflow,
+    )
+    assert rate, "the observation rate is not computed from observed over attempted"
+
+    # It reaches a human on EVERY run via the job summary, and the runs that already reach one
+    # carry it in the review-queue issue body too.
+    assert 'echo "observation-rate=${observation_rate}" >> "$GITHUB_OUTPUT"' in workflow
+    assert '} >> "$GITHUB_STEP_SUMMARY"' in workflow
+    assert "OBSERVATION_RATE: ${{ steps.check.outputs.observation-rate }}" in workflow
+    assert "const observationRate = process.env.OBSERVATION_RATE;" in workflow
+
+    # The remainder is named in full: a page that answered with nothing in it was not read,
+    # exactly as a host that never answered was not.
+    summary = workflow[workflow.index("### Observation rate") :]
+    summary = summary[: summary.index('} >> "$GITHUB_STEP_SUMMARY"')]
+    assert "${unreachable_count}" in summary, "the summary does not name the unreachable bucket"
+    assert "${no_text_count}" in summary, (
+        "the summary names only the unreachable half of the deficit; an unreadable page was "
+        "not read either, and a remainder the reader cannot account for is read as 'fine'"
+    )
+
+    # And the identity is checked rather than assumed, loudly, like every other marker here.
+    assert (
+        'unaccounted_count="$(( attempted_count - observed_count '
+        '- unreachable_count - no_text_count ))"'
+    ) in workflow, "the observation arithmetic is not reconciled against the attempt denominator"
+    reconcile = re.search(
+        r'if \[\[ "\$unaccounted_count" -ne 0 \]\]; then\n(?:.*\n)*?\s*exit 1',
+        workflow,
+    )
+    assert reconcile, "an unreconcilable observation count must fail rather than print a rate"
+
+
 def test_watch_workflow_retitles_the_review_queue_issue_when_reusing_it() -> None:
     """`watch.yml` posts one of three mutually exclusive findings each run — "nothing was
     attempt-eligible", "every attempted source was unreadable", or "watched sources moved" —

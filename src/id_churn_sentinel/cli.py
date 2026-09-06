@@ -77,6 +77,7 @@ from id_churn_sentinel.core.eligibility import (
     eligibility_report,
     evaluate_source,
     parse_as_of,
+    registry_revision,
 )
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
 from id_churn_sentinel.core.normalize import (
@@ -99,6 +100,16 @@ from id_churn_sentinel.core.registry import (
     Registry,
     default_registry_path,
     load_registry,
+)
+from id_churn_sentinel.core.registry_changelog import (
+    changelog_document,
+    default_changelog_path,
+    diff_registries,
+    dumps_changelog,
+    load_changelog,
+    read_registry_at,
+    reconcile,
+    seed_document,
 )
 from id_churn_sentinel.core.rotation import ROTATION_THRESHOLD, RotationReport, rotation_report
 from id_churn_sentinel.core.site import REPO_URL
@@ -236,6 +247,59 @@ def build_parser() -> argparse.ArgumentParser:
             "the two — a page that re-rolls a rotating widget on every request is a "
             "false-drift source and must not be watched as-is. Doubles the load on the "
             "host: an operator's diagnostic, never the weekly job."
+        ),
+    )
+
+    registry_cmd = sub.add_parser("registry", help="commands over the registry as it changes")
+    registry_sub = registry_cmd.add_subparsers(dest="registry_command", required=True)
+    changelog_cmd = registry_sub.add_parser(
+        "changelog",
+        help="derive registry change events between two revisions (no network, no clock)",
+        description=(
+            "The registry is not a fixed list — sources get swapped for deeper pages, "
+            "jurisdictions get closed through statute pages, a form moves from a source to a "
+            "named gap. A consumer subscribed to feed-us-az.xml is subscribed to a "
+            "jurisdiction and a document class, not to a URL, so it has no way to learn that "
+            "the page behind an entry is not the page it was. This derives that history from "
+            "two committed revisions, as closed-vocabulary events. It reads no network and "
+            "no clock: the same two revisions always produce the same bytes."
+        ),
+    )
+    changelog_cmd.add_argument(
+        "--from",
+        dest="from_ref",
+        default="",
+        metavar="REV_OR_PATH",
+        help=(
+            "the earlier revision: a git revision (e.g. HEAD~1, a tag, a sha) or a path to a "
+            "registry file. A revision is read with `git show <rev>:sources/registry.json` "
+            "and validated by the same loader the current registry goes through."
+        ),
+    )
+    changelog_cmd.add_argument(
+        "--to",
+        dest="to_ref",
+        default="",
+        metavar="REV_OR_PATH",
+        help="the later revision (default: the registry this invocation loaded)",
+    )
+    changelog_cmd.add_argument(
+        "--append",
+        action="store_true",
+        help=(
+            f"append the derived events to {default_changelog_path().name} instead of printing "
+            "them. Refuses to append events already recorded for the same revision pair, so "
+            "re-running it cannot duplicate history."
+        ),
+    )
+    changelog_cmd.add_argument(
+        "--init",
+        action="store_true",
+        help=(
+            "write an EMPTY log that starts at the `--to` revision. Everything before it is "
+            "marked unrecorded rather than reconstructed: deriving events from revisions that "
+            "predate this schema is out of scope, and a log whose first entry looks like a "
+            "beginning is worse than one that says where it begins."
         ),
     )
 
@@ -510,6 +574,8 @@ def _dispatch(
     registry = load_registry(args.registry)
     if args.command == "sources":
         return _dispatch_sources(args, registry, fetcher)
+    if args.command == "registry":
+        return _cmd_registry_changelog(args, registry)
     if args.command == "baseline":
         if args.baseline_command == "check":
             return _cmd_baseline_check(args, registry, fetcher)
@@ -549,6 +615,78 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
             return _cmd_sources_stability(registry, fetcher)
         return _cmd_sources_check(registry, fetcher)
     return _cmd_sources_validate(registry, args.registry or default_registry_path())
+
+
+def _cmd_registry_changelog(args: argparse.Namespace, registry: Registry) -> int:
+    """Derive registry change events between two revisions, and optionally accumulate them.
+
+    Three modes, and only one of them writes: printing (the default), `--init` (write the
+    empty log that says where recorded history begins), and `--append` (extend it).
+
+    `--append` refuses a revision pair the log already carries. That is not politeness about
+    duplicates: an event list with the same swap in it twice would report two swaps, and a
+    consumer counting source changes per jurisdiction would be counting a re-run of this
+    command.
+    """
+    target = default_changelog_path()
+
+    if args.init:
+        if target.exists():
+            print(
+                f"error: {target} already exists. `--init` writes the starting marker and "
+                f"would overwrite recorded history.",
+                file=sys.stderr,
+            )
+            return 1
+        target.write_text(dumps_changelog(seed_document(registry)), encoding="utf-8")
+        print(f"wrote {target} — empty, starting at this registry revision.")
+        return 0
+
+    if not args.from_ref:
+        print(
+            "error: --from is required unless --init is given. There is no default earlier "
+            "revision: guessing one would silently pick which history got recorded.",
+            file=sys.stderr,
+        )
+        return 1
+
+    before = read_registry_at(args.from_ref)
+    after = read_registry_at(args.to_ref) if args.to_ref else registry
+    events = diff_registries(before, after)
+
+    if not args.append:
+        print(
+            dumps_changelog(
+                changelog_document(events, unrecorded_before=registry_revision(before))
+            ),
+            end="",
+        )
+        return 0
+
+    document = load_changelog(target)
+    recorded = document["events"]
+    pairs = {(event["from_revision"], event["to_revision"]) for event in recorded}
+    fresh = [event.to_dict() for event in events]
+    already = sorted({(e["from_revision"], e["to_revision"]) for e in fresh} & pairs)
+    if already:
+        print(
+            f"error: {target} already records events for revision pair "
+            f"{already[0][0][:12]}..{already[0][1][:12]}. Appending them again would report "
+            f"one change twice.",
+            file=sys.stderr,
+        )
+        return 1
+
+    document["events"] = [*recorded, *fresh]
+    violations = reconcile(document, registry)
+    if violations:
+        print("\nTHE APPENDED LOG DOES NOT RECONCILE WITH THE REGISTRY:", file=sys.stderr)
+        for violation in violations:
+            print(f"  ✗ {violation}", file=sys.stderr)
+        return 1
+    target.write_text(dumps_changelog(document), encoding="utf-8")
+    print(f"appended {len(fresh)} event(s) to {target}.")
+    return 0
 
 
 def _cmd_sources_policy(args: argparse.Namespace) -> int:
@@ -1005,28 +1143,56 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
 
     holes = completeness_violations(registry)
     drifts = check_docs(report)
-    if not holes and not drifts:
+    # The third form of the same question, asked of the registry's own history. The two checks
+    # above hold the registry and the prose to each other at one instant. A changelog is a
+    # claim about how the registry got here, and a claim about the past is exactly the kind
+    # nothing re-derives: a hand-edited entry, or one left behind by a source that has since
+    # been swapped, reads as history forever and is believed precisely because it looks like
+    # a record rather than a summary.
+    unreconciled = reconcile(load_changelog(), registry)
+    if not holes and not drifts and not unreconciled:
         print(
             f"\ncoverage --check-docs: OK — every coverage number in {len(DOC_PATHS)} "
-            f"document(s) matches the registry, and every unwatched jurisdiction/"
-            f"document-class pair is a named gap."
+            f"document(s) matches the registry, every unwatched jurisdiction/"
+            f"document-class pair is a named gap, and the registry changelog reconciles "
+            f"with the registry it describes."
         )
         return 0
 
-    if holes:
-        print("\nREGISTRY IS NOT HONEST ABOUT ITS OWN HOLES:", file=sys.stderr)
-        for hole in holes:
-            print(f"  ✗ {hole}", file=sys.stderr)
-    if drifts:
-        print("\nA DOCUMENT DISAGREES WITH THE REGISTRY:", file=sys.stderr)
-        for drift in drifts:
-            print(f"  ✗ {drift}", file=sys.stderr)
-        print(
-            "\nDo not 'fix' this by editing the registry to match the prose. Run "
-            "`sentinel coverage`, and write down what it actually says.",
-            file=sys.stderr,
-        )
+    _report_violations(
+        "REGISTRY IS NOT HONEST ABOUT ITS OWN HOLES:",
+        holes,
+        remedy="",
+    )
+    _report_violations(
+        "A DOCUMENT DISAGREES WITH THE REGISTRY:",
+        drifts,
+        remedy=(
+            "Do not 'fix' this by editing the registry to match the prose. Run "
+            "`sentinel coverage`, and write down what it actually says."
+        ),
+    )
+    _report_violations(
+        "THE REGISTRY CHANGELOG DOES NOT DESCRIBE THIS REGISTRY:",
+        unreconciled,
+        remedy=(
+            "Derive the missing events with `sentinel registry changelog --from <rev> "
+            "--append`. Do not hand-edit the log to agree: a changelog is only worth "
+            "anything while nothing but a diff has ever written it."
+        ),
+    )
     return 1
+
+
+def _report_violations(headline: str, violations: Sequence[str], *, remedy: str) -> None:
+    """Print one category of gate failure, or nothing at all when it has none."""
+    if not violations:
+        return
+    print(f"\n{headline}", file=sys.stderr)
+    for violation in violations:
+        print(f"  ✗ {violation}", file=sys.stderr)
+    if remedy:
+        print(f"\n{remedy}", file=sys.stderr)
 
 
 def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:

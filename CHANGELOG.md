@@ -284,6 +284,43 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 - Per-host crawl spacing in `HttpFetcher` (2026-07-17): consecutive page
   requests to the same host are held at least a minimum interval apart
   (default 2s), structurally, so no call path can burst a government server.
+- **`sentinel registry changelog` — the registry's own history, derived rather than
+  remembered** (2026-09-06, part of #75). New `core/registry_changelog.py`,
+  `docs/schema/registry-changelog-v1.schema.json`, and the committed accumulating log
+  at `sources/registry-changelog.json`. The registry is not a fixed list: Arizona was
+  swapped for a deeper page, sixteen jurisdictions were closed through statute pages,
+  Michigan's SCAO form moved from a source to a named gap — and all of that lived only
+  in commit messages. A consumer subscribed to `feed-us-az.xml` is subscribed to a
+  jurisdiction and a document class, never to a URL, so nothing told it the page behind
+  an entry was not the page it was. The command diffs two revisions (a git revision or a
+  file, loaded through the *same* validator the live registry goes through) into a closed
+  vocabulary of thirteen event kinds. It reads no clock and no network, so the same two
+  revisions always produce the same bytes.
+
+  Three properties are tested rather than asserted. The vocabulary is closed, so a
+  consumer can branch exhaustively. Every event carries its own `from_revision` and
+  `to_revision`, so it stays self-describing after being filtered to one jurisdiction.
+  And **nothing is dropped in silence**: the diff re-reads its own inputs and raises if
+  any field difference it can see is unreported by an emitted event or unnamed in the
+  documented non-eventful list. A changelog that quietly loses a change is
+  indistinguishable, to every consumer and every other test, from a registry that did
+  not change.
+
+  Two deviations from the proposal, both to avoid publishing a wrong label rather than
+  to add features. `verification_expired` is kept but means only that the entry stopped
+  being human-verified: expiry is evaluated against an `as_of` (`core/eligibility.py`)
+  and a diff of two files has no clock, so the recorded recheck date travels on the
+  event instead of a conclusion nothing computed. And a named human opening a URL and
+  finding it is *not* the official page is `verification_rejected`, never an expiry —
+  four kinds were added (`verification_rejected`, `verification_reset`, `gap_opened`,
+  `reclassified`) because without them a real transition would have been dropped or
+  filed under a label that does not describe it.
+
+  `sentinel coverage --check-docs` now also fails when the log does not reconcile with
+  the registry it describes: an event naming a source the registry has never contained,
+  or a last-reported URL that disagrees with what the registry now carries. A claim about
+  the past is exactly the kind nothing re-derives, and it is believed precisely because
+  it looks like a record.
 
 ### Fixed
 

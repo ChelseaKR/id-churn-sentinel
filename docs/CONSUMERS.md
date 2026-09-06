@@ -271,6 +271,28 @@ The following is a complete schema-valid illustrative record. Its source is deli
 
 **`significance` and `reviewer` are never machine-set** — see `docs/RESPONSIBLE-TECH-AUDITS.md` §B.
 
+### The registry changes, and that history is now derivable
+
+Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's licence" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.
+
+`sentinel registry changelog` derives that history from two committed revisions of `sources/registry.json`:
+
+```sh
+# what changed in the registry between two commits, as machine-readable events
+uv run sentinel registry changelog --from v0.1.0 --to HEAD
+```
+
+It reads no network and no clock, so the same two revisions always produce the same bytes, and the accumulated log lives at `sources/registry-changelog.json`. The contract is `docs/schema/registry-changelog-v1.schema.json`.
+
+**What an event does and does not say.** An event reports what the registry said on either side of a revision pair. It never claims anything about the page at the URL, and never anything about the law. The `kind` vocabulary is closed — thirteen values, listed in the schema — so you can branch exhaustively and know you have not been handed a fourteenth thing.
+
+Two of those thirteen deserve reading before you build on them:
+
+- **`verification_expired` means the entry stopped being human-verified.** It does *not* assert that a recheck date had passed. Expiry is evaluated against an `as_of`, and a diff of two files has no clock to evaluate one against, so the recorded `expires_at` travels on the event and you draw your own conclusion.
+- **`verification_rejected` is a person's finding, not a lapse.** A named human opened that URL and found it is **not** the official page for that document class in that jurisdiction. It is never reported as an expiry.
+
+**Where the log begins.** `unrecorded_before.revision` names the registry revision this log opens at. Events before it were never derived — which is not the same as saying the registry did not change before then. Do not read the earliest event in the log as the registry's first change.
+
 ### The versioning promise
 
 - **A major bump means a break.** Version 2 adds independent-review and correction lifecycle fields; the v1 schema remains available for integrations that have not migrated. Pin the major and validate against its matching schema.

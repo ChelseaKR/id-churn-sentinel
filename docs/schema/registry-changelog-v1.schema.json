@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/registry-changelog-v1.schema.json",
+  "title": "ID Churn Sentinel registry changelog v1",
+  "description": "What the registry watched, and how that changed. Derived from two committed revisions of sources/registry.json by `sentinel registry changelog`; never hand-written. Every event says what the registry said on either side of a revision pair. No event makes a claim about the page at the URL, and none makes a claim about the law.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "statement", "unrecorded_before", "events"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "statement": { "type": "string", "minLength": 1 },
+    "unrecorded_before": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "statement"],
+      "description": "Where recorded history begins. Reconstructing events from revisions predating this schema is out of scope, so the alternative to this block is a log whose earliest entry reads as the registry's first change. `revision` is the sha256 of the canonical registry at the point the log was opened.",
+      "properties": {
+        "revision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    }
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "subject",
+        "subject_id",
+        "jurisdiction",
+        "document_class",
+        "from_revision",
+        "to_revision"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "The closed vocabulary. A consumer may branch exhaustively on this field. `verification_expired` means the entry stopped being human-verified between the two revisions; it does NOT assert that a recheck date had passed, because a diff of two files has no clock to evaluate one against. The recorded recheck date travels in `expires_at` so a reader can judge for themselves. A named human finding a page is NOT the official one is `verification_rejected`, never an expiry.",
+          "enum": [
+            "added",
+            "removed",
+            "url_changed",
+            "authority_changed",
+            "reclassified",
+            "verified",
+            "verification_expired",
+            "verification_rejected",
+            "verification_reset",
+            "moved_to_gap",
+            "gap_opened",
+            "gap_closed",
+            "policy_decision_recorded"
+          ]
+        },
+        "subject": { "type": "string", "enum": ["source", "gap"] },
+        "subject_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A registry source id, or `gap:<JURISDICTION>:<document_class>` for a gap, which the registry does not itself carry an id for. Source ids cannot contain a colon, so the two spaces cannot collide."
+        },
+        "jurisdiction": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "document_class": { "type": "string", "minLength": 1 },
+        "from_revision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "to_revision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The earlier value, when the kind has one. OMITTED, never blank: a blank would read as a value of \"\"."
+        },
+        "to": { "type": "string", "minLength": 1, "description": "The later value, when the kind has one." },
+        "reason": {
+          "type": "string",
+          "description": "Why a gap exists, drawn from the registry's closed gap vocabulary. Never free text, and never an operator note.",
+          "enum": [
+            "robots-disallowed",
+            "blocked-403",
+            "blocked-404",
+            "blocked-200",
+            "tls-unverifiable",
+            "js-challenge",
+            "spa-no-text",
+            "false-drift",
+            "unreachable",
+            "no-such-authority",
+            "wrong-page"
+          ]
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The named human whose decision this event records — a verifier, or the reviewer of a fetch policy. Absent for events no person authored."
+        },
+        "at": { "type": "string", "format": "date" },
+        "expires_at": { "type": "string", "format": "date" }
+      }
+    }
+  }
+}

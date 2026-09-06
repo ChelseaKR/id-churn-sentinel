@@ -443,6 +443,25 @@ class HttpFetcher:
                 byte_limit=self._max_bytes,
             )
 
+    def may_request(self, url: str) -> str | None:
+        """`None` when a request to `url` is permitted; otherwise the error class forbidding it.
+
+        Public so a second channel — the HEAD-only availability probe (`core/probe.py`) — can
+        inherit this fetcher's politeness posture rather than reimplement it. A second crawler
+        in this repository that decided robots.txt for itself would eventually decide it
+        differently, and the whole gap vocabulary rests on the two agreeing.
+        """
+        return self._redirect_refusal(url)
+
+    def space_before_request(self, host: str) -> None:
+        """Apply this fetcher's per-host crawl spacing, including a declared `Crawl-delay`.
+
+        Public for the same reason as :meth:`may_request`: the probe channel shares the host,
+        so it must share the rate limit. Two channels each politely waiting two seconds are
+        one impolite channel.
+        """
+        self._space_before_request(host)
+
     def _redirect_refusal(self, target: str) -> str | None:
         """The two guards, re-applied to a redirect target. `None` means it may be followed.
 

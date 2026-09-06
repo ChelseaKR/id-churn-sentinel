@@ -17,8 +17,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "enum": ["1.0", "1.1"],
-      "description": "1.1 (issue #19) adds unmeasured_source_ids, unmeasured_count and observed_source_count to every run, so a retrieval that returned no readable text can no longer be counted among the pages we watched. Every document this build writes is 1.1; 1.0 is still accepted because the currently published status.json was written before the change and is republished on the next `sentinel publish`, not by an edit to a generated file."
+      "enum": ["1.0", "1.1", "1.2"],
+      "description": "1.1 (issue #19) adds unmeasured_source_ids, unmeasured_count and observed_source_count to every run, so a retrieval that returned no readable text can no longer be counted among the pages we watched. 1.2 (issue #74) adds the OPTIONAL `availability` block, the HEAD-only probe channel's summary. Earlier versions are still accepted because a document written before a change is republished on the next `sentinel publish`, not by an edit to a generated file."
     },
     "generated_at": { "type": "string", "format": "date-time" },
     "state": {
@@ -33,9 +33,49 @@
     },
     "last_successful_run": {
       "oneOf": [{ "$ref": "#/$defs/run" }, { "type": "null" }]
-    }
+    },
+    "availability": { "$ref": "#/$defs/availability" }
   },
   "$defs": {
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The HEAD-only availability channel (`sentinel probe`, schema 1.2). ABSENT means that channel has not run — which is NOT the same as, and must never be read as, 'nothing was unavailable'. Probes never read a body, never produce a snapshot, and are never counted as watch observations: a source that probed reachable is not a source that was watched.",
+      "required": ["channel", "statement", "last_probe_at", "probes", "sources", "episodes_total", "episodes_measured", "episodes_censored", "episode_length_probes"],
+      "properties": {
+        "channel": { "type": "string", "const": "head-probe" },
+        "statement": { "type": "string", "minLength": 1 },
+        "last_probe_at": { "type": "string", "format": "date-time" },
+        "probes": { "type": "integer", "minimum": 0 },
+        "sources": { "type": "integer", "minimum": 0 },
+        "episodes_total": { "type": "integer", "minimum": 0 },
+        "episodes_measured": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Outage episodes whose start AND end this channel observed. Only these have a measured length."
+        },
+        "episodes_censored": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Episodes with at least one end unobserved. Their lengths are lower bounds, not measurements, and are excluded from the distribution below."
+        },
+        "episode_length_probes": { "$ref": "#/$defs/episodeLengths" }
+      }
+    },
+    "episodeLengths": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The distribution of measured episode lengths, counted in PROBES rather than hours because the probe cadence is operator configuration and an hours figure would silently rewrite history the day it changed. With no measured episode every figure is null and `reason` says why — never zero, which would read as 'outages lasted no time'.",
+      "required": ["n"],
+      "properties": {
+        "n": { "type": "integer", "minimum": 0 },
+        "min": { "type": ["integer", "null"], "minimum": 0 },
+        "median": { "type": ["number", "null"], "minimum": 0 },
+        "max": { "type": ["integer", "null"], "minimum": 0 },
+        "reason": { "type": "string", "minLength": 1 },
+        "counts": { "type": "object" }
+      }
+    },
     "run": {
       "type": "object",
       "additionalProperties": false,

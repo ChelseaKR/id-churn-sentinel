@@ -8,10 +8,12 @@ so a new ``generated_at`` can never turn an old or failed watch green.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from id_churn_sentinel.core.probe import availability_block
 from id_churn_sentinel.core.store import RUN_RUNNING, SnapshotStore, WatchRun
 
 __all__ = [
@@ -29,7 +31,10 @@ __all__ = [
 # validating against 1.0 must be able to tell that the document it is holding is a different
 # one. The fields exist because `successful_retrieval_count` alone let a source that returned
 # no readable text be counted among the pages we watched.
-STATUS_SCHEMA_VERSION = "1.1"
+# 1.2 (2026-09-06, issue #74) adds the optional `availability` block: the HEAD-only probe
+# channel's summary. Additive and OPTIONAL — an absent block means that channel has not run,
+# which is not the same as, and must never be read as, "nothing was unavailable".
+STATUS_SCHEMA_VERSION = "1.2"
 DEFAULT_STALE_AFTER = timedelta(days=8)
 
 
@@ -42,6 +47,11 @@ class PublicRunStatus:
     stale_after: timedelta
     last_attempted: WatchRun | None
     last_successful: WatchRun | None
+    #: The HEAD-only availability channel's summary, or `None` when it has never run (#74).
+    #: `None` means an ABSENT key in `status.json`, and that is deliberate: a block full of
+    #: zeroes would publish "no outages" over the top of "no measurements", which is the
+    #: defect the probe channel exists to remove from the removal thresholds.
+    availability: Mapping[str, Any] | None = None
 
 
 def no_run_status(*, stale_after: timedelta = DEFAULT_STALE_AFTER) -> PublicRunStatus:
@@ -55,6 +65,7 @@ def no_run_status(*, stale_after: timedelta = DEFAULT_STALE_AFTER) -> PublicRunS
         stale_after=stale_after,
         last_attempted=None,
         last_successful=None,
+        availability=None,
     )
 
 
@@ -71,9 +82,13 @@ def build_public_status(
     # diagnostic remains available in the run ledger but cannot turn the national feed green.
     attempted = store.latest_watch_run(aggregate_only=True)
     successful = store.latest_watch_run(successful_only=True, aggregate_only=True)
+    # Derived from a different table and a different channel. It is read even when no watch
+    # has ever completed, because "we have probed this URL daily for a month" is a true and
+    # useful thing to be able to say on a day the watch is red.
+    availability = availability_block(store.probes())
 
     if attempted is None:
-        return no_run_status(stale_after=stale_after)
+        return replace(no_run_status(stale_after=stale_after), availability=availability)
 
     reference = attempted.completed_at or attempted.started_at
     is_stale = current - reference > stale_after
@@ -89,6 +104,7 @@ def build_public_status(
         stale_after=stale_after,
         last_attempted=attempted,
         last_successful=successful,
+        availability=availability,
     )
 
 
@@ -105,6 +121,10 @@ def status_json(status: PublicRunStatus, *, generated_at: datetime) -> str:
         "last_attempted_run": _run_payload(status.last_attempted),
         "last_successful_run": _run_payload(status.last_successful),
     }
+    # Omitted, never blanked. An absent `availability` says the HEAD-only channel has not run;
+    # a present one full of zeroes would say every source has been up the whole time.
+    if status.availability is not None:
+        payload["availability"] = dict(status.availability)
     return json.dumps(payload, indent=2, sort_keys=False) + "\n"
 
 

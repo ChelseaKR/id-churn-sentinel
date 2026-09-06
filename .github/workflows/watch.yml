@@ -262,6 +262,25 @@ jobs:
             observation_rate="n/a"
           fi
           echo "observation-rate=${observation_rate}" >> "$GITHUB_OUTPUT"
+          # THE DEFICIT MUST ACCOUNT FOR ITSELF. `check_baselines` puts every attempted source
+          # in exactly one bucket -- each branch of its loop `continue`s -- and `observed` is
+          # defined as everything except the two that were not read. So
+          #
+          #     observed + unreachable + no-text == attempted
+          #
+          # is an identity over the markers this step already parses, not an estimate. Asserted
+          # rather than assumed, for the reason every other marker check above exists: a rate
+          # printed next to a remainder nothing explains is a number a reader completes for
+          # themselves, and the completion they reach for is the reassuring one ("the rest were
+          # fine"). If the identity ever breaks, a bucket was added to the CLI without being
+          # added here, and this step is silently reporting a rate over a population it can no
+          # longer describe. That is a bug in this repo -- not a state website being down -- and
+          # it is loud for the same reason a missing marker is.
+          unaccounted_count="$(( attempted_count - observed_count - unreachable_count - no_text_count ))"
+          if [[ "$unaccounted_count" -ne 0 ]]; then
+            echo "::error::observation arithmetic does not reconcile: attempted=${attempted_count}, observed=${observed_count}, unreachable=${unreachable_count}, no-text=${no_text_count} leaves ${unaccounted_count} source(s) unaccounted for. The observation rate would describe a population this job cannot name."
+            exit 1
+          fi
           {
             echo "### Observation rate"
             echo
@@ -269,8 +288,15 @@ jobs:
               echo "**No sources were attempted**, so there is no rate to report. This run"
               echo "is not evidence that nothing changed."
             else
+              # Both halves of the deficit, never just the loud one. A page that answered with
+              # nothing in it was not compared against the committed baseline any more than a
+              # host that never answered was, and a summary that names only the unreachable
+              # count invites the reader to assume the remainder was read.
               echo "Read **${observed_count}** of **${attempted_count}** attempted source(s)"
-              echo "(**${observation_rate}%**); **${unreachable_count}** never answered."
+              echo "(**${observation_rate}%**). The rest were not read at all:"
+              echo "**${unreachable_count}** never answered, and **${no_text_count}** answered"
+              echo "with no extractable text. Those two are the whole remainder — this step"
+              echo "fails rather than print a rate whose deficit it cannot account for."
               echo
               echo "This figure is reported, not enforced. A low rate does not fail this job:"
               echo "government sites go down, and a badge that reddens for that teaches a"

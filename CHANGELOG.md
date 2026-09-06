@@ -9,6 +9,37 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **The observation rate named only half the sources it had not read** (2026-09-06),
+  in `.github/workflows/watch.yml`, `tests/test_baseline.py` and
+  `tests/test_public_boundary.py`. The weekly summary printed "Read N of M attempted
+  source(s) (X%); K never answered" — naming `unreachable` and saying nothing about
+  `no_text`, the pages that answered with nothing extractable in them. A page that
+  served no text was not compared against the committed baseline any more than a host
+  that never answered was, so the sentence left a remainder the reader could not
+  account for, and the completion anyone reaches for is the reassuring one: that the
+  rest were read and were fine. An absent category rendered as if it were zero.
+
+  `BaselineReport.total` is `matched + moved + unbaselined + no_text + unreachable +
+  url_changed` and `BaselineReport.observed` is `matched + moved + unbaselined +
+  url_changed`, so
+
+      observed + unreachable + no_text == attempted
+
+  is an identity, not an estimate — every branch of `check_baselines`' loop
+  `continue`s, putting each attempted source in exactly one bucket. The summary now
+  names both halves of the deficit, and the step *reconciles* the identity against the
+  markers it already parses and fails the run when it does not hold. That failure means
+  a bucket was added to the CLI without being added to the workflow, which is a bug in
+  this repository rather than a state website being down; the rate is still reported and
+  still deliberately not gated on, so an outage does not redden the badge.
+
+  Two tests hold it. `tests/test_baseline.py` pins the identity on the Python side over
+  a mixed run (read, blind, and unreachable sources together), so a bucket added to
+  `BaselineReport` breaks the merge instead of breaking the hosted job at 07:11 on a
+  Monday. `tests/test_public_boundary.py` asserts against the YAML that the summary
+  names `no_text` as well as `unreachable`, and that the reconciliation exits rather
+  than printing a rate whose deficit it cannot describe.
+
 - **A commit on `main` could get no CI verdict at all, and nothing looked wrong**
   (2026-09-06), in `.github/workflows/ci.yml`, `.github/workflows/trufflehog.yml`
   and `tests/test_public_boundary.py`. Both workflows run on `push: [main]` and

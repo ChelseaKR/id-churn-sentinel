@@ -53,6 +53,9 @@ STATUS_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "docs" / "schema" / "status-v1.schema.json"
 )
 CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
+MANIFEST_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "docs" / "schema" / "consumer-manifest-v1.schema.json"
+)
 V1_VERIFICATION_SCHEMA_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
 )
@@ -83,6 +86,7 @@ _KNOWN_KEYWORDS = {
     "then",
     "else",
     "uniqueItems",
+    "minItems",
 }
 
 _RFC3339_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -227,6 +231,13 @@ def _validate_array(
         canonical = [json.dumps(item, sort_keys=True) for item in instance]
         if len(canonical) != len(set(canonical)):
             return [f"{path}: array items are not unique"]
+    minimum = schema.get("minItems")
+    if isinstance(minimum, int) and len(instance) < minimum:
+        # `consumer-manifest-v1` uses this to say that a page citing nothing, or a manifest
+        # listing no pages, is not a manifest. Without the keyword implemented here the
+        # validator would *refuse* the schema rather than silently pass it (see `_validate`),
+        # which is the right failure mode — but the constraint is real, so it is checked.
+        return [f"{path}: array has {len(instance)} item(s), minimum is {minimum}"]
     item_schema = schema.get("items")
     if item_schema is None:
         return []
@@ -345,10 +356,19 @@ def test_every_consumer_json_example_is_complete_and_schema_valid(
         flags=re.DOTALL,
     )
 
-    assert len(blocks) == 2
+    assert len(blocks) == 3, (
+        "the number of JSON examples in docs/CONSUMERS.md changed. Every one of them is a "
+        "contract fixture — route the new block to the schema it claims to be an example of "
+        "rather than raising this number."
+    )
+    manifest_schema = json.loads(MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8"))
     for index, block in enumerate(blocks):
         payload = json.loads(block)
-        assert _validate(payload, schema, schema, f"consumer_example[{index}]") == []
+        # A consumer manifest is a document the READER authors, so it is validated against its
+        # own schema. Checking it against the feed schema would report it as invalid and teach
+        # the maintainer to loosen a gate that is telling the truth.
+        target = manifest_schema if "pages" in payload else schema
+        assert _validate(payload, target, target, f"consumer_example[{index}]") == []
 
 
 def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:

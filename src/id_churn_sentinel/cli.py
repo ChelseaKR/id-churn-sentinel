@@ -64,6 +64,7 @@ from id_churn_sentinel.core.coverage import (
     check_docs,
     completeness_violations,
     coverage,
+    repo_root,
 )
 from id_churn_sentinel.core.detect import (
     MIN_REMOVAL_SILENCE,
@@ -113,6 +114,12 @@ from id_churn_sentinel.core.registry_changelog import (
 )
 from id_churn_sentinel.core.rotation import ROTATION_THRESHOLD, RotationReport, rotation_report
 from id_churn_sentinel.core.site import REPO_URL
+from id_churn_sentinel.core.staleness import (
+    load_changes_document,
+    load_manifest,
+    render_text,
+    staleness_report,
+)
 from id_churn_sentinel.core.status import build_public_status
 from id_churn_sentinel.core.store import SnapshotStore
 from id_churn_sentinel.core.verify import (
@@ -302,6 +309,37 @@ def build_parser() -> argparse.ArgumentParser:
             "beginning is worse than one that says where it begins."
         ),
     )
+
+    stale_cmd = sub.add_parser(
+        "stale",
+        help="which of YOUR pages cite a source that has since changed (no network, no account)",
+        description=(
+            "The feed says a government page changed. It does not say which of your pages "
+            "depend on it. Give this a manifest of your own pages — each with the source URLs "
+            "it cites and its last-reviewed date — and it reports, per page, the confirmed "
+            "changes to those sources observed since that date. The manifest never leaves "
+            "your machine and nothing is sent anywhere: it reads a published artifact you "
+            "already have a copy of. A citation this registry does not watch is reported as "
+            "`unwatched`, never as current — silence about a page nobody watches is not "
+            "evidence about that page."
+        ),
+    )
+    stale_cmd.add_argument(
+        "--manifest",
+        required=True,
+        type=Path,
+        help="your manifest (docs/schema/consumer-manifest-v1.schema.json)",
+    )
+    stale_cmd.add_argument(
+        "--changes",
+        type=Path,
+        default=None,
+        help=(
+            "a published changes document (default: the committed docs/changes.json, so this "
+            "works from a clean clone with no network)"
+        ),
+    )
+    stale_cmd.add_argument("--json", action="store_true", help="machine-readable output")
 
     verify_cmd = sub.add_parser(
         "verify",
@@ -574,8 +612,8 @@ def _dispatch(
     registry = load_registry(args.registry)
     if args.command == "sources":
         return _dispatch_sources(args, registry, fetcher)
-    if args.command == "registry":
-        return _cmd_registry_changelog(args, registry)
+    if args.command in {"registry", "stale"}:
+        return _dispatch_consumer_command(args, registry)
     if args.command == "baseline":
         if args.baseline_command == "check":
             return _cmd_baseline_check(args, registry, fetcher)
@@ -591,6 +629,13 @@ def _dispatch(
     if args.command in {"review", "approve", "correct", "withdraw"}:
         return _dispatch_change_command(args)
     return _cmd_publish(args, registry)
+
+
+def _dispatch_consumer_command(args: argparse.Namespace, registry: Registry) -> int:
+    """The two commands that read the registry's own history or a consumer's own manifest."""
+    if args.command == "stale":
+        return _cmd_stale(args, registry)
+    return _cmd_registry_changelog(args, registry)
 
 
 def _dispatch_change_command(args: argparse.Namespace) -> int:
@@ -615,6 +660,25 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
             return _cmd_sources_stability(registry, fetcher)
         return _cmd_sources_check(registry, fetcher)
     return _cmd_sources_validate(registry, args.registry or default_registry_path())
+
+
+def _cmd_stale(args: argparse.Namespace, registry: Registry) -> int:
+    """Report which of a consumer's own pages cite a source that has since changed.
+
+    Exit 0 whether or not anything is stale. This is a report a consumer runs against their own
+    editorial queue, not a gate: a page that cites a changed source is a page somebody should
+    look at, and turning that into a failing exit code would make the useful answer look like a
+    broken tool.
+    """
+    manifest = load_manifest(args.manifest)
+    changes_path = args.changes or (repo_root() / "docs" / "changes.json")
+    document = load_changes_document(changes_path)
+    report = staleness_report(manifest, document, registry)
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+    print(render_text(report), end="")
+    return 0
 
 
 def _cmd_registry_changelog(args: argparse.Namespace, registry: Registry) -> int:

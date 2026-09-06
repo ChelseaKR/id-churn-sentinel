@@ -322,6 +322,46 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   the past is exactly the kind nothing re-derives, and it is believed precisely because
   it looks like a record.
 
+- **`sentinel stale` — which of a consumer's OWN pages cite a source that has since
+  changed** (2026-09-06, closes #70). New `core/staleness.py`,
+  `docs/schema/consumer-manifest-v1.schema.json`, and a `docs/CONSUMERS.md` section.
+  The feed says a government page changed; it never said which of a clinic's own pages
+  depend on it, and turning "Texas DPS changed on 2026-08-30" into "your Texas
+  driver's-licence page, last reviewed 2026-06-01, cites that source" was work every
+  consumer would otherwise script by hand, once each, differently.
+
+  `sentinel stale --manifest my-site.json [--changes changes.json] [--json]` reads a
+  consumer-authored manifest of their own pages — each with the source URLs it cites and
+  its last-reviewed date — and reports, per page, the confirmed changes to those sources
+  observed since that date. **No account, no subscriber list, no network**: the manifest
+  stays on their machine and the command reads a published artifact they already have a
+  copy of, defaulting to the committed `docs/changes.json` so it works from a clean
+  clone. That is the same design constraint that rules out email notification here,
+  honoured rather than worked around.
+
+  Three properties, each a test. **A citation this registry does not watch is never
+  reported as current**: every citation is `matched`, `host_only` or `unwatched`, and the
+  vocabulary is closed — a clean report for a page citing a URL nobody watches would
+  invite a consumer to read our silence as evidence about *their* page. URL matching is
+  exact after a deliberately conservative normalization (scheme and host lowercased,
+  default port dropped, fragment dropped); trailing slashes and query strings are NOT
+  stripped, so a citation differing only by a slash is `host_only`, which is true, rather
+  than `matched`, which would be a guess. **Staleness is measured from `observed_at`**,
+  when the government page was observed to change, not from the date a reviewer confirmed
+  it: a source that moved before a page's review date is not stale for that page even if
+  it was confirmed afterwards, and comparing against `reviewed_at` would report a page
+  that is fine as one that is not. Both dates travel on every row and the report states
+  `"compared_on": "observed_at"`. **Only what a human published can appear**: the
+  publisher's `publishable` predicate is re-asserted on the wire format, because
+  `--changes` accepts any conforming file and an unreviewed hash change surfaced to a
+  clinic as "your page is out of date" is exactly the claim this project refuses to make.
+  The summary reports `changes_considered` alongside `changes_in_input`, so a filtered
+  feed can never be mistaken for an empty one.
+
+  `tests/test_schema.py`'s zero-dependency validator gained `minItems`, which the manifest
+  schema needs; it refuses a keyword it does not implement rather than passing it, so the
+  constraint had to be implemented rather than assumed.
+
 ### Fixed
 
 - **A source with no committed baseline was compared against nothing, counted as

@@ -311,6 +311,71 @@ Three things to know before you rely on it.
 
 A row says: a source this page cites was observed to change after the page's own last-reviewed date, and a named human confirmed the change. It does not say your page is wrong, and it says nothing about what the law is.
 
+### A confirmed change, as an issue in *your* tracker
+
+The lowest-effort integration is RSS into Slack. An organization that keeps its guidance in a repository would rather have a change land as an issue in the tracker its editors already work — scoped to the jurisdictions it publishes about, and quoting the published record rather than someone's summary of it.
+
+`consumer-action/` in this repository is that, as a GitHub Action you run in **your** repository. It fetches the published `changes.json`, compares it with a small state file you commit, and opens one issue per newly confirmed change in your scope. Nothing is sent here: no account, no callback, no telemetry, and no subscriber list — the subscription lives entirely in your repository, which is exactly why this can exist at all for a project that will not hold a mailing list.
+
+It is a composite action running one standard-library Python file. It pulls in no other action and installs no package: a scheduled workflow an organization forgets about for a year should not carry a dependency tree that rots faster than the law it watches.
+
+You write a mapping file (`docs/schema/consumer-watch-map-v1.schema.json`):
+
+```json
+{
+  "schema_version": "1.0",
+  "consumer": "Example legal-aid clinic",
+  "jurisdictions": ["TX", "US"],
+  "document_classes": ["drivers_license", "court_order_name_change"],
+  "source_ids": ["us-passport-sex-markers"],
+  "labels": ["sentinel"]
+}
+```
+
+and a scheduled workflow:
+
+```yaml
+name: ID document source changes
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to commit the state file back
+  issues: write     # the only other capability the action needs
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ChelseaKR/id-churn-sentinel/consumer-action@main
+        with:
+          map: .github/sentinel-map.json
+          state: .github/sentinel-state.json
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/sentinel-state.json
+          git diff --staged --quiet || git commit -m "chore: record sentinel changes seen"
+          git push
+```
+
+Run it once with `dry-run: true` first. It prints the plan — one line per change, each `open`, `comment` or `unchanged` — and writes nothing at all.
+
+Five things to know before you schedule it.
+
+**It never interprets a change.** The issue title is the jurisdiction, the document class and the change id. The body is the published record — the excerpt, both hashes, the reviewer trail, the source's verification status — reproduced rather than summarized, and it says in its first line that it is not a statement about what the law is. A consumer-side summarizer would make this project's forbidden claim on its behalf, in your tracker, where it looks like you said it.
+
+**A typo in the mapping file fails the run.** Jurisdictions and document classes are checked against the vocabulary the fetched document itself carries, so the check cannot drift from the feed. A jurisdiction that matches nothing would otherwise look exactly like a quiet week.
+
+**A fetch that did not produce a changes document is a failure, not an empty feed.** An HTTP error page, a redirect to a login screen, a truncated file — all of them parse into "nothing changed this week" if you let them, and silence is the one thing this feed must never hand you by accident.
+
+**Gate 6 is re-applied at your edge.** A dismissed record, or a substantive one lacking its second, independent approval, is never surfaced — even if you point `--changes` at a document you assembled yourself. A change that later moves to `withdrawn`, `superseded` or `corrected` gets a comment on the issue it already has, never a second issue; one first seen already in a terminal state is recorded and not opened at all.
+
+**Commit the state file.** It is how a re-run opens nothing. Delete it and the next run re-opens every issue you have already filed — so the action refuses to treat an unreadable state file as a first run, and says so.
+
 ### Checking a change six months later, without taking our word for it
 
 A published record carries hashes and an excerpt. The bytes that produced them live in the operator's SQLite store, and that store keeps only the newest few snapshots per source — so an editor or a journalist who wants to re-check a claim next spring has, today, nothing but our word. A diff you cannot reproduce later is a claim, not evidence.

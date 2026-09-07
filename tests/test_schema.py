@@ -30,6 +30,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,9 @@ STATUS_SCHEMA_PATH = (
 CONSUMERS_PATH = Path(__file__).resolve().parents[1] / "docs" / "CONSUMERS.md"
 MANIFEST_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "docs" / "schema" / "consumer-manifest-v1.schema.json"
+)
+WATCH_MAP_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "docs" / "schema" / "consumer-watch-map-v1.schema.json"
 )
 V1_VERIFICATION_SCHEMA_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
@@ -345,6 +349,33 @@ def test_the_validator_actually_rejects_something() -> None:
     assert _validate("not a uri", uri, uri, "$") != []
 
 
+def _route_example(payload: Mapping[str, Any]) -> str:
+    """Which published schema this documentation example claims to be an example of.
+
+    A ROUTER rather than a count, and that is the whole design of the gate below.
+    The assertion used to be "there are exactly three JSON blocks", which two
+    pull requests each adding one block collapse into a no-op: both change the
+    number the same way, `git` reports no conflict, and the merge lands two
+    blocks with the count raised once. A partition over the blocks that exist
+    survives that — every block must route somewhere, and every route must
+    validate — and it needs no maintenance when a fourth block lands.
+
+    An unroutable block is a FAILURE, not a skip. A documentation example
+    nothing validates is exactly the kind of contract fixture that goes stale
+    in an integrator's editor rather than in this repository's CI.
+    """
+    if "pages" in payload:
+        # A document the READER authors. Checking it against the feed schema would
+        # report it as invalid and teach the maintainer to loosen a gate that is
+        # telling the truth.
+        return "consumer-manifest"
+    if "changes" in payload:
+        return "feed"
+    if payload.keys() & {"jurisdictions", "source_ids", "document_classes"}:
+        return "consumer-watch-map"
+    return "unroutable"
+
+
 def test_every_consumer_json_example_is_complete_and_schema_valid(
     schema: dict[str, Any],
 ) -> None:
@@ -355,20 +386,34 @@ def test_every_consumer_json_example_is_complete_and_schema_valid(
         CONSUMERS_PATH.read_text(encoding="utf-8"),
         flags=re.DOTALL,
     )
+    assert blocks, "no JSON examples found in docs/CONSUMERS.md; the fence pattern moved"
 
-    assert len(blocks) == 3, (
-        "the number of JSON examples in docs/CONSUMERS.md changed. Every one of them is a "
-        "contract fixture — route the new block to the schema it claims to be an example of "
-        "rather than raising this number."
-    )
-    manifest_schema = json.loads(MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8"))
+    schemas = {
+        "feed": schema,
+        "consumer-manifest": json.loads(MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8")),
+        "consumer-watch-map": json.loads(WATCH_MAP_SCHEMA_PATH.read_text(encoding="utf-8")),
+    }
+    routed: dict[str, int] = dict.fromkeys(schemas, 0)
     for index, block in enumerate(blocks):
         payload = json.loads(block)
-        # A consumer manifest is a document the READER authors, so it is validated against its
-        # own schema. Checking it against the feed schema would report it as invalid and teach
-        # the maintainer to loosen a gate that is telling the truth.
-        target = manifest_schema if "pages" in payload else schema
+        route = _route_example(payload)
+        assert route in schemas, (
+            f"consumer_example[{index}] matches no published schema (top-level keys: "
+            f"{sorted(payload)}). Every JSON example in docs/CONSUMERS.md is a contract "
+            f"fixture: give it a route in `_route_example` and a schema to be checked "
+            f"against, rather than leaving it validated by nothing."
+        )
+        routed[route] += 1
+        target = schemas[route]
         assert _validate(payload, target, target, f"consumer_example[{index}]") == []
+
+    # Every published schema this document claims to illustrate is in fact
+    # illustrated. Asserted as a set over the routes, so a schema whose example
+    # is deleted goes red instead of quietly having no fixture.
+    assert {route for route, count in routed.items() if count} == set(schemas), (
+        f"docs/CONSUMERS.md illustrates {sorted(r for r, c in routed.items() if c)}; the "
+        f"published schemas are {sorted(schemas)}"
+    )
 
 
 def test_the_schemas_enums_match_the_code(schema: dict[str, Any]) -> None:

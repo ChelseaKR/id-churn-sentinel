@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/consumer-watch-map-v1.schema.json",
+  "title": "ID Churn Sentinel consumer watch map v1",
+  "description": "A consumer-authored declaration of which published changes should become issues in THEIR repository, read by `consumer-action/raise_issues.py`. It lives in the consumer's repository and is never sent anywhere: this project holds no subscriber list, and this file is the subscription. Values are checked against the vocabulary carried by the fetched changes document itself, so a typo fails the run instead of matching nothing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "consumer": {
+      "type": "string",
+      "description": "A name for your organization. Never sent anywhere; it is here so the file explains itself to the next person who opens it."
+    },
+    "jurisdictions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 2 },
+      "description": "Two-letter state codes, or `US` for the federal bucket. At least one of `jurisdictions` or `source_ids` must be present: a map with neither subscribes to every change in the country, which has to be written out rather than arrived at by omission."
+    },
+    "document_classes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Which document classes you publish about, e.g. `drivers_license`. OMITTED means every class in the jurisdictions above — that is a deliberate widening, so it is spelled by leaving the key out rather than by an empty list."
+    },
+    "source_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Specific sentinel source ids your pages cite. A change to one of these is always in scope, whatever the jurisdiction and class filters above say."
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Labels applied to every issue this action opens in your repository. They must already exist; this action creates no labels."
+    }
+  }
+}

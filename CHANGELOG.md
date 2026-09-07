@@ -7,6 +7,57 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ## [Unreleased]
 
+### Added
+
+- **`sentinel calibrate` — a second reviewer can be onboarded without their first decisions
+  being live ones** (2026-09-06), issue #79. New `core/calibrate.py`, store migration 11
+  (`calibration_decisions`), and a `calibrate` verb.
+
+  The human gate is the product and it has a bus factor of one (#64). The two-humans rule for
+  `substantive` is already enforced in three layers, so the blocker was never the mechanism —
+  it was that there was no way to find out whether a candidate reviewer means the same thing
+  by `substantive` as the maintainer short of letting them classify something real, which
+  propagates into legal-aid guidance.
+
+  `calibrate` replays already-reviewed changes. The candidate sees exactly what `review`
+  shows — jurisdiction, document class, source, URL, the source's verification status and the
+  passage diff — and **not** the recorded reviewer, status or significance. The answer is
+  written *before* the recorded decision is revealed, so no code path shows a candidate a
+  decision for a change they have not yet answered; quitting reveals nothing about the
+  remainder and says the set is unspent.
+
+  Three properties are structural rather than remembered:
+
+  - **Nothing here is publishable.** `calibration_decisions` has no `public_copy`, no `stage`,
+    no `qualification_ref` and no `conflict_attestation_ref`. The absence is the mechanism —
+    there is no column a publisher could read — and `core/publish.py` does not import the
+    module. A test asserts the exact column set, so a future change that adds a
+    publishable-shaped column is red.
+  - **It never scores.** Agreement is `agreed of answered`, denominator always printed, with
+    the divergent ids listed. No percentage (4/6 and 400/600 are different evidence a
+    percentage renders identically), no pass, no fail, no threshold. Whether a figure is good
+    enough is GOV-02's governance decision.
+  - **An absence is never agreement.** The store keeps the newest five snapshots per source,
+    so an older change keeps its immutable `diff_excerpt` after its supporting bytes are
+    pruned. Replaying one would ask a candidate to agree with a summary the reviewer could
+    still have opened the evidence behind — an agreement measured across different evidence.
+    Such a change is reported `evidence_pruned`, named in the report, and excluded from **both**
+    the numerator and the denominator, in both directions: a stored answer that happens to
+    match is not counted either.
+
+  The last property is the one that nearly shipped wrong. The first version of the test suite
+  passed with the exclusion sabotaged, because the guard was unreachable from a
+  single-session fixture; the negative control caught it. The case that does reach it — a
+  session resumed after a `watch` run, holding answers about changes whose bytes have since
+  been pruned — is now its own test.
+
+  Verified: 46 tests, six negative controls (each asserting the sabotage landed in the file
+  before running, and green again after restoring from a byte copy), and the issue's three
+  Done-when criteria each held by a named test. `publish` output is byte-identical across a
+  session that writes six decisions, with the publisher's clock frozen so the comparison is
+  about calibration rather than about `generated_at`, and no published byte contains the
+  candidate's name.
+
 ### Fixed
 
 - **The roadmap listed a settled governance question as open** (2026-09-06), in

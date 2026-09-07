@@ -37,6 +37,7 @@ from types import TracebackType
 from typing import Any
 from uuid import uuid4
 
+from id_churn_sentinel.core.calibrate import CalibrationDecision
 from id_churn_sentinel.core.changes import (
     ChangeKind,
     ChangeRecord,
@@ -947,6 +948,80 @@ CREATE INDEX IF NOT EXISTS idx_probes_source_time ON probes (source_id, probed_a
 CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
 """,
     ),
+    (
+        11,
+        "v1-reviewer-calibration-decisions",
+        # `sentinel calibrate` (#79): a candidate reviewer replays already-reviewed changes so
+        # two named people can find out whether they mean the same thing by `substantive`
+        # BEFORE the second one starts making live decisions (#64, GOV-02).
+        #
+        # Its own table, and — like `probes` in migration 10 — the interesting thing about it
+        # is what it deliberately DOES NOT have. There is no `stage`, no `public_copy`, no
+        # `qualification_ref` and no `conflict_attestation_ref`. A calibration answer is a
+        # measurement of a person, not a decision about a change, and the way to guarantee it
+        # can never be published is to give the publisher no column to read. `publish()`
+        # projects from `review_decisions`; there is no join from here to there, and there is
+        # deliberately no view that would make one convenient.
+        #
+        # `change_id` is a foreign key with ON DELETE RESTRICT for the same reason the review
+        # tables are: the observation a judgement was made against must outlive the judgement,
+        # or the judgement is about nothing.
+        #
+        # `candidate` reuses `canonical_actor` and the non-empty CHECK from `review_decisions`
+        # so a blank name is refused at the same layer that refuses a blank review — the third
+        # of this feature's three "Done when" criteria, enforced in SQL rather than in Python
+        # alone. `UNIQUE (session_id, change_id)` makes a session's answer to one change
+        # single and final: the append-only triggers below mean a candidate cannot revise an
+        # answer after seeing the recorded decision, which would turn agreement into a number
+        # about persistence rather than judgement.
+        """
+CREATE TABLE IF NOT EXISTS calibration_decisions (
+    calibration_id  TEXT PRIMARY KEY,
+    session_id      TEXT NOT NULL CHECK (session_id <> ''),
+    change_id       TEXT NOT NULL REFERENCES changes(change_id) ON DELETE RESTRICT,
+    candidate       TEXT NOT NULL
+        CHECK (candidate = canonical_actor(candidate) AND candidate <> ''),
+    decision        TEXT NOT NULL CHECK (decision IN ('confirmed', 'dismissed')),
+    significance    TEXT NOT NULL
+        CHECK (significance IN ('unclassified', 'editorial', 'substantive')),
+    decided_at      TEXT NOT NULL CHECK (julianday(decided_at) IS NOT NULL),
+    UNIQUE (session_id, change_id),
+    -- The same rule the first review is held to: confirming without classifying is not a
+    -- decision, so a calibration answer that did it would not be comparable with one.
+    CHECK (decision <> 'confirmed' OR significance <> 'unclassified'),
+    -- A dismissal carries no classification to compare, so it may not smuggle one in.
+    CHECK (decision <> 'dismissed' OR significance IN ('unclassified', 'editorial'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_calibration_session
+    ON calibration_decisions (session_id, change_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_calibration_no_update
+BEFORE UPDATE ON calibration_decisions
+BEGIN
+    SELECT RAISE(ABORT, 'calibration decisions are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_calibration_no_delete
+BEFORE DELETE ON calibration_decisions
+BEGIN
+    SELECT RAISE(ABORT, 'calibration decisions are append-only');
+END;
+
+-- A calibration answer is only meaningful against a change that already carries a first
+-- review to compare with. Without this the table would happily hold answers about
+-- unreviewed changes and the agreement figure would have nothing on the other side.
+CREATE TRIGGER IF NOT EXISTS trg_calibration_requires_a_recorded_review
+BEFORE INSERT ON calibration_decisions
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM review_decisions AS recorded
+        WHERE recorded.change_id = NEW.change_id
+          AND recorded.stage = 'first'
+    ) THEN RAISE(ABORT, 'calibration requires a recorded first review to compare against') END;
+END;
+""",
+    ),
 )
 
 # What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
@@ -1063,6 +1138,15 @@ _V1_REQUIRED_COLUMNS = {
         }
     ),
 }
+# `calibration_decisions` (migration 11) is deliberately NOT audited here, for the same reason
+# `probes` (migration 10) is not: this constant is the **V1 core** contract, and a store rolled
+# back to an earlier migration prefix must not be required to carry a table that postdates it
+# (`tests/test_store.py::test_legacy_attempts_are_labelled_not_backfilled` does exactly that
+# rollback). The calibration table's shape is held instead by
+# `tests/test_calibrate.py::test_the_calibration_table_has_no_publishable_shaped_column`, which
+# asserts its exact column set — and asserts the *absence* of `public_copy`, `stage`,
+# `qualification_ref` and `conflict_attestation_ref`, which is the property that matters and
+# which a required-columns set could not express.
 
 
 @dataclass(frozen=True, slots=True)
@@ -2325,6 +2409,89 @@ class SnapshotStore:
             raise StoreError(
                 "could not append lifecycle event: invalid non-database value"
             ) from exc
+
+    # -- reviewer calibration (#79) -----------------------------------------------
+    #
+    # Kept in its own section, below the review methods and above the change queries, so it
+    # is visually obvious that nothing here feeds the projection `publish()` reads.
+
+    def retained_content_hashes(self, source_id: str) -> frozenset[str]:
+        """Which content hashes this store still holds bytes for, for one source.
+
+        `calibrate` uses this to tell a change it can honestly replay from one whose evidence
+        has aged out of the retention window. It reads `snapshots` rather than `changes`
+        deliberately: the question is not "did we once observe this hash" — the immutable
+        change row answers that forever — but "can we still put the bytes in front of a
+        person", and only the snapshot table knows.
+        """
+
+        rows = self._conn.execute(
+            "SELECT DISTINCT content_sha256 FROM snapshots WHERE source_id = ?",
+            (source_id,),
+        ).fetchall()
+        return frozenset(str(row["content_sha256"]) for row in rows)
+
+    def record_calibration_decision(self, decision: CalibrationDecision) -> None:
+        """Append one candidate answer. Refused if the change carries no first review to
+        compare against, and refused a second time for the same (session, change).
+
+        Note there is no `update_calibration_decision` and no delete. A candidate who could
+        revise an answer after seeing the recorded decision would turn the agreement figure
+        into a measure of persistence.
+        """
+
+        calibration_id = sha256(
+            "\x00".join(
+                (
+                    decision.session_id,
+                    decision.change_id,
+                    canonical_actor(decision.candidate),
+                    _as_utc(decision.decided_at).isoformat(),
+                )
+            ).encode()
+        ).hexdigest()
+        try:
+            self._conn.execute(
+                "INSERT INTO calibration_decisions "
+                "(calibration_id, session_id, change_id, candidate, decision, significance, "
+                "decided_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    calibration_id,
+                    decision.session_id,
+                    decision.change_id,
+                    canonical_actor(decision.candidate),
+                    str(decision.decision),
+                    str(decision.significance),
+                    _as_utc(decision.decided_at).isoformat(),
+                ),
+            )
+            self._conn.commit()
+        except sqlite3.IntegrityError as exc:
+            self._conn.rollback()
+            raise StoreError(f"calibration decision rejected by integrity rules: {exc}") from exc
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not append calibration decision: {exc}") from exc
+
+    def calibration_decisions(self, *, session_id: str) -> tuple[CalibrationDecision, ...]:
+        """One session's answers, in the order they were given."""
+
+        rows = self._conn.execute(
+            "SELECT * FROM calibration_decisions WHERE session_id = ? "
+            "ORDER BY decided_at, change_id",
+            (session_id,),
+        ).fetchall()
+        return tuple(
+            CalibrationDecision(
+                session_id=str(row["session_id"]),
+                change_id=str(row["change_id"]),
+                candidate=str(row["candidate"]),
+                decision=ReviewStatus(str(row["decision"])),
+                significance=Significance(str(row["significance"])),
+                decided_at=datetime.fromisoformat(str(row["decided_at"])),
+            )
+            for row in rows
+        )
 
     def get_change(self, change_id: str) -> ChangeRecord:
         row = self._conn.execute(

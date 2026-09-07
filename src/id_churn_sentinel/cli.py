@@ -58,6 +58,12 @@ from id_churn_sentinel.core.baseline import (
     load_baselines,
     write_baselines,
 )
+from id_churn_sentinel.core.calibrate import (
+    CalibrationError,
+    CalibrationItem,
+    calibration_queue,
+    run_calibration,
+)
 from id_churn_sentinel.core.changes import (
     DEFAULT_PUBLIC_COPY,
     LIFECYCLE_REASONS,
@@ -616,6 +622,47 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_verify.add_argument("--json", action="store_true", help="machine-readable output")
 
+    calibrate_cmd = sub.add_parser(
+        "calibrate",
+        help=(
+            "replay already-reviewed changes for a candidate reviewer and report agreement "
+            "(offline; records nothing publishable)"
+        ),
+    )
+    calibrate_cmd.add_argument(
+        "--reviewer",
+        default="",
+        help=(
+            "the candidate reviewer's name — required, and refused blank at the same layer "
+            "that refuses a blank review"
+        ),
+    )
+    calibrate_cmd.add_argument(
+        "--set",
+        dest="calibration_set",
+        type=Path,
+        default=None,
+        help=(
+            'path to a JSON calibration set: {"change_ids": [...]}. Replayed in the order '
+            "given, so a set is reproducible instead of depending on what the store happens "
+            "to hold. Omit to replay every reviewed change, oldest first."
+        ),
+    )
+    calibrate_cmd.add_argument(
+        "--session-id",
+        default=None,
+        help="name this session (default: a generated id). Answers are keyed by it.",
+    )
+    calibrate_cmd.add_argument(
+        "--list",
+        action="store_true",
+        help=(
+            "print what the set WOULD replay and why each change is or is not replayable, "
+            "then exit. Shows no recorded decision and writes nothing."
+        ),
+    )
+    calibrate_cmd.add_argument("--db", type=Path, default=DEFAULT_DB, help="snapshot store path")
+
     review_cmd = sub.add_parser("review", help="record a HUMAN review of one change")
     review_cmd.add_argument(
         "change_id", nargs="?", default=None, help="the change to review (omit with --list)"
@@ -735,8 +782,8 @@ def _dispatch(
         if args.baseline_command == "check":
             return _cmd_baseline_check(args, registry, fetcher)
         return _cmd_baseline_write(args, registry)
-    if args.command == "verify":
-        return _cmd_verify(args, registry, fetcher, ask)
+    if args.command in {"verify", "calibrate"}:
+        return _dispatch_human_command(args, registry, fetcher, ask)
     if args.command == "coverage":
         return _cmd_coverage(args, registry)
     if args.command in {"watch", "probe"}:
@@ -746,6 +793,25 @@ def _dispatch(
     if args.command in {"review", "approve", "correct", "withdraw"}:
         return _dispatch_change_command(args)
     return _cmd_publish(args, registry)
+
+
+def _dispatch_human_command(
+    args: argparse.Namespace,
+    registry: Registry,
+    fetcher: Fetcher | None,
+    ask: Callable[[str], str] | None,
+) -> int:
+    """The two prompt-driven commands, and the only two that ask a person a question.
+
+    `verify` asks "is this the official page?"; `calibrate` asks a candidate reviewer the same
+    question `review` asks, about changes somebody has already ruled on. Both take their
+    prompt through an injected `ask` so the sessions are testable without a terminal.
+    """
+
+    if args.command == "verify":
+        return _cmd_verify(args, registry, fetcher, ask)
+    args.ask = ask or input
+    return _cmd_calibrate(args, registry)
 
 
 def _dispatch_consumer_command(args: argparse.Namespace, registry: Registry) -> int:
@@ -1982,6 +2048,90 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     else:
         print("\n--- changed passages (unified diff of normalized text) ---")
     print(change.diff_excerpt)
+    return 0
+
+
+def _load_calibration_set(path: Path) -> list[str]:
+    """Read `{"change_ids": [...]}`. Refuses anything else by name rather than by traceback."""
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise CalibrationError(f"could not read calibration set {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise CalibrationError(f"calibration set {path} is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise CalibrationError(f"calibration set {path} must be a JSON object")
+    raw = payload.get("change_ids")
+    if not isinstance(raw, list) or not all(isinstance(entry, str) for entry in raw):
+        raise CalibrationError(f"calibration set {path} needs a 'change_ids' array of strings")
+    if not raw:
+        raise CalibrationError(f"calibration set {path} is empty — there is nothing to replay")
+    return list(raw)
+
+
+def _print_calibration_queue(items: tuple[CalibrationItem, ...]) -> None:
+    """`--list`: what would be replayed, and why anything would not be.
+
+    This prints the *eligibility*, never the recorded decision — a listing that leaked the
+    classification would spend the calibration set before the session began.
+    """
+
+    for item in items:
+        marker = "▶" if item.replayable else "·"
+        print(
+            f"  {marker} {item.change.id}  {item.change.jurisdiction}/"
+            f"{item.change.document_class}  [{item.eligibility}]"
+        )
+    replayable = sum(1 for item in items if item.replayable)
+    print(
+        f"calibrate --list: {replayable} of {len(items)} change(s) replayable "
+        f"(nothing was shown about any recorded decision, and nothing was written)"
+    )
+
+
+def _cmd_calibrate(args: argparse.Namespace, registry: Registry) -> int:
+    """Replay reviewed changes for a candidate reviewer and report agreement (#79).
+
+    Reads the store, writes only to `calibration_decisions`, and touches no published
+    artifact: `publish` projects from `review_decisions` and has no join to the table this
+    command writes. The second of the issue's three "Done when" criteria — publish output
+    byte-identical before and after a session — holds by construction rather than by care,
+    and `tests/test_calibrate.py` asserts it anyway.
+    """
+
+    change_ids = _load_calibration_set(args.calibration_set) if args.calibration_set else None
+    session_id = args.session_id or f"cal-{uuid4().hex[:12]}"
+    with SnapshotStore(args.db) as store:
+        items = calibration_queue(
+            store.changes(),
+            retained_hashes=store.retained_content_hashes,
+            registry=registry,
+            change_ids=change_ids,
+        )
+        if args.list:
+            _print_calibration_queue(items)
+            return 0
+        if not any(item.replayable for item in items):
+            print(
+                "calibrate: nothing replayable. A calibration set needs changes that carry a "
+                "recorded first review AND whose snapshot bytes are still retained — "
+                "`calibrate --list` says which of the two is missing per change."
+            )
+            return 0
+        outcome = run_calibration(
+            items,
+            args.ask,
+            print,
+            store.record_calibration_decision,
+            candidate=args.reviewer,
+            session_id=session_id,
+        )
+    print(f"\ncalibrate: session {outcome.session_id} by {outcome.candidate}")
+    print(
+        "  Recorded in `calibration_decisions`. Not publishable, not read by `publish`, and "
+        "not a qualification."
+    )
     return 0
 
 

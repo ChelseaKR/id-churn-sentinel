@@ -84,6 +84,21 @@ action = _load_action()
 # ---------------------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_runner_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No ambient GitHub Actions variable may decide what this suite proves.
+
+    `--repository` falls back to `$GITHUB_REPOSITORY` and the API call reads
+    `$GITHUB_TOKEN`, both of which a GitHub-hosted runner sets for every job.
+    Without this fixture the refusal test below passes on a laptop and fails in
+    CI — which is how it was found — and, worse, the tests that DO supply a
+    repository would silently be proving nothing about the fallback. The
+    fallback gets its own test, with the variable set on purpose.
+    """
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+
 def _confirmed(record: ChangeRecord, *, significance: Significance) -> ChangeRecord:
     first = record.reviewed_by(
         reviewer="Chelsea Kelly-Reif",
@@ -615,6 +630,28 @@ def test_a_run_without_a_repository_is_refused_before_anything_is_written(
     assert code == action.EXIT_REFUSED
     assert "--repository" in capsys.readouterr().err
     assert not state.exists()
+
+
+def test_the_repository_falls_back_to_the_runner_environment(
+    tmp_path: Path, texas_map: Path, document: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the refusal above: a workflow never types its own name.
+
+    `action.yml` passes `${{ github.repository }}` through the environment, so
+    the fallback is the path every real run takes. It is asserted here rather
+    than left to whichever ambient variable the runner happens to export.
+    """
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example-org/guidance")
+    changes = _write(tmp_path / "changes.json", document)
+    state = tmp_path / "state.json"
+    client = RecordingGitHub()
+    code = action.run(
+        ["--map", str(texas_map), "--changes", str(changes), "--state", str(state)],
+        github=client,
+    )
+    assert code == action.EXIT_OK
+    assert len(client.opened) == 1
+    assert all("example-org/guidance" in url for _, url, _ in client.calls)
 
 
 def test_the_script_runs_as_an_executable_against_a_local_document(

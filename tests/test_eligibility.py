@@ -178,12 +178,27 @@ def test_registry_report_keeps_every_source_in_the_denominator(
 
 
 def test_committed_registry_reports_the_real_zero_eligible_denominator() -> None:
-    report = eligibility_report(load_registry(), as_of=AS_OF)
+    """ZERO eligible is the claim; the registry's size is not.
 
-    assert len(report.decisions) == 156
+    The zeros stay literal — "nothing in the committed registry may be watched
+    until a human verifies it" is the safety property, and a derived zero would
+    be a zero this test no longer asserts. The registry SIZE was literal too,
+    three times, and had no business being: it is a number the registry owns,
+    it grows whenever a source is added, and #56 exists to move the other side
+    of these very counts. A hand-written size turns every registry edit into a
+    test edit, and two branches each adding a source both bump it identically,
+    survive the merge with no conflict, and land `main` red — the collapse
+    measured across this portfolio today.
+    """
+    registry = load_registry()
+    total = len(registry.sources)
+    report = eligibility_report(registry, as_of=AS_OF)
+
+    assert total > 0, "the committed registry is empty; every assertion below is vacuous"
+    assert len(report.decisions) == total
     assert len(report.eligible) == 0
-    assert dict(report.reason_counts)["unverified"] == 156
-    assert dict(report.reason_counts)["fetch-policy-unreviewed"] == 156
+    assert dict(report.reason_counts)["unverified"] == total
+    assert dict(report.reason_counts)["fetch-policy-unreviewed"] == total
 
 
 def test_registry_parses_a_complete_policy_and_rejects_a_partial_one(tmp_path: Path) -> None:

@@ -36,7 +36,13 @@ from id_churn_sentinel.core.coverage import (
     coverage,
     repo_root,
 )
-from id_churn_sentinel.core.registry import Gap, Registry, Source, load_registry
+from id_churn_sentinel.core.registry import (
+    Gap,
+    Registry,
+    Source,
+    default_registry_path,
+    load_registry,
+)
 
 
 @pytest.fixture
@@ -163,10 +169,13 @@ def test_a_third_partys_coverage_number_is_not_our_business(
     about someone else's project. A gate that 'corrected' that number to ours would be
     rewriting a citation to make our own arithmetic work, which is a worse sin than the drift
     it is preventing. Their denominator is 51; ours is 52; the gate only reads ours."""
+    # The citation is hand-written because it MUST be — it is someone else's
+    # number and nothing here may recompute it. Our half is derived, which is
+    # the distinction this test is about, and it stops the fixture going stale
+    # on the day the registry grows.
     (tmp_path / "README.md").write_text(
-        "Namesake fully supports 2 of 51 jurisdictions. We watch 156 sources across "
-        "52 of 52 jurisdictions, with 8 named gaps, and 12 of the 156 registered sources "
-        "cannot currently be fetched. 0 of 156 sources are human-verified.",
+        "Namesake fully supports 2 of 51 jurisdictions. "
+        + _satisfying_readme(coverage(real_registry)),
         encoding="utf-8",
     )
     _stub_gated_docs(tmp_path, except_for="README.md")
@@ -312,8 +321,20 @@ def test_the_cli_emits_machine_readable_coverage(capsys: pytest.CaptureFixture[s
     assert main(["coverage", "--json"]) == 0
 
     payload = json.loads(capsys.readouterr().out)
-    assert payload["jurisdictions_covered"] == 52
-    assert payload["named_gaps"] == 8
+    # Counted straight out of the registry FILE, not out of `coverage()`.
+    #
+    # Deriving these from `coverage(load_registry())` was the obvious rewrite and
+    # it is wrong: the CLI calls the same function, so both sides move together
+    # and the assertion holds while the number is wrong. Measured — subtracting
+    # one from `unverified_total` inside `coverage()` left this test green. A
+    # second, independent path is what makes it a check rather than a tautology,
+    # and counting the raw JSON is one this module does not own.
+    raw = json.loads(default_registry_path().read_text(encoding="utf-8"))
+    assert raw["sources"], "the committed registry is empty; every assertion below is vacuous"
+    assert payload["jurisdictions_covered"] == len({s["jurisdiction"] for s in raw["sources"]})
+    assert payload["named_gaps"] == len(raw["gaps"])
+    assert payload["unverified"] == sum(1 for s in raw["sources"] if not s.get("verified"))
+    # These two stay literal: they are the burn-down this project is least
+    # entitled to be quiet about, and a derived zero asserts nothing.
     assert payload["human_verified"] == 0
-    assert payload["unverified"] == 156
     assert payload["rejected_by_a_human"] == 0

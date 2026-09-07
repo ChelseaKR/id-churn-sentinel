@@ -2,10 +2,27 @@
 
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
-[SemVer](https://semver.org/). There is no tagged release yet — the project is
-a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
+[SemVer](https://semver.org/). The project is a pre-1.0 technical alpha: a
+version names the tool's behaviour and the schemas it publishes, not a
+stability promise, and a consumer who needs a fixed point pins the tag rather
+than `main`.
+
+Nothing is published to a package registry. The distribution is the tagged
+source; the site under `docs/` is deployed from `main` on every push, so the
+served pages are not what a version names. What a version names is the CLI's
+behaviour, the store migrations, and the JSON/RSS schemas under
+`docs/schema/`. `.github/workflows/release.yml` re-runs the whole `make verify`
+at each tagged commit and refuses a tag whose version has no section below.
 
 ## [Unreleased]
+
+Merged changes land here until the next tag.
+
+## [0.1.0] — 2026-09-07
+
+The first tagged release. Everything in this section had already landed on
+`main`; what the tag adds is a fixed point a consumer can pin, and a
+CHANGELOG-parity gate that runs at the tagged commit.
 
 ### Added
 

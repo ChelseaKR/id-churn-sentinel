@@ -11,8 +11,9 @@ and [`docs/RESPONSIBLE-TECH-AUDITS.md`](docs/RESPONSIBLE-TECH-AUDITS.md).
 
 ## Supported versions
 
-This is a pre-1.0 technical alpha; there is no tagged release yet. Security
-fixes land on `main` and, once one exists, the latest tagged release.
+This is a pre-1.0 technical alpha. Security fixes land on `main` and are
+carried into the next tag; there is no backport to an older tag, and a
+deployment that needs a fix before the next tag takes it from `main`.
 
 | Version | Supported |
 | ------- | --------- |

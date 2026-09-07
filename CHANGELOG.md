@@ -9,6 +9,30 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **The roadmap listed a settled governance question as open** (2026-09-06), in
+  `docs/ROADMAP.md` §10. "Should `significance: substantive` require *two* humans? …
+  possibly yes" sat in the section a reader consults for what is undecided, while the
+  code had already decided it and enforced the decision at three independent layers:
+  `ChangeRecord.publishable` (a `SUBSTANTIVE` record needs a confirmed independent
+  review, and an `EDITORIAL` one must carry no independent block at all), the
+  `review_decisions` CHECK in migration 3 (an `independent` row must be `substantive`
+  and must carry a qualification reference and a conflict attestation), and
+  `trg_independent_review_requires_first` (which refuses a second decision from the
+  same `actor_identity` as the first). `publish()` re-asserts the predicate per record
+  in `core/publish.py::_guard`.
+
+  Measured before the edit rather than read off the source: `editorial + 1 human` is
+  publishable, `substantive + 1 human` is not, `substantive + 2 humans` is, and a second
+  decision by the first reviewer raises `ReviewError`. The README already stated the
+  rule in two places; only §10 disagreed.
+
+  This is the repository's own dominant defect class pointed at its documentation — an
+  absence of decision published where a decision exists — so the entry is marked
+  answered in §10's existing style, with the residual (there is no second named human
+  yet, so a substantive confirmation is presently unpublishable rather than
+  double-reviewed) redirected to the bus-factor question that owns it. No code changed;
+  `tests/test_governance.py` already held the enforcement up.
+
 - **The observation rate named only half the sources it had not read** (2026-09-06),
   in `.github/workflows/watch.yml`, `tests/test_baseline.py` and
   `tests/test_public_boundary.py`. The weekly summary printed "Read N of M attempted

@@ -56,6 +56,8 @@ this module takes rows and produces a report, so it is testable without the Arch
 from __future__ import annotations
 
 import json
+import math
+import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -64,6 +66,8 @@ from id_churn_sentinel.core.registry import Registry, Source
 
 __all__ = [
     "CAPTURED",
+    "HIGH_CHURN",
+    "MIN_CAPTURES_FOR_CHURN",
     "NO_CAPTURE",
     "OUTCOMES",
     "QUERY_FAILED",
@@ -88,6 +92,14 @@ OUTCOMES: tuple[str, ...] = (CAPTURED, NO_CAPTURE, QUERY_FAILED)
 
 #: The only capture status that is bytes about the page rather than about a refusal.
 USABLE_STATUS = "200"
+
+#: A churn ratio computed over three captures says nothing. Sources below this many
+#: usable captures are excluded from the churn distribution rather than diluting it
+#: with noise — and the count of what was excluded is reported alongside.
+MIN_CAPTURES_FOR_CHURN = 10
+
+#: At or above this ratio the archived bytes differ on essentially every capture.
+HIGH_CHURN = 0.9
 
 #: One raw CDX answer: either ``{"ok": True, "rows": [...], "limit": n}`` or
 #: ``{"ok": False, "error": "..."}``. Deliberately the shape the collector writes, so
@@ -194,6 +206,11 @@ class ArchiveCoverageReport:
     #: The cross-tab #78 turns on: what the Archive holds for the sources our own
     #: crawler cannot fetch.
     unfetchable_by_us: Mapping[str, int]
+    #: How often the archived bytes actually differ, as `distinct digests / usable
+    #: captures` over sources with at least `MIN_CAPTURES_FOR_CHURN` usable captures.
+    #: A ratio near 1.0 means the raw bytes differ on essentially every capture, which
+    #: decides whether a witness can compare raw hashes at all. See `render_markdown`.
+    digest_churn: Mapping[str, float]
 
     def to_json(self) -> str:
         payload = {
@@ -204,6 +221,7 @@ class ArchiveCoverageReport:
             "n_captured_but_none_usable": self.n_captured_but_none_usable,
             "n_truncated": self.n_truncated,
             "unfetchable_by_us": dict(self.unfetchable_by_us),
+            "digest_churn": dict(self.digest_churn),
             "per_source": [asdict(row) for row in self.per_source],
         }
         return json.dumps(payload, indent=2, sort_keys=True) + "\n"
@@ -229,6 +247,19 @@ def summarize(
     answered = [r for r in rows if r.outcome != QUERY_FAILED]
     unfetchable = [r for r in rows if not r.fetchable_by_us]
 
+    churnable = [
+        r
+        for r in rows
+        if r.usable_captures is not None
+        and r.usable_captures >= MIN_CAPTURES_FOR_CHURN
+        and r.distinct_usable_digests is not None
+    ]
+    ratios = sorted(
+        r.distinct_usable_digests / r.usable_captures
+        for r in churnable
+        if r.usable_captures and r.distinct_usable_digests is not None
+    )
+
     return ArchiveCoverageReport(
         measured_on=measured_on,
         row_limit=row_limit,
@@ -247,7 +278,21 @@ def summarize(
             "no_usable_capture": sum(1 for r in unfetchable if r.usable_captures == 0),
             "query_failed": sum(1 for r in unfetchable if r.outcome == QUERY_FAILED),
         },
+        digest_churn={
+            "min_usable_captures": float(MIN_CAPTURES_FOR_CHURN),
+            "n_sources": float(len(ratios)),
+            # Median of an empty list is not 0.0 — it is undefined, and 0.0 would read
+            # as "the bytes never change", the opposite of what no data means.
+            "median_ratio": round(statistics.median(ratios), 4) if ratios else float("nan"),
+            "n_at_or_above_high_churn": float(sum(1 for x in ratios if x >= HIGH_CHURN)),
+            "high_churn_threshold": HIGH_CHURN,
+        },
     )
+
+
+def _ratio(value: float) -> str:
+    """A ratio over no sources is undefined, and must not render as a number."""
+    return "not measurable" if math.isnan(value) else f"{value:.2f}"
 
 
 def _lower_bound(value: int | None, truncated: bool) -> str:
@@ -261,6 +306,7 @@ def render_markdown(report: ArchiveCoverageReport) -> str:
     """The committed evidence document, derived from the report rather than typed."""
     counts = report.counts_by_outcome
     unfetchable = report.unfetchable_by_us
+    churn = report.digest_churn
     lines = [
         "# Internet Archive coverage of this registry",
         "",
@@ -311,6 +357,33 @@ def render_markdown(report: ArchiveCoverageReport) -> str:
         f"| …of which the Archive has usable captures for | {unfetchable.get('with_usable_captures', 0)} |",
         f"| …of which the Archive has none | {unfetchable.get('no_usable_capture', 0)} |",
         f"| …of which the index could not be read | {unfetchable.get('query_failed', 0)} |",
+        "",
+        "## The finding #78's design assumes away",
+        "",
+        "`distinct digests / usable captures` says how often the Archive's **raw** bytes",
+        "actually differ between captures. Over the",
+        f"{int(churn['n_sources'])} source(s) with at least {int(churn['min_usable_captures'])}",
+        "usable captures:",
+        "",
+        "| | value |",
+        "| --- | ---: |",
+        f"| median churn ratio | **{_ratio(churn['median_ratio'])}** |",
+        f"| sources at or above {churn['high_churn_threshold']} | **{int(churn['n_at_or_above_high_churn'])}** |",
+        "",
+        "A ratio near 1.0 means the raw bytes differ on essentially **every** capture. A",
+        "witness that compared an archive capture's raw hash against ours would therefore",
+        "report `disagrees` almost always, on most sources — a second witness that always",
+        "disagrees is noise, and noise a reviewer learns to ignore is worse than no witness.",
+        "",
+        "This does not sink #78; it names which part of it is load-bearing. The proposal",
+        "already says captures are *normalized under the same contract version* before",
+        "comparison. That sentence is not an optimisation — it is the feature. The numbers",
+        "above are raw-byte churn, and this repository's normalizer exists precisely to",
+        "strip the session tickers and live dates that produce it (guardrail 7). What is",
+        "**not** measured here is the churn that survives normalization, and that is the",
+        "number that decides whether `witness` is usable. Measuring it needs the capture",
+        "bodies, not the index — a much heavier fetch than this, and the right next step",
+        "before the store migration.",
         "",
         "## Per source",
         "",

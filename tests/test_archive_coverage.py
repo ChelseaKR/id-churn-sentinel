@@ -13,6 +13,7 @@ So the assertions below are mostly about what the report refuses to say.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 import pytest
@@ -244,3 +245,54 @@ def test_a_malformed_capture_timestamp_is_passed_through_not_mangled(registry) -
 
     assert row.first_usable == "-"
     assert row.last_usable == "-"
+
+
+def test_churn_over_no_sources_is_undefined_not_zero() -> None:
+    """A median over an empty set is not 0.0.
+
+    0.0 here would read as "the archived bytes never change" — the exact opposite of
+    "we have no sources to measure". It is NaN in the data and "not measurable" in
+    the document, so neither can be mistaken for a finding.
+    """
+    report = summarize([], measured_on="2026-09-07", row_limit=2000)
+    assert math.isnan(report.digest_churn["median_ratio"])
+    assert report.digest_churn["n_sources"] == 0.0
+    assert "not measurable" in render_markdown(report)
+
+
+def test_thinly_captured_sources_are_excluded_from_the_churn_distribution(registry) -> None:  # type: ignore[no-untyped-def]
+    """A ratio over three captures is noise, and diluting the median with it is worse
+    than reporting a smaller sample. What was excluded is reported beside the median.
+    """
+    first, second = registry.sources[0], registry.sources[1]
+    report = _report(
+        registry,
+        {
+            # 3 captures, 3 digests: ratio 1.0, but far too few to mean anything.
+            first.id: _rows(*[(f"2024010{i}000000", "200", f"D{i}") for i in range(3)]),
+            # 12 captures, 6 digests: ratio 0.5, and enough to count.
+            second.id: _rows(
+                *[(f"20240{i:03d}000000", "200", f"E{(i - 101) // 2}") for i in range(101, 113)]
+            ),
+        },
+    )
+    assert report.digest_churn["min_usable_captures"] == 10.0
+    assert report.digest_churn["n_sources"] == 1.0
+    assert report.digest_churn["median_ratio"] == 0.5
+    assert report.digest_churn["n_at_or_above_high_churn"] == 0.0
+
+
+def test_a_page_that_rehashes_on_every_capture_is_counted_as_high_churn(registry) -> None:  # type: ignore[no-untyped-def]
+    """The number the witness design turns on.
+
+    A source whose archived bytes differ on every capture would make a raw-hash
+    witness report `disagrees` almost always — noise, not corroboration.
+    """
+    first = registry.sources[0]
+    report = _report(
+        registry,
+        {first.id: _rows(*[(f"20240{i:03d}000000", "200", f"D{i}") for i in range(101, 113)])},
+    )
+    assert report.digest_churn["n_sources"] == 1.0
+    assert report.digest_churn["median_ratio"] == 1.0
+    assert report.digest_churn["n_at_or_above_high_churn"] == 1.0

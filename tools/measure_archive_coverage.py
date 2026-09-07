@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nwrote {JSON_OUT.relative_to(ROOT)} and {MARKDOWN_OUT.relative_to(ROOT)}")
     for outcome, count in sorted(report.counts_by_outcome.items()):
         print(f"  {outcome}: {count}")
-    print(f"  no usable (HTTP 200) capture: {report.n_no_usable_capture}")
+    print(f"  captured but no usable (HTTP 200) capture: {report.n_captured_but_none_usable}")
     print(f"  unfetchable by us: {report.unfetchable_by_us}")
     return 0
 

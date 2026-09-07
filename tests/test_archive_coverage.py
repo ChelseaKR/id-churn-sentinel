@@ -79,7 +79,36 @@ def test_a_source_never_asked_about_is_a_failure_not_an_empty_archive(registry) 
     assert report.counts_by_outcome[QUERY_FAILED] == len(registry.sources)
     assert report.counts_by_outcome[NO_CAPTURE] == 0
     assert report.counts_by_outcome[CAPTURED] == 0
-    assert report.n_no_usable_capture == 0  # nothing was answered, so nothing is known
+    assert report.n_captured_but_none_usable == 0  # nothing was answered, so nothing is known
+
+
+def test_captures_that_are_all_error_pages_are_kept_apart_from_having_none(registry) -> None:  # type: ignore[no-untyped-def]
+    """ "Nothing was archived" and "everything archived is a bot wall" are different facts.
+
+    Merging them is the same conflation this module exists to refuse, one level up: a
+    page the Archive has fifty 403 captures of is a page a witness feature must not
+    use, and it is *not* a page the Archive has never seen. The headline count is
+    therefore about the second state only; the first is `no_capture` in the outcome
+    table.
+    """
+    first, second = registry.sources[0], registry.sources[1]
+    report = _report(
+        registry,
+        {
+            first.id: _rows(("20260101000000", "403", "AAA"), ("20260201000000", "403", "AAA")),
+            second.id: {"ok": True, "limit": 2000, "rows": [HEADER]},
+        },
+    )
+    all_errors = next(r for r in report.per_source if r.source_id == first.id)
+    nothing = next(r for r in report.per_source if r.source_id == second.id)
+
+    assert all_errors.outcome == CAPTURED
+    assert all_errors.total_captures == 2
+    assert all_errors.usable_captures == 0
+    assert nothing.outcome == NO_CAPTURE
+
+    # Only the first is counted, and the second is visible as `no_capture` instead.
+    assert report.n_captured_but_none_usable == 1
 
 
 def test_an_answered_empty_index_is_no_capture(registry) -> None:  # type: ignore[no-untyped-def]

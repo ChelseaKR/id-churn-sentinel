@@ -184,8 +184,11 @@ class ArchiveCoverageReport:
     n_sources: int
     per_source: tuple[SourceCoverage, ...]
     counts_by_outcome: Mapping[str, int]
-    #: Sources the index answered for that hold no usable (HTTP 200) capture at all.
-    n_no_usable_capture: int
+    #: Sources the index HAS captures for, none of which is an HTTP 200. These are the
+    #: dangerous ones for #78: the Archive holds bytes, and they are bytes about a
+    #: refusal. Kept apart from `no_capture` because "nothing was ever archived" and
+    #: "everything archived is a bot wall" are different facts about a page.
+    n_captured_but_none_usable: int
     #: Sources whose counts are lower bounds because the row limit was reached.
     n_truncated: int
     #: The cross-tab #78 turns on: what the Archive holds for the sources our own
@@ -198,7 +201,7 @@ class ArchiveCoverageReport:
             "row_limit": self.row_limit,
             "n_sources": self.n_sources,
             "counts_by_outcome": dict(self.counts_by_outcome),
-            "n_no_usable_capture": self.n_no_usable_capture,
+            "n_captured_but_none_usable": self.n_captured_but_none_usable,
             "n_truncated": self.n_truncated,
             "unfetchable_by_us": dict(self.unfetchable_by_us),
             "per_source": [asdict(row) for row in self.per_source],
@@ -232,7 +235,9 @@ def summarize(
         n_sources=len(rows),
         per_source=rows,
         counts_by_outcome=counts,
-        n_no_usable_capture=sum(1 for r in answered if not r.usable_captures),
+        n_captured_but_none_usable=sum(
+            1 for r in answered if r.outcome == CAPTURED and not r.usable_captures
+        ),
         n_truncated=sum(1 for r in rows if r.truncated),
         unfetchable_by_us={
             "n_sources": len(unfetchable),
@@ -283,11 +288,13 @@ def render_markdown(report: ArchiveCoverageReport) -> str:
         f"| `no_capture` — the index answered with none | {counts.get(NO_CAPTURE, 0)} |",
         f"| `query_failed` — the index could not be read | {counts.get(QUERY_FAILED, 0)} |",
         "",
-        f"Of the sources the index answered for, **{report.n_no_usable_capture}** hold no",
-        "capture whose own HTTP status was `200`. Those are the ones a witness feature",
-        "could not use: the Archive stores what it received, 403 challenge pages",
-        "included, and a hash comparison against an archived refusal would report a",
-        "confident disagreement where no second witness exists.",
+        f"**{report.n_captured_but_none_usable}** source(s) have captures of which *none*",
+        "is an HTTP `200`. Those are the dangerous ones for #78 and they are counted",
+        "separately from `no_capture` on purpose: the Archive stores what it received,",
+        '403 challenge pages included, so "nothing was ever archived" and "everything',
+        'archived is a bot wall" are different facts about a page, and a hash compared',
+        "against an archived refusal would report a confident disagreement where no",
+        "second witness exists at all.",
         "",
         f"**{report.n_truncated}** source(s) reached the {report.row_limit}-row query limit,",
         "so their counts below are lower bounds and are shown with `≥`.",

@@ -1,0 +1,83 @@
+# The consumer half of the feed. This action runs in YOUR repository, not in
+# this one: it fetches a public file, compares it with a state file you commit,
+# and opens issues in your own tracker. Nothing is sent back here — no account,
+# no callback, no telemetry, no subscriber list. That is the whole design: the
+# subscription lives in your repository, which is what makes a notification
+# channel possible for a project that will not hold a mailing list.
+#
+# Composite, and stdlib Python only, matching the zero-dependency posture of the
+# tool it consumes. A scheduled workflow an organization forgets about for a
+# year should not carry a dependency tree that rots faster than the law it
+# watches — so this pulls in no action but `actions/checkout`, which you already
+# run, and no package at all.
+#
+# See docs/CONSUMERS.md for a complete example workflow and the mapping file
+# schema (docs/schema/consumer-watch-map-v1.schema.json).
+name: ID Churn Sentinel — raise an issue on a confirmed change
+description: >-
+  Open one issue in this repository for each newly confirmed change to a
+  government ID-document source in your jurisdictions and document classes.
+  Reads the published changes.json; never interprets it.
+author: Chelsea Kelly-Reif
+
+inputs:
+  map:
+    description: >-
+      Path to your mapping file: the jurisdictions, document classes and source
+      ids you publish about. Unknown values fail the run rather than matching
+      nothing silently.
+    required: true
+  state:
+    description: >-
+      Path to the state file this action reads and rewrites. COMMIT IT. It is
+      how a re-run opens nothing; deleting it re-opens every issue.
+    required: false
+    default: .sentinel-consumer-state.json
+  changes:
+    description: >-
+      The published changes document. A URL, or a local path for offline
+      testing. A response that is not a changes document fails the run — it is
+      never read as an empty feed.
+    required: false
+    default: https://chelseakr.github.io/id-churn-sentinel/changes.json
+  token:
+    description: >-
+      A token with `issues: write` on this repository. `${{ github.token }}` is
+      enough; the action needs no other permission and reads no other API.
+    required: false
+    default: ${{ github.token }}
+  dry-run:
+    description: >-
+      Print the plan and write nothing — no issues, no comments, no state.
+      Run this first.
+    required: false
+    default: "false"
+
+outputs:
+  plan:
+    description: The per-change plan this run produced, one line each.
+    value: ${{ steps.raise.outputs.plan }}
+
+runs:
+  using: composite
+  steps:
+    - id: raise
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        SENTINEL_MAP: ${{ inputs.map }}
+        SENTINEL_STATE: ${{ inputs.state }}
+        SENTINEL_CHANGES: ${{ inputs.changes }}
+        SENTINEL_DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -euo pipefail
+        args=(--map "$SENTINEL_MAP" --state "$SENTINEL_STATE" --changes "$SENTINEL_CHANGES")
+        if [ "$SENTINEL_DRY_RUN" = "true" ]; then
+          args+=(--dry-run)
+        fi
+        {
+          echo "plan<<SENTINEL_PLAN_EOF"
+          python3 "${GITHUB_ACTION_PATH}/raise_issues.py" "${args[@]}"
+          echo "SENTINEL_PLAN_EOF"
+        } >> "$GITHUB_OUTPUT"

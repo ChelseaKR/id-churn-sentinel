@@ -35,16 +35,16 @@ dev: install ## Alias for install. There is no server: this is a CLI + a static 
 	@echo "No long-running surface by design. Try: uv run sentinel sources validate"
 
 fmt: ## Auto-format and auto-fix
-	uv run ruff format src tests
-	uv run ruff check --fix src tests
+	uv run ruff format src tests consumer-action
+	uv run ruff check --fix src tests consumer-action
 
 # ---- gates -------------------------------------------------------------------------
 
 lint: ## [1/7] Lint: correctness, security (bandit), import hygiene, marker hygiene
-	uv run ruff check src tests
-	uv run ruff format --check src tests
+	uv run ruff check src tests consumer-action
+	uv run ruff format --check src tests consumer-action
 	@# A bare TODO/FIXME/HACK with no linked issue (#NNN) is not allowed to land.
-	@matches=$$(grep -rnE 'TODO|FIXME|HACK' src tests --include='*.py' | grep -vE '#[0-9]+'); \
+	@matches=$$(grep -rnE 'TODO|FIXME|HACK' src tests consumer-action --include='*.py' | grep -vE '#[0-9]+'); \
 	if [ -n "$$matches" ]; then \
 		echo "lint: bare TODO/FIXME/HACK without a linked issue (#NNN):"; \
 		echo "$$matches"; \

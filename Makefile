@@ -17,7 +17,8 @@
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
         sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
         no-auto-classification verify verify-sources watch probe-daily probe-report \
-        watch-weekly baseline-write baseline-check publish serve clean
+        watch-weekly baseline-write baseline-check publish serve clean \
+        archive-coverage archive-coverage-report
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -140,6 +141,23 @@ sources-stability: ## Fetch every source TWICE; name the false-drift sources. Ru
 	@# having no feed. This is how you find one BEFORE it reaches a queue. Doubles the load on
 	@# each host, so it is an operator's diagnostic — never the weekly job.
 	uv run sentinel sources check --twice
+
+archive-coverage: ## Ask the Internet Archive what it holds for every registry URL (~40 min)
+	@# The measurement #78 needs before it migrates the store, and an operator's
+	@# diagnostic rather than a gate: it needs a third party's uptime, and a merge
+	@# gate that needs somebody else's uptime fails on their bad day, not on ours.
+	@#
+	@# It is deliberately slow — one request at a time, three seconds apart. The first
+	@# run used five workers and the Archive refused 136 of 156 connections; folded into
+	@# a count, that run would have reported an archive holding almost nothing. A failed
+	@# query is recorded as `query_failed`, never as zero captures, and it resumes from
+	@# var/archive-cdx-raw.json rather than re-asking.
+	@#
+	@# Writes docs/ARCHIVE-COVERAGE.md and docs/evidence/archive-coverage.json.
+	uv run python tools/measure_archive_coverage.py
+
+archive-coverage-report: ## Rebuild the archive-coverage report from the cache (no network)
+	uv run python tools/measure_archive_coverage.py --report-only
 
 sources-rotation: ## Name sources a reviewer keeps dismissing as editorial (reads the store)
 	@# The half of the false-drift signal `sources-stability` cannot see. `--twice` catches a

@@ -427,6 +427,39 @@ Two of those thirteen deserve reading before you build on them:
 
 **Where the log begins.** `unrecorded_before.revision` names the registry revision this log opens at. Events before it were never derived — which is not the same as saying the registry did not change before then. Do not read the earliest event in the log as the registry's first change.
 
+### You already watch some of these pages — which ones?
+
+If you maintain your own list of government URLs, the first question is not "what changed?" but "which of my URLs does this registry already cover, and which does it not?" Answering it by eye across 156 sources is how two projects end up watching the same page and missing the same one.
+
+`sentinel crosswalk` answers it from a list you already have — one URL per line, a JSON array, or an object keyed by URL (the shape a per-URL baseline manifest usually takes):
+
+```sh
+uv run sentinel crosswalk --urls my-urls.txt
+uv run sentinel crosswalk --urls my-baselines.json --output crosswalk.json
+uv run sentinel crosswalk --urls my-urls.txt --jurisdiction TX
+```
+
+No network, no clock, and nothing is sent anywhere: your list stays on your machine and this reads the committed registry. Two runs over the same list produce identical bytes, and so do two consumers holding the same URLs in a different order. The contract is `docs/schema/crosswalk-v1.schema.json`.
+
+Every URL gets exactly one of four answers, and the vocabulary is closed so you can branch exhaustively:
+
+| `match` | what it means |
+| --- | --- |
+| `source` | this registry watches that exact URL |
+| `gap` | the host is covered by a **named gap** — a hole we looked at and recorded a dated reason for |
+| `host_only` | a registered source shares the host, but it is a **different page** |
+| `unmatched` | this registry has not considered the URL at all |
+
+**`host_only` is not coverage, and this is the one row to read carefully.** It says we can fetch that host, not that we watch your page. This registry's silence about a `host_only` URL means exactly as much as its silence about an `unmatched` one: nothing. The row names the neighbouring source so you can see *why* the host is known, and the two kinds are kept apart precisely because collapsing them is the reading a consumer wants to be true.
+
+A URL differing from a registered source only by a trailing slash reports `host_only`, not `source`. `/name-change` and `/name-change/` are the same page on most servers and different pages on some, and a normalizer that guessed would tell you a page was watched when it is not.
+
+**A `source` match is a registry entry, not a checked one.** The row carries `verification_status`, and today every source in this registry is `unverified` — machine-checked, not human-confirmed.
+
+**`--jurisdiction` narrows the registry side, not your list.** Under `--jurisdiction TX`, a URL this registry watches in Arizona reports `unmatched`. That is the honest answer to the narrowed question, and the filter travels on the document so a filtered report cannot be mistaken for a whole-registry one.
+
+**The reverse view, without installing anything.** `sources.json` (schema 2.1) publishes `normalized_url` and `host` on every source — the exact identity a `source` match is decided on — so you can do the join in your own language against a file you already fetch. The fields come from the same normalizer this command uses; two that drifted apart would give you two different answers about the same URL.
+
 ### The versioning promise
 
 - **A major bump means a break.** Version 2 adds independent-review and correction lifecycle fields; the v1 schema remains available for integrations that have not migrated. Pin the major and validate against its matching schema.

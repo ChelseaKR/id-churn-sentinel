@@ -152,7 +152,10 @@ def test_every_source_in_sources_json_carries_a_machine_readable_status(publishe
     in it says, in a field, whether a human has confirmed it."""
     payload = json.loads((published / "sources.json").read_text())
 
-    assert payload["schema_version"] == "2.0"
+    # Pinned by LITERAL, not read back from `SOURCES_SCHEMA_VERSION`. A test that took
+    # the version from the constant it is checking could never catch a wrong one.
+    # 2.1 added `normalized_url` and `host` per source; every 2.0 field is unchanged.
+    assert payload["schema_version"] == "2.1"
     assert payload["coverage"]["human_verified"] == 0  # derived, not typed
     assert payload["coverage"]["unverified"] == payload["coverage"]["registered_candidates"]
     assert payload["coverage"]["attempt_eligible"] == 0

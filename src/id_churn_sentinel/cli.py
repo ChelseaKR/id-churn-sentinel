@@ -81,6 +81,13 @@ from id_churn_sentinel.core.coverage import (
     coverage,
     repo_root,
 )
+from id_churn_sentinel.core.crosswalk import (
+    crosswalk_document,
+    crosswalk_report,
+    dumps_crosswalk,
+    load_urls,
+)
+from id_churn_sentinel.core.crosswalk import render_text as render_crosswalk_text
 from id_churn_sentinel.core.detect import (
     MIN_REMOVAL_SILENCE,
     REMOVAL_THRESHOLD,
@@ -371,6 +378,43 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     stale_cmd.add_argument("--json", action="store_true", help="machine-readable output")
+
+    crosswalk_cmd = sub.add_parser(
+        "crosswalk",
+        help="which of an outside list of URLs this registry already covers (no network)",
+        description=(
+            "Other projects watch the same class of government pages this registry does, and "
+            "were built independently of it. Give this a plain list of URLs -- one per line, a "
+            "JSON array, or a baseline manifest keyed by URL -- and it reports, per URL, "
+            "exactly one of four things: a registered source watched at that exact URL, a "
+            "named gap covering that host, a source on the same host but a different page, or "
+            "a URL this registry has not considered at all. `host_only` is deliberately not "
+            "reported as coverage: a different page on a host we can fetch is a page this "
+            "registry says nothing about."
+        ),
+    )
+    crosswalk_cmd.add_argument(
+        "--urls",
+        required=True,
+        type=Path,
+        help="the URL list to classify (one per line, a JSON array, or an object keyed by URL)",
+    )
+    crosswalk_cmd.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="write crosswalk.json here instead of printing the human-readable summary",
+    )
+    crosswalk_cmd.add_argument(
+        "--jurisdiction",
+        default=None,
+        help=(
+            "match only against this jurisdiction's sources and gaps. Narrows the REGISTRY "
+            "side: a URL this registry watches under a different jurisdiction then reports "
+            "`unmatched`, which is the honest answer to the narrowed question."
+        ),
+    )
+    crosswalk_cmd.add_argument("--json", action="store_true", help="machine-readable output")
 
     probe_cmd = sub.add_parser(
         "probe",
@@ -776,7 +820,7 @@ def _dispatch(
     registry = load_registry(args.registry)
     if args.command == "sources":
         return _dispatch_sources(args, registry, fetcher)
-    if args.command in {"registry", "stale"}:
+    if args.command in {"registry", "stale", "crosswalk"}:
         return _dispatch_consumer_command(args, registry)
     if args.command == "baseline":
         if args.baseline_command == "check":
@@ -818,6 +862,8 @@ def _dispatch_consumer_command(args: argparse.Namespace, registry: Registry) -> 
     """The two commands that read the registry's own history or a consumer's own manifest."""
     if args.command == "stale":
         return _cmd_stale(args, registry)
+    if args.command == "crosswalk":
+        return _cmd_crosswalk(args, registry)
     return _cmd_registry_changelog(args, registry)
 
 
@@ -897,6 +943,27 @@ def _cmd_stale(args: argparse.Namespace, registry: Registry) -> int:
         print(json.dumps(report, indent=2))
         return 0
     print(render_text(report), end="")
+    return 0
+
+
+def _cmd_crosswalk(args: argparse.Namespace, registry: Registry) -> int:
+    """Classify an outside list of URLs against the committed registry.
+
+    Exit 0 whatever the mix. This answers "what do you already cover?", and an unmatched URL
+    is the normal, expected answer for a registry that is national and closed by process --
+    turning it into a failing exit code would make the useful answer look like a broken tool.
+    """
+    urls = load_urls(args.urls)
+    report = crosswalk_report(registry, urls, jurisdiction=args.jurisdiction)
+    document = crosswalk_document(report)
+    if args.output is not None:
+        args.output.write_text(dumps_crosswalk(document), encoding="utf-8")
+        print(f"wrote {args.output} -- {report.summary['total']} row(s).")
+        return 0
+    if args.json:
+        print(dumps_crosswalk(document), end="")
+        return 0
+    print(render_crosswalk_text(report), end="")
     return 0
 
 

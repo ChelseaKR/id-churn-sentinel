@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/schema/crosswalk-v1.schema.json",
+  "title": "ID Churn Sentinel URL crosswalk v1",
+  "description": "The output of `sentinel crosswalk --urls FILE`: an outside list of URLs classified against the committed registry, so another project watching the same class of government pages can see which of its URLs this registry already covers. Derived from the registry revision and the input list alone -- no network, no clock, and deliberately no `generated_at`, so two runs over the same inputs are byte-identical.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "jurisdiction", "summary", "rows"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "jurisdiction": {
+      "type": ["string", "null"],
+      "description": "The `--jurisdiction` filter this report was produced under, or null for the whole registry. Present even when null, because a filtered report and an unfiltered one answer different questions and a reader must not have to infer which they are holding: under a filter, a URL this registry watches in ANOTHER jurisdiction is reported `unmatched`."
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "gap", "host_only", "unmatched", "total"],
+      "description": "Counts per match kind. Every kind is present even at zero, so that `no unmatched URLs` and `this tool has no notion of unmatched` cannot look the same to a reader diffing two reports.",
+      "properties": {
+        "source": { "type": "integer", "minimum": 0 },
+        "gap": { "type": "integer", "minimum": 0 },
+        "host_only": { "type": "integer", "minimum": 0 },
+        "unmatched": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "description": "One row per distinct input URL, sorted by normalized URL so the document does not depend on the order the consumer listed their citations in.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "normalized_url", "host", "match"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL exactly as the input spelled it."
+          },
+          "normalized_url": {
+            "type": "string",
+            "description": "The identity this row was matched on: scheme and host lowercased, a default port dropped, an empty fragment dropped. Trailing slashes and query parameters are deliberately NOT stripped -- `/name-change` and `/name-change/` are the same page on most servers and different pages on some, and a normalizer that guessed would report a citation as watched when it is not."
+          },
+          "host": { "type": "string" },
+          "match": {
+            "type": "string",
+            "enum": ["source", "gap", "host_only", "unmatched"],
+            "description": "Closed vocabulary, so a consumer may branch exhaustively. `source`: this registry watches that exact URL. `gap`: the host is covered by a named gap -- a hole this registry has looked at and recorded a dated reason for. `host_only`: a registered source shares the host but is a DIFFERENT page, which is not coverage and must not be read as any. `unmatched`: this registry has not considered the URL at all."
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Present on `source` and `host_only`. On `host_only` it names the neighbouring source that shares the host, NOT a source that covers this URL."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Present on `source`, `gap` and `host_only`."
+          },
+          "document_class": {
+            "type": "string",
+            "description": "Present on `source`, `gap` and `host_only`."
+          },
+          "verification_status": {
+            "type": "string",
+            "description": "Present on `source` and `host_only`. `unverified` means no human has read the page and confirmed it is the document the registry claims -- a match here is a registry entry, not a checked one."
+          },
+          "gap_reason": {
+            "type": "string",
+            "description": "Present on `gap`. Why this registry does not watch the host, from the registry's own closed gap vocabulary."
+          }
+        }
+      }
+    }
+  }
+}

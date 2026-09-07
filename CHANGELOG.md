@@ -9,6 +9,43 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **`sentinel crosswalk` — which of an outside list of URLs this registry already covers**
+  (2026-09-07), issue #71. New `core/crosswalk.py`, a `crosswalk` verb, and
+  `docs/schema/crosswalk-v1.schema.json`.
+
+  Another project watching the same class of government pages has no way to ask which of its
+  URLs this registry covers, which host-level refusals the two share, or where one has found
+  a fetchable official surface the other is missing. Such projects maintain their own
+  baselines of hundreds of cited URLs; the registries are built independently and neither
+  could answer that question about the other.
+
+  Given a plain list of URLs, a JSON array, or an object keyed by URL (a per-URL baseline
+  manifest), every URL gets exactly one of four answers from a closed vocabulary: `source` (this
+  registry watches that exact URL), `gap` (the host is covered by a named gap, with its dated
+  reason), `host_only` (a registered source shares the host but is a **different page**), or
+  `unmatched`. No network, no clock, and no `generated_at` — two runs over the same list are
+  byte-identical, and so are two consumers holding the same URLs in a different order.
+
+  **`host_only` is deliberately not reported as coverage**, and that separation is the point
+  of the module rather than a detail of it: a different page on a host we can fetch is a page
+  this registry says nothing about, and collapsing the two kinds is the reading a consumer
+  wants to be true. A URL differing from a registered source only by a trailing slash reports
+  `host_only`, because `/name-change` and `/name-change/` are the same page on most servers
+  and different pages on some. The normalizer is `staleness.normalize_url`, reused rather
+  than rewritten, so `sentinel stale` and `sentinel crosswalk` cannot give one consumer two
+  different answers about the same URL.
+
+  An unparseable entry is refused by name rather than becoming an `unmatched` row: `unmatched`
+  is a statement about the registry, and a typo is not.
+
+### Changed
+
+- **`sources.json` is schema 2.1: every source now publishes `normalized_url` and `host`**
+  (2026-09-07), issue #71. The reverse of `sentinel crosswalk` — the identity a `source` match
+  is actually decided on, published so a consumer can do the join in their own language
+  against a file they already fetch, without installing this tool. Additive: every 2.0 field
+  is present and unchanged.
+
 - **`sentinel calibrate` — a second reviewer can be onboarded without their first decisions
   being live ones** (2026-09-06), issue #79. New `core/calibrate.py`, store migration 11
   (`calibration_decisions`), and a `calibrate` verb.

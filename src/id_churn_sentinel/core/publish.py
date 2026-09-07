@@ -71,6 +71,7 @@ from email.utils import format_datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, PublicationStatus
 from id_churn_sentinel.core.coverage import coverage
@@ -82,6 +83,7 @@ from id_churn_sentinel.core.registry import (
     Verification,
 )
 from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_site
+from id_churn_sentinel.core.staleness import normalize_url
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status, status_json
 from id_churn_sentinel.errors import PublishError, RegistryError
 
@@ -110,7 +112,9 @@ FEED_SCHEMA_VERSION = "2.0"
 
 # The inventory feed's own version, independent of the change feed's: what we watch and what
 # we changed about *how* we publish are different questions on different clocks.
-SOURCES_SCHEMA_VERSION = "2.0"
+#: 2.1 adds `normalized_url` and `host` per source. Additive: every 2.0 field is still
+#: present and unchanged, so a consumer pinned to 2.0 keeps working.
+SOURCES_SCHEMA_VERSION = "2.1"
 
 FEED_TITLE = "ID Churn Sentinel — reviewed changes to US transgender ID-document sources"
 FEED_DESCRIPTION = (
@@ -591,6 +595,14 @@ def sources_json(
                 "eligibility_as_of": decisions[source.id].as_of.isoformat(),
                 "ineligibility_reasons": list(decisions[source.id].reasons),
                 "fetch_policy_outcome": source.fetch_policy.outcome,
+                # The reverse of `sentinel crosswalk`: the identity an outside project must
+                # compare its own URLs against, published so the join does not require this
+                # tool. Emitted from `crosswalk`'s normalizer rather than recomputed here, so
+                # a consumer joining on this field gets the answer `sentinel crosswalk` would
+                # have given them. Two normalizers that drifted apart would hand the same
+                # consumer two different answers about the same URL.
+                "normalized_url": normalize_url(source.url),
+                "host": (urlsplit(source.url).hostname or "").lower(),
             }
             for source in sorted(registry.sources, key=lambda s: (s.jurisdiction, s.id))
         ],

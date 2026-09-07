@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "generated_at": "2026-09-02T04:26:49.847186+00:00",
   "coverage": {
     "registered_candidates": 156,
@@ -39,7 +39,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.akleg.gov/basis/statutes.asp?media=print&secStart=28.15&secEnd=28.15",
+      "host": "www.akleg.gov"
     },
     {
       "source_id": "ak-courts-self-help",
@@ -60,7 +62,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://courts.alaska.gov/shc/",
+      "host": "courts.alaska.gov"
     },
     {
       "source_id": "ak-havrs-vital-records",
@@ -81,7 +85,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.alaska.gov/en/division-of-public-health/health-analytics-vital-records/",
+      "host": "health.alaska.gov"
     },
     {
       "source_id": "al-adph-vital-records",
@@ -102,7 +108,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.alabamapublichealth.gov/vitalrecords/",
+      "host": "www.alabamapublichealth.gov"
     },
     {
       "source_id": "al-alea-driver-license",
@@ -123,7 +131,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.alea.gov/dps/driver-license",
+      "host": "www.alea.gov"
     },
     {
       "source_id": "al-judicial-system",
@@ -144,7 +154,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://judicial.alabama.gov/",
+      "host": "judicial.alabama.gov"
     },
     {
       "source_id": "ar-adh-certificates-records",
@@ -165,7 +177,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://healthy.arkansas.gov/programs-services/certificates-records/",
+      "host": "healthy.arkansas.gov"
     },
     {
       "source_id": "ar-dfa-mydmv",
@@ -186,7 +200,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dfa.arkansas.gov/office/mydmv/",
+      "host": "www.dfa.arkansas.gov"
     },
     {
       "source_id": "az-adhs-vital-records",
@@ -207,7 +223,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.azdhs.gov/licensing/vital-records/index.php",
+      "host": "www.azdhs.gov"
     },
     {
       "source_id": "az-adot-mvd",
@@ -228,7 +246,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://azdot.gov/mvd/services/driver-services",
+      "host": "azdot.gov"
     },
     {
       "source_id": "az-courts-self-service",
@@ -249,7 +269,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.azcourts.gov/selfservicecenter",
+      "host": "www.azcourts.gov"
     },
     {
       "source_id": "ca-cdph-vital-records",
@@ -270,7 +292,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.cdph.ca.gov/Programs/CHSI/Pages/Vital-Records.aspx",
+      "host": "www.cdph.ca.gov"
     },
     {
       "source_id": "ca-court-gender-recognition",
@@ -291,7 +315,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://selfhelp.courts.ca.gov/gender-recognition",
+      "host": "selfhelp.courts.ca.gov"
     },
     {
       "source_id": "ca-court-name-change",
@@ -312,7 +338,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://selfhelp.courts.ca.gov/name-change",
+      "host": "selfhelp.courts.ca.gov"
     },
     {
       "source_id": "ca-dmv-update-dl-id",
@@ -333,7 +361,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/updating-information-on-your-driver-license-or-identification-dl-id-card/",
+      "host": "www.dmv.ca.gov"
     },
     {
       "source_id": "co-judicial-name-change-adult",
@@ -354,7 +384,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.coloradojudicial.gov/self-help/adult",
+      "host": "www.coloradojudicial.gov"
     },
     {
       "source_id": "ct-dmv",
@@ -375,7 +407,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://portal.ct.gov/dmv",
+      "host": "portal.ct.gov"
     },
     {
       "source_id": "ct-dph-vital-records",
@@ -396,7 +430,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://portal.ct.gov/dph/resources-and-records/vital-records",
+      "host": "portal.ct.gov"
     },
     {
       "source_id": "dc-code-16-2501-name-change",
@@ -417,7 +453,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://code.dccouncil.gov/us/dc/council/code/sections/16-2501",
+      "host": "code.dccouncil.gov"
     },
     {
       "source_id": "dc-dmv",
@@ -438,7 +476,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.dc.gov/",
+      "host": "dmv.dc.gov"
     },
     {
       "source_id": "dc-vital-records",
@@ -459,7 +499,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dchealth.dc.gov/service/vital-records",
+      "host": "dchealth.dc.gov"
     },
     {
       "source_id": "de-code-16-31-vital-statistics",
@@ -480,7 +522,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://delcode.delaware.gov/title16/c031/sc03/index.html",
+      "host": "delcode.delaware.gov"
     },
     {
       "source_id": "de-courts",
@@ -501,7 +545,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://courts.delaware.gov/",
+      "host": "courts.delaware.gov"
     },
     {
       "source_id": "de-dmv",
@@ -522,7 +568,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.de.gov/",
+      "host": "dmv.de.gov"
     },
     {
       "source_id": "fl-doh-birth-certificates",
@@ -543,7 +591,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.floridahealth.gov/certificates-records/birth-certificates/",
+      "host": "www.floridahealth.gov"
     },
     {
       "source_id": "fl-hsmv-driver-licenses",
@@ -564,7 +614,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.flhsmv.gov/driver-licenses-id-cards/general-information/",
+      "host": "www.flhsmv.gov"
     },
     {
       "source_id": "ga-courts",
@@ -585,7 +637,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://georgiacourts.gov/",
+      "host": "georgiacourts.gov"
     },
     {
       "source_id": "ga-dds",
@@ -606,7 +660,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dds.georgia.gov/",
+      "host": "dds.georgia.gov"
     },
     {
       "source_id": "ga-dph-vital-records",
@@ -627,7 +683,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dph.georgia.gov/VitalRecords",
+      "host": "dph.georgia.gov"
     },
     {
       "source_id": "hi-courts",
@@ -648,7 +706,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courts.state.hi.us/",
+      "host": "www.courts.state.hi.us"
     },
     {
       "source_id": "hi-doh-vital-records",
@@ -669,7 +729,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.hawaii.gov/vitalrecords/",
+      "host": "health.hawaii.gov"
     },
     {
       "source_id": "hi-hrs-286-102-licensing",
@@ -690,7 +752,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.capitol.hawaii.gov/hrscurrent/Vol05_Ch0261-0319/HRS0286/HRS_0286-0102.htm",
+      "host": "www.capitol.hawaii.gov"
     },
     {
       "source_id": "ia-courts-representing-yourself",
@@ -711,7 +775,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.iowacourts.gov/for-the-public/representing-yourself",
+      "host": "www.iowacourts.gov"
     },
     {
       "source_id": "ia-dot-dmv-services",
@@ -732,7 +798,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://iowadot.gov/dmv-services",
+      "host": "iowadot.gov"
     },
     {
       "source_id": "ia-hhs-vital-records",
@@ -753,7 +821,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://hhs.iowa.gov/family-community/vital-records",
+      "host": "hhs.iowa.gov"
     },
     {
       "source_id": "id-code-49-306-license-application",
@@ -774,7 +844,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://legislature.idaho.gov/statutesrules/idstat/Title49/T49CH3/SECT49-306/",
+      "host": "legislature.idaho.gov"
     },
     {
       "source_id": "id-court-self-help",
@@ -795,7 +867,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://courtselfhelp.idaho.gov/",
+      "host": "courtselfhelp.idaho.gov"
     },
     {
       "source_id": "id-dhw-change-birth-certificate",
@@ -816,7 +890,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://healthandwelfare.idaho.gov/services-programs/birth-marriage-death-records/change-birth-certificate",
+      "host": "healthandwelfare.idaho.gov"
     },
     {
       "source_id": "il-courts-self-help",
@@ -837,7 +913,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.illinoiscourts.gov/",
+      "host": "www.illinoiscourts.gov"
     },
     {
       "source_id": "il-idph-vital-records",
@@ -858,7 +936,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dph.illinois.gov/topics-services/birth-death-other-records.html",
+      "host": "dph.illinois.gov"
     },
     {
       "source_id": "il-sos-drivers-license",
@@ -879,7 +959,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ilsos.gov/departments/drivers/home.html",
+      "host": "www.ilsos.gov"
     },
     {
       "source_id": "in-bmv",
@@ -900,7 +982,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.in.gov/bmv/",
+      "host": "www.in.gov"
     },
     {
       "source_id": "in-courts-self-service",
@@ -921,7 +1005,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.in.gov/courts/selfservice/",
+      "host": "www.in.gov"
     },
     {
       "source_id": "in-doh-vital-records",
@@ -942,7 +1028,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.in.gov/health/vital-records/",
+      "host": "www.in.gov"
     },
     {
       "source_id": "ks-dov-drivers",
@@ -963,7 +1051,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ksrevenue.gov/dovindex.html",
+      "host": "www.ksrevenue.gov"
     },
     {
       "source_id": "ks-kdhe-amend-birth-certificate",
@@ -984,7 +1074,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.kdhe.ks.gov/1172/Amend-Adult-Birth-Certificates",
+      "host": "www.kdhe.ks.gov"
     },
     {
       "source_id": "ks-kdhe-vital-statistics",
@@ -1005,7 +1097,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.kdhe.ks.gov/1165/Office-of-Vital-Statistics",
+      "host": "www.kdhe.ks.gov"
     },
     {
       "source_id": "ks-statute-60-1401-change-of-name",
@@ -1026,7 +1120,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ksrevisor.gov/statutes/chapters/ch60/060_014_0001.html",
+      "host": "www.ksrevisor.gov"
     },
     {
       "source_id": "ky-chfs-vital-statistics",
@@ -1047,7 +1143,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.chfs.ky.gov/agencies/dph/dehp/vsb/Pages/default.aspx",
+      "host": "www.chfs.ky.gov"
     },
     {
       "source_id": "ky-courts",
@@ -1068,7 +1166,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.kycourts.gov/Pages/index.aspx",
+      "host": "www.kycourts.gov"
     },
     {
       "source_id": "ky-drive",
@@ -1089,7 +1189,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://drive.ky.gov/Pages/index.aspx",
+      "host": "drive.ky.gov"
     },
     {
       "source_id": "la-ldh-vital-record-amendments",
@@ -1110,7 +1212,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://ldh.la.gov/page/vital-record-amendments",
+      "host": "ldh.la.gov"
     },
     {
       "source_id": "la-ldh-vital-records",
@@ -1131,7 +1235,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://ldh.la.gov/vital-records",
+      "host": "ldh.la.gov"
     },
     {
       "source_id": "la-rs-13-4751-petition-for-name-change",
@@ -1152,7 +1258,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.legis.la.gov/legis/Law.aspx?d=77843",
+      "host": "www.legis.la.gov"
     },
     {
       "source_id": "la-rs32-ch2-drivers-license",
@@ -1173,7 +1281,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://legis.la.gov/Legis/Law.aspx?d=88370",
+      "host": "legis.la.gov"
     },
     {
       "source_id": "ma-courts-name-changes",
@@ -1194,7 +1304,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.mass.gov/name-changes",
+      "host": "www.mass.gov"
     },
     {
       "source_id": "ma-rmv",
@@ -1215,7 +1327,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.mass.gov/orgs/massachusetts-registry-of-motor-vehicles",
+      "host": "www.mass.gov"
     },
     {
       "source_id": "ma-rvrs-vital-records",
@@ -1236,7 +1350,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.mass.gov/orgs/registry-of-vital-records-and-statistics",
+      "host": "www.mass.gov"
     },
     {
       "source_id": "md-courts",
@@ -1257,7 +1373,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.mdcourts.gov/",
+      "host": "www.mdcourts.gov"
     },
     {
       "source_id": "md-mva",
@@ -1278,7 +1396,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://mva.maryland.gov/",
+      "host": "mva.maryland.gov"
     },
     {
       "source_id": "md-vsa",
@@ -1299,7 +1419,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.maryland.gov/vsa/Pages/home.aspx",
+      "host": "health.maryland.gov"
     },
     {
       "source_id": "me-bmv",
@@ -1320,7 +1442,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.maine.gov/sos/bmv",
+      "host": "www.maine.gov"
     },
     {
       "source_id": "me-cdc-vital-records",
@@ -1341,7 +1465,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.maine.gov/dhhs/mecdc/vital-records",
+      "host": "www.maine.gov"
     },
     {
       "source_id": "me-courts",
@@ -1362,7 +1488,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courts.maine.gov/",
+      "host": "www.courts.maine.gov"
     },
     {
       "source_id": "mi-mcl-257-307-license-application",
@@ -1383,7 +1511,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-257-307.pdf",
+      "host": "www.legislature.mi.gov"
     },
     {
       "source_id": "mi-mcl-333-2831-new-birth-certificate",
@@ -1404,7 +1534,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.legislature.mi.gov/documents/mcl/pdf/mcl-333-2831.pdf",
+      "host": "www.legislature.mi.gov"
     },
     {
       "source_id": "mn-doh-vital-records",
@@ -1425,7 +1557,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.health.state.mn.us/people/vitalrecords",
+      "host": "www.health.state.mn.us"
     },
     {
       "source_id": "mn-dvs",
@@ -1446,7 +1580,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dps.mn.gov/divisions/dvs",
+      "host": "dps.mn.gov"
     },
     {
       "source_id": "mn-statute-259-10-change-of-name",
@@ -1467,7 +1603,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.revisor.mn.gov/statutes/cite/259.10",
+      "host": "www.revisor.mn.gov"
     },
     {
       "source_id": "mo-courts",
@@ -1488,7 +1626,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courts.mo.gov/",
+      "host": "www.courts.mo.gov"
     },
     {
       "source_id": "mo-dhss-vital-records",
@@ -1509,7 +1649,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.mo.gov/data/vitalrecords/",
+      "host": "health.mo.gov"
     },
     {
       "source_id": "mo-dor-driver-license",
@@ -1530,7 +1672,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dor.mo.gov/driver-license/",
+      "host": "dor.mo.gov"
     },
     {
       "source_id": "ms-courts",
@@ -1551,7 +1695,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://courts.ms.gov/",
+      "host": "courts.ms.gov"
     },
     {
       "source_id": "ms-dps-driver-service-bureau",
@@ -1572,7 +1718,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.driverservicebureau.dps.ms.gov/",
+      "host": "www.driverservicebureau.dps.ms.gov"
     },
     {
       "source_id": "ms-msdh-vital-records",
@@ -1593,7 +1741,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://msdh.ms.gov/page/31,0,109.html",
+      "host": "msdh.ms.gov"
     },
     {
       "source_id": "mt-courts-forms",
@@ -1614,7 +1764,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://courts.mt.gov/forms/",
+      "host": "courts.mt.gov"
     },
     {
       "source_id": "mt-dphhs-vital-records",
@@ -1635,7 +1787,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dphhs.mt.gov/vitalrecords/",
+      "host": "dphhs.mt.gov"
     },
     {
       "source_id": "mt-mca-61-5-111-drivers-license",
@@ -1656,7 +1810,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://leg.mt.gov/bills/mca/title_0610/chapter_0050/part_0010/section_0110/0610-0050-0010-0110.html",
+      "host": "leg.mt.gov"
     },
     {
       "source_id": "nc-dmv",
@@ -1677,7 +1833,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ncdot.gov/dmv/Pages/default.aspx",
+      "host": "www.ncdot.gov"
     },
     {
       "source_id": "nc-gs-101-name-change",
@@ -1698,7 +1856,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ncleg.gov/EnactedLegislation/Statutes/HTML/ByChapter/Chapter_101.html",
+      "host": "www.ncleg.gov"
     },
     {
       "source_id": "nc-vital-records",
@@ -1719,7 +1879,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://vitalrecords.nc.gov/",
+      "host": "vitalrecords.nc.gov"
     },
     {
       "source_id": "nd-courts",
@@ -1740,7 +1902,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ndcourts.gov/",
+      "host": "www.ndcourts.gov"
     },
     {
       "source_id": "nd-dot-driver",
@@ -1761,7 +1925,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dot.nd.gov/driver",
+      "host": "www.dot.nd.gov"
     },
     {
       "source_id": "nd-hhs-vital-records",
@@ -1782,7 +1948,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.hhs.nd.gov/vital",
+      "host": "www.hhs.nd.gov"
     },
     {
       "source_id": "ne-dhhs-vital-records",
@@ -1803,7 +1971,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dhhs.ne.gov/pages/vital-records.aspx",
+      "host": "dhhs.ne.gov"
     },
     {
       "source_id": "ne-dmv",
@@ -1824,7 +1994,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.nebraska.gov/",
+      "host": "dmv.nebraska.gov"
     },
     {
       "source_id": "ne-judicial",
@@ -1845,7 +2017,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://nebraskajudicial.gov/self-help",
+      "host": "nebraskajudicial.gov"
     },
     {
       "source_id": "nh-rsa-547-3-i-change-of-name",
@@ -1866,7 +2040,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.gencourt.state.nh.us/rsa/html/LVI/547/547-3-i.htm",
+      "host": "www.gencourt.state.nh.us"
     },
     {
       "source_id": "nh-rsa-5c-87-birth-record-amendment",
@@ -1887,7 +2063,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.gencourt.state.nh.us/rsa/html/I/5-C/5-C-87.htm",
+      "host": "www.gencourt.state.nh.us"
     },
     {
       "source_id": "nh-saf-c-1000-driver-licensing-rules",
@@ -1908,7 +2086,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.gencourt.state.nh.us/rules/state_agencies/saf-c1000.html",
+      "host": "www.gencourt.state.nh.us"
     },
     {
       "source_id": "nj-courts",
@@ -1929,7 +2109,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.njcourts.gov/",
+      "host": "www.njcourts.gov"
     },
     {
       "source_id": "nj-doh-vital-statistics",
@@ -1950,7 +2132,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.nj.gov/health/vital/",
+      "host": "www.nj.gov"
     },
     {
       "source_id": "nj-mvc",
@@ -1971,7 +2155,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.nj.gov/mvc/",
+      "host": "www.nj.gov"
     },
     {
       "source_id": "nm-courts",
@@ -1992,7 +2178,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://nmcourts.gov/",
+      "host": "nmcourts.gov"
     },
     {
       "source_id": "nm-doh-vital-records",
@@ -2013,7 +2201,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.nmhealth.org/about/erd/bvrhs/vrp/",
+      "host": "www.nmhealth.org"
     },
     {
       "source_id": "nm-mvd",
@@ -2034,7 +2224,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.mvd.newmexico.gov/",
+      "host": "www.mvd.newmexico.gov"
     },
     {
       "source_id": "nv-courts",
@@ -2055,7 +2247,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://nvcourts.gov/",
+      "host": "nvcourts.gov"
     },
     {
       "source_id": "nv-nac-483-drivers-licenses",
@@ -2076,7 +2270,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.leg.state.nv.us/NAC/NAC-483.html",
+      "host": "www.leg.state.nv.us"
     },
     {
       "source_id": "nv-nrs-440-vital-statistics",
@@ -2097,7 +2293,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.leg.state.nv.us/NRS/NRS-440.html",
+      "host": "www.leg.state.nv.us"
     },
     {
       "source_id": "ny-courts-name-change",
@@ -2118,7 +2316,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.nycourts.gov/help/name-change-andor-sex-designation-change/name-change-basics",
+      "host": "www.nycourts.gov"
     },
     {
       "source_id": "ny-dmv-change-information",
@@ -2139,7 +2339,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.ny.gov/driver-license/change-information-on-dmv-photo-documents",
+      "host": "dmv.ny.gov"
     },
     {
       "source_id": "ny-doh-vital-records",
@@ -2160,7 +2362,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.health.ny.gov/vital_records/",
+      "host": "www.health.ny.gov"
     },
     {
       "source_id": "oh-bmv",
@@ -2181,7 +2385,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://bmv.ohio.gov/",
+      "host": "bmv.ohio.gov"
     },
     {
       "source_id": "oh-oac-3701-5-vital-statistics",
@@ -2202,7 +2408,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://codes.ohio.gov/ohio-administrative-code/chapter-3701-5",
+      "host": "codes.ohio.gov"
     },
     {
       "source_id": "oh-supreme-court",
@@ -2223,7 +2431,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.supremecourt.ohio.gov/",
+      "host": "www.supremecourt.ohio.gov"
     },
     {
       "source_id": "ok-service-oklahoma",
@@ -2244,7 +2454,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://oklahoma.gov/service.html",
+      "host": "oklahoma.gov"
     },
     {
       "source_id": "ok-vital-records",
@@ -2265,7 +2477,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://oklahoma.gov/health/services/birth-and-death-certificates.html",
+      "host": "oklahoma.gov"
     },
     {
       "source_id": "ok-vital-records-forms",
@@ -2286,7 +2500,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://oklahoma.gov/health/services/birth-and-death-certificates/vital-records-forms.html",
+      "host": "oklahoma.gov"
     },
     {
       "source_id": "or-courts-name-sex-change",
@@ -2307,7 +2523,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courts.oregon.gov/programs/family/forms/Pages/name-sex-change.aspx",
+      "host": "www.courts.oregon.gov"
     },
     {
       "source_id": "or-dmv-gender-marker",
@@ -2328,7 +2546,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.oregon.gov/odot/dmv/pages/driverid/chg_gender_designation.aspx",
+      "host": "www.oregon.gov"
     },
     {
       "source_id": "or-dmv-name-change",
@@ -2349,7 +2569,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.oregon.gov/odot/dmv/pages/dv/chgname.aspx",
+      "host": "www.oregon.gov"
     },
     {
       "source_id": "or-oha-vital-records",
@@ -2370,7 +2592,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.oregon.gov/oha/ph/birthdeathcertificates/pages/index.aspx",
+      "host": "www.oregon.gov"
     },
     {
       "source_id": "pa-courts",
@@ -2391,7 +2615,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.pacourts.us/",
+      "host": "www.pacourts.us"
     },
     {
       "source_id": "pa-dmv",
@@ -2412,7 +2638,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.pa.gov/agencies/dmv",
+      "host": "www.pa.gov"
     },
     {
       "source_id": "pa-doh-vital-records",
@@ -2433,7 +2661,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.pa.gov/agencies/health/programs/vital-records",
+      "host": "www.pa.gov"
     },
     {
       "source_id": "ri-dmv-licenses",
@@ -2454,7 +2684,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.ri.gov/licenses-permits-ids",
+      "host": "dmv.ri.gov"
     },
     {
       "source_id": "ri-doh-vital-records",
@@ -2475,7 +2707,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.ri.gov/records/",
+      "host": "health.ri.gov"
     },
     {
       "source_id": "ri-gl-33-22-28-name-change",
@@ -2496,7 +2730,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://webserver.rilegislature.gov/Statutes/TITLE33/33-22/33-22-28.htm",
+      "host": "webserver.rilegislature.gov"
     },
     {
       "source_id": "sc-code-15-49-change-of-name",
@@ -2517,7 +2753,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.scstatehouse.gov/code/t15c049.php",
+      "host": "www.scstatehouse.gov"
     },
     {
       "source_id": "sc-dmv",
@@ -2538,7 +2776,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dmv.sc.gov/",
+      "host": "dmv.sc.gov"
     },
     {
       "source_id": "sc-dph-vital-records",
@@ -2559,7 +2799,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dph.sc.gov/public/vital-records",
+      "host": "dph.sc.gov"
     },
     {
       "source_id": "sd-doh-vital-records",
@@ -2580,7 +2822,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://doh.sd.gov/licensing-and-records/vital-records/",
+      "host": "doh.sd.gov"
     },
     {
       "source_id": "sd-sdlrc-32-12-drivers-license",
@@ -2601,7 +2845,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.sdlegislature.gov/api/Statutes/32-12.html",
+      "host": "www.sdlegislature.gov"
     },
     {
       "source_id": "sd-ujs",
@@ -2622,7 +2868,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://ujs.sd.gov/",
+      "host": "ujs.sd.gov"
     },
     {
       "source_id": "tn-courts",
@@ -2643,7 +2891,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.tncourts.gov/",
+      "host": "www.tncourts.gov"
     },
     {
       "source_id": "tn-doh-vital-records",
@@ -2664,7 +2914,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.tn.gov/health/vr.html",
+      "host": "www.tn.gov"
     },
     {
       "source_id": "tn-driver-services",
@@ -2685,7 +2937,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.tn.gov/safety/driver-services.html",
+      "host": "www.tn.gov"
     },
     {
       "source_id": "tx-dps-change-dl-id",
@@ -2706,7 +2960,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dps.texas.gov/section/driver-license/how-change-information-your-driver-license-or-id-card",
+      "host": "www.dps.texas.gov"
     },
     {
       "source_id": "tx-dshs-vital-statistics",
@@ -2727,7 +2983,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dshs.texas.gov/vital-statistics",
+      "host": "www.dshs.texas.gov"
     },
     {
       "source_id": "tx-family-code-45-change-of-name",
@@ -2748,7 +3006,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://statutes.capitol.texas.gov/Docs/FA/htm/FA.45.htm",
+      "host": "statutes.capitol.texas.gov"
     },
     {
       "source_id": "us-federal-register-sex-marker",
@@ -2769,7 +3029,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=passport+sex+marker&order=newest&per_page=20&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=document_number&fields%5B%5D=html_url&fields%5B%5D=agencies",
+      "host": "www.federalregister.gov"
     },
     {
       "source_id": "us-passport-change-correct",
@@ -2790,7 +3052,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://travel.state.gov/content/travel/en/passports/have-passport/change-correct.html",
+      "host": "travel.state.gov"
     },
     {
       "source_id": "us-passport-sex-markers",
@@ -2811,7 +3075,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://travel.state.gov/en/passports/apply/unique-needs/sex-markers.html",
+      "host": "travel.state.gov"
     },
     {
       "source_id": "us-selective-service-register",
@@ -2832,7 +3098,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.sss.gov/register/",
+      "host": "www.sss.gov"
     },
     {
       "source_id": "us-ssa-number-card",
@@ -2853,7 +3121,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ssa.gov/number-card",
+      "host": "www.ssa.gov"
     },
     {
       "source_id": "us-ssa-ss5-form",
@@ -2874,7 +3144,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.ssa.gov/forms/ss-5.pdf",
+      "host": "www.ssa.gov"
     },
     {
       "source_id": "ut-courts-name-change",
@@ -2895,7 +3167,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.utcourts.gov/en/self-help/case-categories/family/name-change.html",
+      "host": "www.utcourts.gov"
     },
     {
       "source_id": "ut-dld",
@@ -2916,7 +3190,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dld.utah.gov/",
+      "host": "dld.utah.gov"
     },
     {
       "source_id": "ut-vital-records",
@@ -2937,7 +3213,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://vitalrecords.utah.gov/",
+      "host": "vitalrecords.utah.gov"
     },
     {
       "source_id": "va-courts",
@@ -2958,7 +3236,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.vacourts.gov/",
+      "host": "www.vacourts.gov"
     },
     {
       "source_id": "va-dmv",
@@ -2979,7 +3259,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dmv.virginia.gov/",
+      "host": "www.dmv.virginia.gov"
     },
     {
       "source_id": "va-vdh-vital-records",
@@ -3000,7 +3282,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.vdh.virginia.gov/vital-records/",
+      "host": "www.vdh.virginia.gov"
     },
     {
       "source_id": "vt-judiciary",
@@ -3021,7 +3305,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.vtcourts.gov/",
+      "host": "www.vtcourts.gov"
     },
     {
       "source_id": "vt-vital-records",
@@ -3042,7 +3328,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.healthvermont.gov/stats",
+      "host": "www.healthvermont.gov"
     },
     {
       "source_id": "wa-courts-name-change-form",
@@ -3063,7 +3351,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courts.wa.gov/forms/?fa=forms.contribute&formID=49",
+      "host": "www.courts.wa.gov"
     },
     {
       "source_id": "wa-doh-vital-records",
@@ -3084,7 +3374,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://doh.wa.gov/licenses-permits-and-certificates/vital-records",
+      "host": "doh.wa.gov"
     },
     {
       "source_id": "wa-dol-gender-designation",
@@ -3105,7 +3397,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dol.wa.gov/driver-licenses-and-permits/update-driver-license-information/change-your-gender-designation",
+      "host": "dol.wa.gov"
     },
     {
       "source_id": "wi-courts",
@@ -3126,7 +3420,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.wicourts.gov/",
+      "host": "www.wicourts.gov"
     },
     {
       "source_id": "wi-dhs-vital-records",
@@ -3147,7 +3443,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dhs.wisconsin.gov/vitalrecords/index.htm",
+      "host": "www.dhs.wisconsin.gov"
     },
     {
       "source_id": "wi-dmv",
@@ -3168,7 +3466,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://wisconsindot.gov/Pages/online-srvcs/external/dmv.aspx",
+      "host": "wisconsindot.gov"
     },
     {
       "source_id": "wv-courts",
@@ -3189,7 +3489,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.courtswv.gov/",
+      "host": "www.courtswv.gov"
     },
     {
       "source_id": "wv-dmv",
@@ -3210,7 +3512,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://transportation.wv.gov/DMV/Pages/default.aspx",
+      "host": "transportation.wv.gov"
     },
     {
       "source_id": "wv-vital-registration",
@@ -3231,7 +3535,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://dhhr.wv.gov/HSC/VR/Pages/default.aspx",
+      "host": "dhhr.wv.gov"
     },
     {
       "source_id": "wy-courts",
@@ -3252,7 +3558,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.wyocourts.gov/",
+      "host": "www.wyocourts.gov"
     },
     {
       "source_id": "wy-driver-services",
@@ -3273,7 +3581,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://www.dot.state.wy.us/driverservices",
+      "host": "www.dot.state.wy.us"
     },
     {
       "source_id": "wy-health-vital-records",
@@ -3294,7 +3604,9 @@
         "unverified",
         "fetch-policy-unreviewed"
       ],
-      "fetch_policy_outcome": "unreviewed"
+      "fetch_policy_outcome": "unreviewed",
+      "normalized_url": "https://health.wyo.gov/admin/vitalstatistics/",
+      "host": "health.wyo.gov"
     }
   ],
   "gaps": [

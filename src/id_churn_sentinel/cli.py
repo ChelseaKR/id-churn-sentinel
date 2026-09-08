@@ -111,6 +111,7 @@ from id_churn_sentinel.core.evidence import (
     verify_bundle,
 )
 from id_churn_sentinel.core.fetch import Fetcher, HttpFetcher
+from id_churn_sentinel.core.jurisdiction_status import build_jurisdiction_status
 from id_churn_sentinel.core.normalize import (
     CURRENT_CONTRACT,
     EXTRACTION_OUTCOME_PDF_REFUSED,
@@ -2304,12 +2305,21 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         records = store.changes(review_status=ReviewStatus.CONFIRMED)
         unreviewed = len(store.changes(review_status=ReviewStatus.UNREVIEWED))
         run_status = build_public_status(store)
+        # Derived inside the store's lifetime, like everything else here, and passed to
+        # `publish()` as data. `publish()` deliberately takes no store: it is the function
+        # that writes the public bytes, and the narrower its inputs the fewer ways an
+        # operational record can leak into them.
+        jurisdiction_status = {
+            jurisdiction: build_jurisdiction_status(store, jurisdiction, registry=registry)
+            for jurisdiction in sorted(registry.jurisdictions)
+        }
     result = publish(
         records,
         args.out,
         registry=registry,
         feed_url=args.feed_url,
         run_status=run_status,
+        jurisdiction_status=jurisdiction_status,
     )
     print(
         f"publish: {result.published} reviewed change(s) → {result.feed_path}, {result.changes_path}"
@@ -2321,6 +2331,11 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         f"  per-jurisdiction feeds: {len(result.jurisdiction_feeds)} "
         f"(feed-us-tx.xml, changes-us-tx.json, … — one per jurisdiction, published whether "
         f"or not it has items yet)"
+    )
+    print(
+        f"  per-jurisdiction watch receipts: {len(result.jurisdiction_status_paths)} "
+        f"(status-us-tx.json, … — what the last covering run did, source by source, so an "
+        f"empty feed is not the only thing a subscriber has to go on)"
     )
     if unreviewed:
         print(f"  ({unreviewed} unreviewed change(s) withheld — they need a human first)")

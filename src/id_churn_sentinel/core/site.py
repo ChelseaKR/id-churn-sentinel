@@ -623,7 +623,8 @@ def _change_article(record: ChangeRecord, registry: Registry) -> str:
 def _endpoints_section(registry: Registry) -> str:
     per_jurisdiction = "\n".join(
         f'<li><a href="feed-{feed_slug(j)}.xml">feed-{feed_slug(j)}.xml</a> · '
-        f'<a href="changes-{feed_slug(j)}.json">changes-{feed_slug(j)}.json</a> '
+        f'<a href="changes-{feed_slug(j)}.json">changes-{feed_slug(j)}.json</a> · '
+        f'<a href="status-{feed_slug(j)}.json">status-{feed_slug(j)}.json</a> '
         f"<span>({_esc(j)})</span></li>"
         for j in sorted(registry.jurisdictions)
     )
@@ -651,6 +652,14 @@ def _endpoints_section(registry: Registry) -> str:
             "<p>An organisation that serves one state should not have to consume all 52. "
             "Every jurisdiction has its own feed, and it exists whether or not it has items "
             "yet.</p>",
+            "<p><strong>An empty feed is not an answer, so each one has a receipt beside "
+            "it.</strong> <code>status-us-xx.json</code> says what the last watch run that "
+            "covered that jurisdiction did to each of its sources — read and unchanged, read "
+            "and changed, never answered, answered with no readable text, not attempted, or "
+            "not in that run at all — and says so in words as well as in a field. A "
+            "jurisdiction the last run did not cover says that, and names the run it was "
+            "last covered in. Without it, all of those weeks look the same from the "
+            "feed.</p>",
             f'<ul class="feeds">\n{per_jurisdiction}\n</ul>',
             "<h3>Absolute URLs, for a cron job</h3>",
             "<p>The links above are relative, so they work wherever this page is served from. "

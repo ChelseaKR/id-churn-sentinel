@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chelseakr.github.io/id-churn-sentinel/schema/jurisdiction-status-v1.schema.json",
+  "title": "id-churn-sentinel per-jurisdiction watch receipt",
+  "description": "status-us-xx.json, published beside feed-us-xx.xml for EVERY jurisdiction in the registry on every publish, whether or not anything has ever run. It answers the question an empty feed cannot: for the last watch run that covered this jurisdiction, what happened to each of its sources. A hash is deliberately absent in 1.0 — the store binds snapshots to sources and not to runs, so no hash can honestly be attributed to a particular run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "jurisdiction",
+    "coverage",
+    "statement",
+    "outcome_vocabulary",
+    "run",
+    "latest_run",
+    "counts",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Bump on any breaking change. The contract is closed (additionalProperties: false), so adding even an optional property is a break."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this document was written. NOT when the run happened — read `run.started_at` for that. Regenerating the site does not re-watch anything."
+    },
+    "jurisdiction": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The jurisdiction this receipt is scoped to, as the registry spells it (`TX`, `US`)."
+    },
+    "coverage": {
+      "enum": ["covered", "not_in_run", "never_covered"],
+      "description": "`covered`: the newest run in the store covered this jurisdiction. `not_in_run`: it did not, and `run` is the last one that did. `never_covered`: no run ever has, including the case where no run has ever happened."
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One sentence for a person, which may never claim more than the receipt holds."
+    },
+    "outcome_vocabulary": {
+      "type": "object",
+      "description": "Every outcome word this document can use, mapped to the sentence it means. Carried IN the document so a consumer meeting an unfamiliar word can read what it stands for instead of assuming it is benign.",
+      "additionalProperties": { "type": "string", "minLength": 1 },
+      "minProperties": 1
+    },
+    "run": {
+      "description": "The last run that covered this jurisdiction, or null when none ever has. When it is null every source reads `not_attempted`, because there is no run whose judgement could be reported.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/run" }]
+    },
+    "latest_run": {
+      "description": "The newest run in the store whatever its scope, or null. Present so a `not_in_run` receipt can name the run that skipped this jurisdiction, not only the older one that did not.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/run" }]
+    },
+    "counts": {
+      "type": "object",
+      "description": "One key per outcome word, ALWAYS, including the words that did not occur. Omitting zeroes would make a reader reconstruct the missing keys, and the reconstruction they reach for is the reassuring one.",
+      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "minProperties": 1
+    },
+    "sources": {
+      "type": "array",
+      "description": "Every source the registry holds in this jurisdiction, in id order.",
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "state", "scope", "as_of", "started_at", "completed_at"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["running", "quiet", "complete", "partial", "failed"] },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the run declared it covered: a jurisdiction, or `all jurisdictions`."
+        },
+        "as_of": { "type": "string", "format": "date" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": {
+          "description": "null while a run has recorded no terminal outcome. Not the same as a run that failed.",
+          "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "jurisdiction",
+        "document_class",
+        "url",
+        "authority",
+        "verification_status",
+        "human_verified",
+        "verified_by",
+        "verified_at",
+        "verification_statement",
+        "eligible_in_run",
+        "eligibility_reasons",
+        "outcome",
+        "outcome_statement"
+      ],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "jurisdiction": { "type": "string", "minLength": 1 },
+        "document_class": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "authority": { "type": "string" },
+        "verification_status": {
+          "enum": ["unverified", "verified", "rejected", "withdrawn"],
+          "description": "Whether a HUMAN has confirmed this URL is the page the entry claims it is. Carried here for the same reason it is carried everywhere else: a receipt saying `we read this page and it had not changed` is exactly where a reader is most likely to take the URL as authoritative."
+        },
+        "human_verified": { "type": "boolean" },
+        "verified_by": { "oneOf": [{ "type": "null" }, { "type": "string" }] },
+        "verified_at": { "oneOf": [{ "type": "null" }, { "type": "string" }] },
+        "verification_statement": { "type": "string" },
+        "eligible_in_run": {
+          "description": "The RUN's eligibility judgement, not today's. null when the run held no row for this source at all.",
+          "oneOf": [{ "type": "null" }, { "type": "boolean" }]
+        },
+        "eligibility_reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The reasons the run recorded with that judgement. Empty when the run held no row."
+        },
+        "outcome": {
+          "enum": [
+            "observed_unchanged",
+            "observed_changed",
+            "unreachable",
+            "unreadable",
+            "not_eligible",
+            "not_attempted",
+            "in_flight",
+            "outcome_unknown",
+            "not_in_run"
+          ],
+          "description": "What the last covering run did to this source. Exactly one of nine, and eight of the nine mean the page was NOT compared against its baseline. `not_in_run` and `not_attempted` are separate because `the run never saw this source` and `the run saw it and did not fetch it` lead a reader to different actions."
+        },
+        "outcome_statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The sentence `outcome` stands for, repeated per source so a row is readable on its own."
+        }
+      }
+    }
+  }
+}

@@ -83,7 +83,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <header>
 <h1>ID Churn Sentinel</h1>
 <p class="lede"><strong>Technical alpha:</strong> a candidate-source registry and human-review pipeline for US government pages about name and gender-marker changes on identity documents. When operational, it reports that an eligible source page changed and shows the passage that changed. <strong>It never asserts what the law is.</strong></p>
-<p class="meta">Generated 02 September 2026, 04:26 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
+<p class="meta">Generated 08 September 2026, 02:03 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
 </header>
 <main id="main">
 <nav class="section-nav" aria-label="Page sections">
@@ -99,7 +99,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </nav>
 <section class="notice" aria-labelledby="verification">
 <h2 id="verification">Read this first: no human has confirmed any of these 156 sources</h2>
-<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-09-02, <strong>0 of 156 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
+<p><strong>This public deployment is not currently an operating monitor.</strong> As of 2026-09-08, <strong>0 of 156 registered candidates are attempt-eligible</strong>. The run-health section below says whether any eligible watch actually completed.</p>
 <p><strong>Every source listed on this page is a <em>candidate</em> official URL.</strong> Our crawler fetched it and read its title. That is all that has happened to 156 of the 156 entries below: <strong>UNVERIFIED — machine-checked, not human-confirmed</strong>. <strong>No human has confirmed that each one is the official page it claims to be</strong> for that document class in that jurisdiction.</p>
 <p><strong>Do not rely on this list as authoritative guidance, and do not hand it to someone who will.</strong> A machine cannot tell a state's real birth-certificate page from a convincing-looking one. It cannot even reliably tell a live page from a bot-wall: one federal site answers our crawler with a page titled <q>Request Access</q> and serves it with <strong>HTTP 200</strong>. A status code is not a verification, and a title is not a verification. A person is.</p>
 <h3>What this tool does claim</h3>
@@ -115,7 +115,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <p>Every source below, in <a href="sources.json">sources.json</a>, and in every per-jurisdiction feed carries a machine-readable <code>verification_status</code> field for exactly this reason — so that an integrator cannot consume a source without being told what is behind it. The verification queue and how it is worked: <a href="https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/VERIFYING.md">docs/VERIFYING.md</a>.</p>
 </section>
 <section class="notice" aria-labelledby="run-health">
-<h2 id="run-health">Run health: FAILED · CURRENT</h2>
+<h2 id="run-health">Run health: STALE</h2>
 <p><strong>The feed's generated time is not evidence that the watcher ran.</strong> Health below comes only from persisted run and source-attempt receipts. A failed, partial, running, or stale state means feed silence must not be read as no change.</p>
 <p>Latest attempt <code>072bc26bf44247b5af57af754b6ad5d2</code>: <strong>FAILED</strong>; scope <strong>all jurisdictions</strong>; started 2026-08-29T17:00:52.463546+00:00; completed 2026-08-29T17:00:52.466137+00:00; <strong>no source was attempt-eligible, so this run examined nothing</strong> — there is no denominator here and the zero counts are not a measurement of any page.</p>
 <p>No successful watch run receipt exists.</p>
@@ -179,59 +179,60 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </ul>
 <h3>One jurisdiction at a time</h3>
 <p>An organisation that serves one state should not have to consume all 52. Every jurisdiction has its own feed, and it exists whether or not it has items yet.</p>
+<p><strong>An empty feed is not an answer, so each one has a receipt beside it.</strong> <code>status-us-xx.json</code> says what the last watch run that covered that jurisdiction did to each of its sources — read and unchanged, read and changed, never answered, answered with no readable text, not attempted, or not in that run at all — and says so in words as well as in a field. A jurisdiction the last run did not cover says that, and names the run it was last covered in. Without it, all of those weeks look the same from the feed.</p>
 <ul class="feeds">
-<li><a href="feed-us-ak.xml">feed-us-ak.xml</a> · <a href="changes-us-ak.json">changes-us-ak.json</a> <span>(AK)</span></li>
-<li><a href="feed-us-al.xml">feed-us-al.xml</a> · <a href="changes-us-al.json">changes-us-al.json</a> <span>(AL)</span></li>
-<li><a href="feed-us-ar.xml">feed-us-ar.xml</a> · <a href="changes-us-ar.json">changes-us-ar.json</a> <span>(AR)</span></li>
-<li><a href="feed-us-az.xml">feed-us-az.xml</a> · <a href="changes-us-az.json">changes-us-az.json</a> <span>(AZ)</span></li>
-<li><a href="feed-us-ca.xml">feed-us-ca.xml</a> · <a href="changes-us-ca.json">changes-us-ca.json</a> <span>(CA)</span></li>
-<li><a href="feed-us-co.xml">feed-us-co.xml</a> · <a href="changes-us-co.json">changes-us-co.json</a> <span>(CO)</span></li>
-<li><a href="feed-us-ct.xml">feed-us-ct.xml</a> · <a href="changes-us-ct.json">changes-us-ct.json</a> <span>(CT)</span></li>
-<li><a href="feed-us-dc.xml">feed-us-dc.xml</a> · <a href="changes-us-dc.json">changes-us-dc.json</a> <span>(DC)</span></li>
-<li><a href="feed-us-de.xml">feed-us-de.xml</a> · <a href="changes-us-de.json">changes-us-de.json</a> <span>(DE)</span></li>
-<li><a href="feed-us-fl.xml">feed-us-fl.xml</a> · <a href="changes-us-fl.json">changes-us-fl.json</a> <span>(FL)</span></li>
-<li><a href="feed-us-ga.xml">feed-us-ga.xml</a> · <a href="changes-us-ga.json">changes-us-ga.json</a> <span>(GA)</span></li>
-<li><a href="feed-us-hi.xml">feed-us-hi.xml</a> · <a href="changes-us-hi.json">changes-us-hi.json</a> <span>(HI)</span></li>
-<li><a href="feed-us-ia.xml">feed-us-ia.xml</a> · <a href="changes-us-ia.json">changes-us-ia.json</a> <span>(IA)</span></li>
-<li><a href="feed-us-id.xml">feed-us-id.xml</a> · <a href="changes-us-id.json">changes-us-id.json</a> <span>(ID)</span></li>
-<li><a href="feed-us-il.xml">feed-us-il.xml</a> · <a href="changes-us-il.json">changes-us-il.json</a> <span>(IL)</span></li>
-<li><a href="feed-us-in.xml">feed-us-in.xml</a> · <a href="changes-us-in.json">changes-us-in.json</a> <span>(IN)</span></li>
-<li><a href="feed-us-ks.xml">feed-us-ks.xml</a> · <a href="changes-us-ks.json">changes-us-ks.json</a> <span>(KS)</span></li>
-<li><a href="feed-us-ky.xml">feed-us-ky.xml</a> · <a href="changes-us-ky.json">changes-us-ky.json</a> <span>(KY)</span></li>
-<li><a href="feed-us-la.xml">feed-us-la.xml</a> · <a href="changes-us-la.json">changes-us-la.json</a> <span>(LA)</span></li>
-<li><a href="feed-us-ma.xml">feed-us-ma.xml</a> · <a href="changes-us-ma.json">changes-us-ma.json</a> <span>(MA)</span></li>
-<li><a href="feed-us-md.xml">feed-us-md.xml</a> · <a href="changes-us-md.json">changes-us-md.json</a> <span>(MD)</span></li>
-<li><a href="feed-us-me.xml">feed-us-me.xml</a> · <a href="changes-us-me.json">changes-us-me.json</a> <span>(ME)</span></li>
-<li><a href="feed-us-mi.xml">feed-us-mi.xml</a> · <a href="changes-us-mi.json">changes-us-mi.json</a> <span>(MI)</span></li>
-<li><a href="feed-us-mn.xml">feed-us-mn.xml</a> · <a href="changes-us-mn.json">changes-us-mn.json</a> <span>(MN)</span></li>
-<li><a href="feed-us-mo.xml">feed-us-mo.xml</a> · <a href="changes-us-mo.json">changes-us-mo.json</a> <span>(MO)</span></li>
-<li><a href="feed-us-ms.xml">feed-us-ms.xml</a> · <a href="changes-us-ms.json">changes-us-ms.json</a> <span>(MS)</span></li>
-<li><a href="feed-us-mt.xml">feed-us-mt.xml</a> · <a href="changes-us-mt.json">changes-us-mt.json</a> <span>(MT)</span></li>
-<li><a href="feed-us-nc.xml">feed-us-nc.xml</a> · <a href="changes-us-nc.json">changes-us-nc.json</a> <span>(NC)</span></li>
-<li><a href="feed-us-nd.xml">feed-us-nd.xml</a> · <a href="changes-us-nd.json">changes-us-nd.json</a> <span>(ND)</span></li>
-<li><a href="feed-us-ne.xml">feed-us-ne.xml</a> · <a href="changes-us-ne.json">changes-us-ne.json</a> <span>(NE)</span></li>
-<li><a href="feed-us-nh.xml">feed-us-nh.xml</a> · <a href="changes-us-nh.json">changes-us-nh.json</a> <span>(NH)</span></li>
-<li><a href="feed-us-nj.xml">feed-us-nj.xml</a> · <a href="changes-us-nj.json">changes-us-nj.json</a> <span>(NJ)</span></li>
-<li><a href="feed-us-nm.xml">feed-us-nm.xml</a> · <a href="changes-us-nm.json">changes-us-nm.json</a> <span>(NM)</span></li>
-<li><a href="feed-us-nv.xml">feed-us-nv.xml</a> · <a href="changes-us-nv.json">changes-us-nv.json</a> <span>(NV)</span></li>
-<li><a href="feed-us-ny.xml">feed-us-ny.xml</a> · <a href="changes-us-ny.json">changes-us-ny.json</a> <span>(NY)</span></li>
-<li><a href="feed-us-oh.xml">feed-us-oh.xml</a> · <a href="changes-us-oh.json">changes-us-oh.json</a> <span>(OH)</span></li>
-<li><a href="feed-us-ok.xml">feed-us-ok.xml</a> · <a href="changes-us-ok.json">changes-us-ok.json</a> <span>(OK)</span></li>
-<li><a href="feed-us-or.xml">feed-us-or.xml</a> · <a href="changes-us-or.json">changes-us-or.json</a> <span>(OR)</span></li>
-<li><a href="feed-us-pa.xml">feed-us-pa.xml</a> · <a href="changes-us-pa.json">changes-us-pa.json</a> <span>(PA)</span></li>
-<li><a href="feed-us-ri.xml">feed-us-ri.xml</a> · <a href="changes-us-ri.json">changes-us-ri.json</a> <span>(RI)</span></li>
-<li><a href="feed-us-sc.xml">feed-us-sc.xml</a> · <a href="changes-us-sc.json">changes-us-sc.json</a> <span>(SC)</span></li>
-<li><a href="feed-us-sd.xml">feed-us-sd.xml</a> · <a href="changes-us-sd.json">changes-us-sd.json</a> <span>(SD)</span></li>
-<li><a href="feed-us-tn.xml">feed-us-tn.xml</a> · <a href="changes-us-tn.json">changes-us-tn.json</a> <span>(TN)</span></li>
-<li><a href="feed-us-tx.xml">feed-us-tx.xml</a> · <a href="changes-us-tx.json">changes-us-tx.json</a> <span>(TX)</span></li>
-<li><a href="feed-us.xml">feed-us.xml</a> · <a href="changes-us.json">changes-us.json</a> <span>(US)</span></li>
-<li><a href="feed-us-ut.xml">feed-us-ut.xml</a> · <a href="changes-us-ut.json">changes-us-ut.json</a> <span>(UT)</span></li>
-<li><a href="feed-us-va.xml">feed-us-va.xml</a> · <a href="changes-us-va.json">changes-us-va.json</a> <span>(VA)</span></li>
-<li><a href="feed-us-vt.xml">feed-us-vt.xml</a> · <a href="changes-us-vt.json">changes-us-vt.json</a> <span>(VT)</span></li>
-<li><a href="feed-us-wa.xml">feed-us-wa.xml</a> · <a href="changes-us-wa.json">changes-us-wa.json</a> <span>(WA)</span></li>
-<li><a href="feed-us-wi.xml">feed-us-wi.xml</a> · <a href="changes-us-wi.json">changes-us-wi.json</a> <span>(WI)</span></li>
-<li><a href="feed-us-wv.xml">feed-us-wv.xml</a> · <a href="changes-us-wv.json">changes-us-wv.json</a> <span>(WV)</span></li>
-<li><a href="feed-us-wy.xml">feed-us-wy.xml</a> · <a href="changes-us-wy.json">changes-us-wy.json</a> <span>(WY)</span></li>
+<li><a href="feed-us-ak.xml">feed-us-ak.xml</a> · <a href="changes-us-ak.json">changes-us-ak.json</a> · <a href="status-us-ak.json">status-us-ak.json</a> <span>(AK)</span></li>
+<li><a href="feed-us-al.xml">feed-us-al.xml</a> · <a href="changes-us-al.json">changes-us-al.json</a> · <a href="status-us-al.json">status-us-al.json</a> <span>(AL)</span></li>
+<li><a href="feed-us-ar.xml">feed-us-ar.xml</a> · <a href="changes-us-ar.json">changes-us-ar.json</a> · <a href="status-us-ar.json">status-us-ar.json</a> <span>(AR)</span></li>
+<li><a href="feed-us-az.xml">feed-us-az.xml</a> · <a href="changes-us-az.json">changes-us-az.json</a> · <a href="status-us-az.json">status-us-az.json</a> <span>(AZ)</span></li>
+<li><a href="feed-us-ca.xml">feed-us-ca.xml</a> · <a href="changes-us-ca.json">changes-us-ca.json</a> · <a href="status-us-ca.json">status-us-ca.json</a> <span>(CA)</span></li>
+<li><a href="feed-us-co.xml">feed-us-co.xml</a> · <a href="changes-us-co.json">changes-us-co.json</a> · <a href="status-us-co.json">status-us-co.json</a> <span>(CO)</span></li>
+<li><a href="feed-us-ct.xml">feed-us-ct.xml</a> · <a href="changes-us-ct.json">changes-us-ct.json</a> · <a href="status-us-ct.json">status-us-ct.json</a> <span>(CT)</span></li>
+<li><a href="feed-us-dc.xml">feed-us-dc.xml</a> · <a href="changes-us-dc.json">changes-us-dc.json</a> · <a href="status-us-dc.json">status-us-dc.json</a> <span>(DC)</span></li>
+<li><a href="feed-us-de.xml">feed-us-de.xml</a> · <a href="changes-us-de.json">changes-us-de.json</a> · <a href="status-us-de.json">status-us-de.json</a> <span>(DE)</span></li>
+<li><a href="feed-us-fl.xml">feed-us-fl.xml</a> · <a href="changes-us-fl.json">changes-us-fl.json</a> · <a href="status-us-fl.json">status-us-fl.json</a> <span>(FL)</span></li>
+<li><a href="feed-us-ga.xml">feed-us-ga.xml</a> · <a href="changes-us-ga.json">changes-us-ga.json</a> · <a href="status-us-ga.json">status-us-ga.json</a> <span>(GA)</span></li>
+<li><a href="feed-us-hi.xml">feed-us-hi.xml</a> · <a href="changes-us-hi.json">changes-us-hi.json</a> · <a href="status-us-hi.json">status-us-hi.json</a> <span>(HI)</span></li>
+<li><a href="feed-us-ia.xml">feed-us-ia.xml</a> · <a href="changes-us-ia.json">changes-us-ia.json</a> · <a href="status-us-ia.json">status-us-ia.json</a> <span>(IA)</span></li>
+<li><a href="feed-us-id.xml">feed-us-id.xml</a> · <a href="changes-us-id.json">changes-us-id.json</a> · <a href="status-us-id.json">status-us-id.json</a> <span>(ID)</span></li>
+<li><a href="feed-us-il.xml">feed-us-il.xml</a> · <a href="changes-us-il.json">changes-us-il.json</a> · <a href="status-us-il.json">status-us-il.json</a> <span>(IL)</span></li>
+<li><a href="feed-us-in.xml">feed-us-in.xml</a> · <a href="changes-us-in.json">changes-us-in.json</a> · <a href="status-us-in.json">status-us-in.json</a> <span>(IN)</span></li>
+<li><a href="feed-us-ks.xml">feed-us-ks.xml</a> · <a href="changes-us-ks.json">changes-us-ks.json</a> · <a href="status-us-ks.json">status-us-ks.json</a> <span>(KS)</span></li>
+<li><a href="feed-us-ky.xml">feed-us-ky.xml</a> · <a href="changes-us-ky.json">changes-us-ky.json</a> · <a href="status-us-ky.json">status-us-ky.json</a> <span>(KY)</span></li>
+<li><a href="feed-us-la.xml">feed-us-la.xml</a> · <a href="changes-us-la.json">changes-us-la.json</a> · <a href="status-us-la.json">status-us-la.json</a> <span>(LA)</span></li>
+<li><a href="feed-us-ma.xml">feed-us-ma.xml</a> · <a href="changes-us-ma.json">changes-us-ma.json</a> · <a href="status-us-ma.json">status-us-ma.json</a> <span>(MA)</span></li>
+<li><a href="feed-us-md.xml">feed-us-md.xml</a> · <a href="changes-us-md.json">changes-us-md.json</a> · <a href="status-us-md.json">status-us-md.json</a> <span>(MD)</span></li>
+<li><a href="feed-us-me.xml">feed-us-me.xml</a> · <a href="changes-us-me.json">changes-us-me.json</a> · <a href="status-us-me.json">status-us-me.json</a> <span>(ME)</span></li>
+<li><a href="feed-us-mi.xml">feed-us-mi.xml</a> · <a href="changes-us-mi.json">changes-us-mi.json</a> · <a href="status-us-mi.json">status-us-mi.json</a> <span>(MI)</span></li>
+<li><a href="feed-us-mn.xml">feed-us-mn.xml</a> · <a href="changes-us-mn.json">changes-us-mn.json</a> · <a href="status-us-mn.json">status-us-mn.json</a> <span>(MN)</span></li>
+<li><a href="feed-us-mo.xml">feed-us-mo.xml</a> · <a href="changes-us-mo.json">changes-us-mo.json</a> · <a href="status-us-mo.json">status-us-mo.json</a> <span>(MO)</span></li>
+<li><a href="feed-us-ms.xml">feed-us-ms.xml</a> · <a href="changes-us-ms.json">changes-us-ms.json</a> · <a href="status-us-ms.json">status-us-ms.json</a> <span>(MS)</span></li>
+<li><a href="feed-us-mt.xml">feed-us-mt.xml</a> · <a href="changes-us-mt.json">changes-us-mt.json</a> · <a href="status-us-mt.json">status-us-mt.json</a> <span>(MT)</span></li>
+<li><a href="feed-us-nc.xml">feed-us-nc.xml</a> · <a href="changes-us-nc.json">changes-us-nc.json</a> · <a href="status-us-nc.json">status-us-nc.json</a> <span>(NC)</span></li>
+<li><a href="feed-us-nd.xml">feed-us-nd.xml</a> · <a href="changes-us-nd.json">changes-us-nd.json</a> · <a href="status-us-nd.json">status-us-nd.json</a> <span>(ND)</span></li>
+<li><a href="feed-us-ne.xml">feed-us-ne.xml</a> · <a href="changes-us-ne.json">changes-us-ne.json</a> · <a href="status-us-ne.json">status-us-ne.json</a> <span>(NE)</span></li>
+<li><a href="feed-us-nh.xml">feed-us-nh.xml</a> · <a href="changes-us-nh.json">changes-us-nh.json</a> · <a href="status-us-nh.json">status-us-nh.json</a> <span>(NH)</span></li>
+<li><a href="feed-us-nj.xml">feed-us-nj.xml</a> · <a href="changes-us-nj.json">changes-us-nj.json</a> · <a href="status-us-nj.json">status-us-nj.json</a> <span>(NJ)</span></li>
+<li><a href="feed-us-nm.xml">feed-us-nm.xml</a> · <a href="changes-us-nm.json">changes-us-nm.json</a> · <a href="status-us-nm.json">status-us-nm.json</a> <span>(NM)</span></li>
+<li><a href="feed-us-nv.xml">feed-us-nv.xml</a> · <a href="changes-us-nv.json">changes-us-nv.json</a> · <a href="status-us-nv.json">status-us-nv.json</a> <span>(NV)</span></li>
+<li><a href="feed-us-ny.xml">feed-us-ny.xml</a> · <a href="changes-us-ny.json">changes-us-ny.json</a> · <a href="status-us-ny.json">status-us-ny.json</a> <span>(NY)</span></li>
+<li><a href="feed-us-oh.xml">feed-us-oh.xml</a> · <a href="changes-us-oh.json">changes-us-oh.json</a> · <a href="status-us-oh.json">status-us-oh.json</a> <span>(OH)</span></li>
+<li><a href="feed-us-ok.xml">feed-us-ok.xml</a> · <a href="changes-us-ok.json">changes-us-ok.json</a> · <a href="status-us-ok.json">status-us-ok.json</a> <span>(OK)</span></li>
+<li><a href="feed-us-or.xml">feed-us-or.xml</a> · <a href="changes-us-or.json">changes-us-or.json</a> · <a href="status-us-or.json">status-us-or.json</a> <span>(OR)</span></li>
+<li><a href="feed-us-pa.xml">feed-us-pa.xml</a> · <a href="changes-us-pa.json">changes-us-pa.json</a> · <a href="status-us-pa.json">status-us-pa.json</a> <span>(PA)</span></li>
+<li><a href="feed-us-ri.xml">feed-us-ri.xml</a> · <a href="changes-us-ri.json">changes-us-ri.json</a> · <a href="status-us-ri.json">status-us-ri.json</a> <span>(RI)</span></li>
+<li><a href="feed-us-sc.xml">feed-us-sc.xml</a> · <a href="changes-us-sc.json">changes-us-sc.json</a> · <a href="status-us-sc.json">status-us-sc.json</a> <span>(SC)</span></li>
+<li><a href="feed-us-sd.xml">feed-us-sd.xml</a> · <a href="changes-us-sd.json">changes-us-sd.json</a> · <a href="status-us-sd.json">status-us-sd.json</a> <span>(SD)</span></li>
+<li><a href="feed-us-tn.xml">feed-us-tn.xml</a> · <a href="changes-us-tn.json">changes-us-tn.json</a> · <a href="status-us-tn.json">status-us-tn.json</a> <span>(TN)</span></li>
+<li><a href="feed-us-tx.xml">feed-us-tx.xml</a> · <a href="changes-us-tx.json">changes-us-tx.json</a> · <a href="status-us-tx.json">status-us-tx.json</a> <span>(TX)</span></li>
+<li><a href="feed-us.xml">feed-us.xml</a> · <a href="changes-us.json">changes-us.json</a> · <a href="status-us.json">status-us.json</a> <span>(US)</span></li>
+<li><a href="feed-us-ut.xml">feed-us-ut.xml</a> · <a href="changes-us-ut.json">changes-us-ut.json</a> · <a href="status-us-ut.json">status-us-ut.json</a> <span>(UT)</span></li>
+<li><a href="feed-us-va.xml">feed-us-va.xml</a> · <a href="changes-us-va.json">changes-us-va.json</a> · <a href="status-us-va.json">status-us-va.json</a> <span>(VA)</span></li>
+<li><a href="feed-us-vt.xml">feed-us-vt.xml</a> · <a href="changes-us-vt.json">changes-us-vt.json</a> · <a href="status-us-vt.json">status-us-vt.json</a> <span>(VT)</span></li>
+<li><a href="feed-us-wa.xml">feed-us-wa.xml</a> · <a href="changes-us-wa.json">changes-us-wa.json</a> · <a href="status-us-wa.json">status-us-wa.json</a> <span>(WA)</span></li>
+<li><a href="feed-us-wi.xml">feed-us-wi.xml</a> · <a href="changes-us-wi.json">changes-us-wi.json</a> · <a href="status-us-wi.json">status-us-wi.json</a> <span>(WI)</span></li>
+<li><a href="feed-us-wv.xml">feed-us-wv.xml</a> · <a href="changes-us-wv.json">changes-us-wv.json</a> · <a href="status-us-wv.json">status-us-wv.json</a> <span>(WV)</span></li>
+<li><a href="feed-us-wy.xml">feed-us-wy.xml</a> · <a href="changes-us-wy.json">changes-us-wy.json</a> · <a href="status-us-wy.json">status-us-wy.json</a> <span>(WY)</span></li>
 </ul>
 <h3>Absolute URLs, for a cron job</h3>
 <p>The links above are relative, so they work wherever this page is served from. If you are wiring up a poller, these are the two absolute bases. <strong>The published bytes are committed to the repository</strong>, so the first one needs nothing switched on — no Pages, no CI, no build step, no account:</p>

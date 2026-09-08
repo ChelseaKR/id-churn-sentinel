@@ -65,7 +65,7 @@ a promise. `tests/test_source_labelling.py` asserts it on the published bytes.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from email.utils import format_datetime
 from hashlib import sha256
@@ -76,6 +76,11 @@ from urllib.parse import urlsplit
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, PublicationStatus
 from id_churn_sentinel.core.coverage import coverage
 from id_churn_sentinel.core.eligibility import eligibility_report, evaluate_source
+from id_churn_sentinel.core.jurisdiction_status import (
+    JurisdictionStatus,
+    jurisdiction_status_json,
+    store_unavailable_jurisdiction_status,
+)
 from id_churn_sentinel.core.registry import (
     UNVERIFIED,
     Registry,
@@ -147,6 +152,7 @@ class PublishResult:
         "changes_path",
         "feed_path",
         "jurisdiction_feeds",
+        "jurisdiction_status_paths",
         "published",
         "site_path",
         "sources_path",
@@ -160,6 +166,7 @@ class PublishResult:
         changes_path: Path,
         published: int,
         jurisdiction_feeds: tuple[Path, ...] = (),
+        jurisdiction_status_paths: tuple[Path, ...] = (),
         site_path: Path | None = None,
         sources_path: Path | None = None,
         status_path: Path | None = None,
@@ -168,6 +175,7 @@ class PublishResult:
         self.changes_path = changes_path
         self.published = published
         self.jurisdiction_feeds = jurisdiction_feeds
+        self.jurisdiction_status_paths = jurisdiction_status_paths
         self.site_path = site_path
         self.sources_path = sources_path
         self.status_path = status_path
@@ -312,6 +320,7 @@ def publish(
     feed_url: str = REPO_URL,
     now: datetime | None = None,
     run_status: PublicRunStatus | None = None,
+    jurisdiction_status: Mapping[str, JurisdictionStatus] | None = None,
     eligibility_as_of: date | None = None,
 ) -> PublishResult:
     """Write the whole published surface into `out_dir` (in this repo, `docs/`). Reviewed
@@ -360,6 +369,7 @@ def publish(
     }
 
     feed_names: list[str] = []
+    status_names: list[str] = []
     for jurisdiction in sorted(registry.jurisdictions):
         slug = feed_slug(jurisdiction)
         scoped = tuple(r for r in published if r.jurisdiction == jurisdiction)
@@ -380,7 +390,25 @@ def publish(
             jurisdiction=jurisdiction,
             eligibility_as_of=publication_as_of,
         )
+        # The receipt beside the feed (issue #76). Written for EVERY jurisdiction in the
+        # registry, whether or not a run has ever covered it: a consumer who fetches this
+        # file and gets a 404 falls back to reading the empty feed, which is the reading
+        # this document exists to prevent.
+        #
+        # `publish()` deliberately takes the receipts as DATA and never a store. Given none
+        # it writes the `store_unavailable` receipt -- not the `never_covered` one, which is
+        # a claim about what a store holds and cannot be made by something that has not read
+        # one. A publisher that rendered "no run has ever covered this jurisdiction" out of
+        # "I was given nothing to check" would be committing this repository's own defect
+        # inside the file written to remove it.
+        status_name = f"status-{slug}.json"
+        rendered[status_name] = jurisdiction_status_json(
+            (jurisdiction_status or {}).get(jurisdiction)
+            or store_unavailable_jurisdiction_status(jurisdiction, registry),
+            generated_at=generated_at,
+        )
         feed_names.append(feed_name)
+        status_names.append(status_name)
 
     report = coverage(registry)
     rendered["sources.json"] = sources_json(
@@ -409,6 +437,7 @@ def publish(
     feed_path = out_dir / "feed.xml"
     changes_path = out_dir / "changes.json"
     feeds = tuple(out_dir / name for name in feed_names)
+    jurisdiction_statuses = tuple(out_dir / name for name in status_names)
     sources_path = out_dir / "sources.json"
     status_path = out_dir / "status.json"
     site_path = out_dir / "index.html"
@@ -418,6 +447,7 @@ def publish(
         changes_path=changes_path,
         published=len(published),
         jurisdiction_feeds=feeds,
+        jurisdiction_status_paths=jurisdiction_statuses,
         site_path=site_path,
         sources_path=sources_path,
         status_path=status_path,

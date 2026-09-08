@@ -708,7 +708,32 @@ def _check_published_feed(
     """Compare the bundle's change record with the one a published feed serves.
 
     Without a feed to compare against there is nothing to check, and this says so. It does
-    not report agreement with a document it never opened.
+    not report agreement with a document it never opened — and, since the comparison was
+    widened, it does not report agreement about fields it never read either.
+
+    The comparison used to be ``key in change and key in published[0]`` — the
+    **intersection**. A field the bundle attests and the served entry simply does not
+    carry was therefore never compared, and this check returned OK with the words *"the
+    record matches the entry served by …"*. Measured on a real exported bundle: deleting
+    ``new_hash``, ``diff_excerpt`` and ``previous_hash`` from the served entry left
+    ``published-feed: ok``, exit 0, and the report's last line reading *"VERIFIED — every
+    check ran and passed."* Those three fields are most of what the bundle exists to
+    attest, and this is the command a third party runs to confirm the bundle describes
+    the record the feed served.
+
+    The two directions are **not** symmetric, and the asymmetry is by design rather than
+    an oversight to be tidied away:
+
+    * every key the bundle's record carries **must** be served, and served equally. A
+      served entry that omits one is a disagreement, reported with its own sentence
+      separately from a value mismatch, because "the feed does not publish this field"
+      and "the feed publishes a different value" send a reader to different places.
+    * a key the *served entry* carries and the bundle does not is **expected**:
+      ``publish._change_payload`` is ``{**record.to_dict(), "source_verification": …}``,
+      so every real feed entry carries exactly one field more than every real
+      ``change.json``. Failing on that would fail on every honest bundle. Those keys are
+      named in the passing detail instead, so the asymmetry is visible rather than
+      silent.
     """
 
     if changes_path is None:
@@ -732,18 +757,35 @@ def _check_published_feed(
             f"{changes_path} serves no change with id {manifest['change_id']}",
         )
     change = _read_change(bundle, manifest)
-    differing = sorted(
-        key for key in change if key in published[0] and published[0][key] != change[key]
-    )
-    if differing:
+    served = published[0]
+    differing = sorted(key for key in change if key in served and served[key] != change[key])
+    unserved = sorted(key for key in change if key not in served)
+    if differing or unserved:
+        causes = []
+        if differing:
+            causes.append(f"differs on: {differing}")
+        if unserved:
+            causes.append(
+                f"attests field(s) the served entry does not carry at all: {unserved} "
+                "(a field the feed omits was not compared, and an uncompared field is "
+                "not an agreement)"
+            )
         return CheckResult(
             "published-feed",
             CHECK_FAILED,
-            f"the bundle's record differs from {changes_path} on: {differing}",
+            f"the bundle's record and {changes_path} disagree — " + "; ".join(causes),
         )
-    return CheckResult(
-        "published-feed", CHECK_OK, f"the record matches the entry served by {changes_path}"
-    )
+    # Named rather than ignored: `source_verification` is on every published entry and on
+    # no bundle record, so a reader who is told only "matches" cannot tell a document with
+    # the expected one extra field from one that has grown three more.
+    unattested = sorted(key for key in served if key not in change)
+    detail = f"every field the bundle attests is served identically by {changes_path}"
+    if unattested:
+        detail += (
+            f"; the served entry also carries {unattested}, which the bundle does not "
+            "attest and this check therefore does not vouch for"
+        )
+    return CheckResult("published-feed", CHECK_OK, detail)
 
 
 def _read_change(bundle: Path, manifest: Mapping[str, Any]) -> dict[str, Any]:

@@ -138,6 +138,35 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **A source read but held against nothing was published as one compared against its
+  baseline** (2026-09-08), issue #99, in every jurisdiction receipt's `statement`, in
+  `WatchRun.observed_count`'s docstring, in the run-health section of `index.html`, and in
+  `docs/CONSUMERS.md`.
+
+  The number behind all four is `observed_unchanged + observed_changed`, and `detect.py`
+  persists `observed_unchanged` for three cases in which it refuses the comparison **in
+  terms**: a page seen for the first time, a page whose registry entry has been re-pointed at
+  a different URL, and one whose committed hash is not re-derivable under today's
+  normalization contract. So on the ordinary first run, over an empty store, the sentence
+  claimed a comparison against baselines that did not exist. `BaselineReport.observed` in
+  `core/baseline.py` names itself the deliberate twin of that property and has always
+  described it correctly; the two definitions had drifted and the wrong one was the published
+  one.
+
+  This narrows the verb and leaves the number alone: the count is a reading count and now
+  says so. What was actually *compared* stays a separate question, answered by
+  `baseline check`'s own unbaselined and url-changed counters, and a caller who needs it needs
+  both numbers. **#99 stays open** — whether `observed_unchanged` should split into distinct
+  outcome words, and the `run_sources` migration that would let it, are untouched here.
+
+  The receipts are excluded from the byte-drift gate because a clean checkout has no store to
+  rebuild them from, and that exclusion had left the one field a person actually reads checked
+  by nothing. `_statement` is now a `statement_for` taking only fields the receipt itself
+  publishes, so `tests/test_published_site_drift.py` re-derives the sentence from each
+  committed document and byte-compares it. On the tree before this change that gate named all
+  52 receipts; under a hand-edit of one restored receipt it is the **only** one of 999 tests
+  that goes red.
+
 - **The roadmap listed a settled governance question as open** (2026-09-06), in
   `docs/ROADMAP.md` §10. "Should `significance: substantive` require *two* humans? …
   possibly yes" sat in the section a reader consults for what is undecided, while the

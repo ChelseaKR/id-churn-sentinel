@@ -68,6 +68,7 @@ __all__ = [
     "AttemptEvidence",
     "FetchAttempt",
     "RunSourceInput",
+    "RunSourceOutcome",
     "SilenceWindow",
     "Snapshot",
     "SnapshotStore",
@@ -1196,6 +1197,41 @@ class RunSourceInput:
 
 
 @dataclass(frozen=True, slots=True)
+class RunSourceOutcome:
+    """What one run recorded about one source, read back from `run_sources`.
+
+    Every field is the run's own judgement at the time, never today's. `retrieval_success`
+    is tri-state on purpose: `None` means the run has not recorded an answer for this source
+    (it is in flight, or it ended without doing so), which is a different fact from `False`.
+    """
+
+    source_id: str
+    jurisdiction: str
+    eligible: bool
+    eligibility_reasons: tuple[str, ...]
+    attempted: bool
+    retrieval_success: bool | None
+    observation_outcome: str
+
+
+def _decode_reasons(raw: object) -> tuple[str, ...]:
+    """`eligibility_reasons` is written as a JSON array; read it as one.
+
+    A malformed value is an empty tuple rather than an exception: the reasons are an
+    explanation attached to a decision, and the decision itself lives in `eligible`. A
+    receipt that refused to render because one row's explanation would not parse would
+    withhold the eligibility answer over the footnote to it.
+    """
+    try:
+        decoded = json.loads(str(raw))
+    except (TypeError, ValueError):
+        return ()
+    if not isinstance(decoded, list):
+        return ()
+    return tuple(str(reason) for reason in decoded)
+
+
+@dataclass(frozen=True, slots=True)
 class AttemptEvidence:
     """The complete evidence one terminal fetch attempt persists (`DATA-04`/`DET-01`).
 
@@ -2146,6 +2182,75 @@ class SnapshotStore:
             observation_count=int(row["observation_count"]),
             error=str(row["error"]),
         )
+
+    def run_source_outcomes(self, run_id: str) -> tuple[RunSourceOutcome, ...]:
+        """Every source one run copied into `run_sources`, with what happened to each.
+
+        `WatchRun` exposes four *sets* of ids, which answers "how many" and cannot answer
+        "why not". Two facts collapse there in particular, and they are not the same fact: a
+        source the run considered and judged ineligible is absent from
+        `eligible_source_ids`, and so is a source the run never saw at all -- one added to
+        the registry after the run finished. A per-jurisdiction receipt has to tell those
+        apart, so it reads the rows rather than the sets.
+
+        `retrieval_success` is `None` while a row is in flight, and that stays `None` here
+        rather than becoming `False`. A run that has not yet answered for a source has not
+        answered that the source was unreachable.
+        """
+        rows = self._conn.execute(
+            "SELECT source_id, jurisdiction, eligible, eligibility_reasons, attempted, "
+            "retrieval_success, observation_outcome FROM run_sources WHERE run_id = ? "
+            "ORDER BY source_id",
+            (run_id,),
+        ).fetchall()
+        return tuple(
+            RunSourceOutcome(
+                source_id=str(row["source_id"]),
+                jurisdiction=str(row["jurisdiction"]),
+                eligible=bool(row["eligible"]),
+                eligibility_reasons=_decode_reasons(row["eligibility_reasons"]),
+                attempted=bool(row["attempted"]),
+                retrieval_success=(
+                    None if row["retrieval_success"] is None else bool(row["retrieval_success"])
+                ),
+                observation_outcome=str(row["observation_outcome"]),
+            )
+            for row in rows
+        )
+
+    def run_observation_source_ids(self, run_id: str) -> frozenset[str]:
+        """The sources this run recorded an observation for.
+
+        `run_observations` binds a run to `change_id`s, and `changes` is what knows which
+        source a change is about. Joined here rather than in the caller so that "this run
+        saw this page move" is answered from the two tables that hold it, not inferred from
+        a change's timestamp falling inside a run's window -- which would attribute another
+        run's observation to this one whenever two runs overlap.
+        """
+        rows = self._conn.execute(
+            "SELECT DISTINCT change.source_id AS source_id FROM run_observations AS observation "
+            "JOIN changes AS change ON change.change_id = observation.change_id "
+            "WHERE observation.run_id = ?",
+            (run_id,),
+        ).fetchall()
+        return frozenset(str(row["source_id"]) for row in rows)
+
+    def latest_watch_run_covering(self, jurisdiction: str) -> WatchRun | None:
+        """The newest receipt whose scope included `jurisdiction`, or `None`.
+
+        A run's scope is what the run itself declared: an aggregate run (`jurisdiction IS
+        NULL`) covered every jurisdiction in the registry it ran against, and a scoped run
+        covered exactly one. Deliberately NOT derived from whether any of the jurisdiction's
+        sources appear in `run_sources`: a jurisdiction whose every source was ineligible
+        would then read as "not covered by any run", which is the opposite of true -- the
+        run looked, and had nothing eligible to fetch.
+        """
+        row = self._conn.execute(
+            "SELECT * FROM watch_runs WHERE jurisdiction IS NULL OR jurisdiction = ? "
+            "ORDER BY started_at DESC, run_id DESC LIMIT 1",
+            (jurisdiction,),
+        ).fetchone()
+        return self._row_to_watch_run(row) if row is not None else None
 
     # -- changes -----------------------------------------------------------------
 

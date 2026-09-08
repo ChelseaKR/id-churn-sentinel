@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.1",
-  "generated_at": "2026-09-02T04:26:49.847186+00:00",
-  "state": "failed",
-  "stale": false,
+  "schema_version": "1.2",
+  "generated_at": "2026-09-08T02:03:36.984700+00:00",
+  "state": "stale",
+  "stale": true,
   "stale_after_seconds": 691200,
-  "message": "The latest watch did not complete. Feed silence is not evidence of no change.",
+  "message": "No terminal watch receipt is recent enough. Feed silence is not evidence of no change.",
   "last_attempted_run": {
     "run_id": "072bc26bf44247b5af57af754b6ad5d2",
     "state": "failed",

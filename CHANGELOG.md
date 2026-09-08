@@ -9,6 +9,47 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A watch receipt beside every jurisdiction feed, so a silent feed says whether it was
+  watched** (2026-09-08), issue #76. New `core/jurisdiction_status.py`, three read-only store
+  accessors, `docs/schema/jurisdiction-status-v1.schema.json`, and one `status-us-xx.json`
+  written per registry jurisdiction on every publish.
+
+  `feed-us-tx.xml` with no items is byte-identical in four different weeks: all four Texas
+  sources read and unchanged; two read and two never answered; Texas outside the last run's
+  scope; nothing ever run. The README already warned that "the feed's silence about a
+  jurisdiction means nothing at all", and that warning was true because the artifact carried
+  nothing that would make silence mean something. `status.json` answers the same question for
+  the whole registry, which is not the resolution anyone subscribes at.
+
+  Each receipt names, per source, what the last run that *covered* that jurisdiction did to
+  it — one of nine words, eight of which mean the page was not compared against its baseline —
+  with the run's own eligibility judgement and reasons, the verification status that travels
+  with every source in every artifact here, and the sentence each word stands for, carried in
+  the document so an unfamiliar word cannot be read as benign. Counts include every word,
+  zeroes included, because an omitted key is one a reader completes for themselves and the
+  completion they reach for is the reassuring one.
+
+  Three distinctions the shape exists to keep apart, each of which would otherwise collapse
+  into "nothing changed": a source the run **never saw** (added to the registry afterwards)
+  versus one it **considered and did not fetch**; a run whose scope **excluded** this
+  jurisdiction versus one that covered it, with the skipping run named either way; and — the
+  one found while building it — **"I did not look"** versus **"I looked and found nothing"**.
+  The publisher takes receipts as data and never a store, so given none it writes
+  `coverage: store_unavailable`, not `never_covered`: the latter is a claim about what a
+  store holds, and something that has not opened one may not make it.
+
+  **No hash is published, deliberately.** `snapshots` carries `content_sha256` per source
+  with no run column, so the only hash any run owns is the `new_hash` on a change — present
+  for sources that moved and for no others. A field that is correct for the minority of rows
+  and silently the latest fetch for the rest is the substitution this file exists to refuse.
+  Binding snapshots to runs is what would earn it.
+
+  The receipts are store-derived, so `tests/test_published_site_drift.py` excludes them from
+  its byte comparison for the reason it excludes `status.json` — and buys that back with a
+  cross-check: every committed receipt must list exactly the registry's sources for its
+  jurisdiction and, unless it says it had no store, must name the same latest run
+  `status.json` does.
+
 - **`sentinel crosswalk` — which of an outside list of URLs this registry already covers**
   (2026-09-07), issue #71. New `core/crosswalk.py`, a `crosswalk` verb, and
   `docs/schema/crosswalk-v1.schema.json`.

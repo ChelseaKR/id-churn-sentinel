@@ -34,6 +34,7 @@ curl -s "$BASE/changes-us-tx.json"    # just Texas
 curl -s "$BASE/feed-us-tx.xml"        # just Texas, as RSS
 curl -s "$BASE/sources.json"          # registered candidates, eligibility, and named gaps
 curl -s "$BASE/status.json"           # persisted watch health; not the page-build time
+curl -s "$BASE/status-us-tx.json"     # what the last run covering Texas did, source by source
 curl -s "$BASE/schema/changes-v2.schema.json"   # the normative shape of changes.json
 curl -s "$BASE/schema/status-v1.schema.json"    # the normative shape of status.json
 ```
@@ -52,6 +53,7 @@ Everything below is published to a static URL and consumable with **no account, 
 | **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful/**unmeasured** source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
 | **The schema** | `schema/changes-v2.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
 | **The health schema** | `schema/status-v1.schema.json` | Closed JSON Schema 2020-12 contract for `status.json`. |
+| **One receipt per jurisdiction** | `status-us-tx.json` | What the last watch run that covered Texas did to each Texas source: read and unchanged, read and changed, never answered, answered with no readable text, considered and not eligible, not attempted, or not in that run at all. Published whether or not anything ran. Contract: `schema/jurisdiction-status-v1.schema.json`. |
 
 Every item is a machine-observed change **a named human reviewed and confirmed**. Source authority is earned only when its `source_verification.status` is `verified` and the verification is in date. HTML/text items carry the changed passage; PDF and other binary items in the current alpha carry an explicit byte-change notice because extracted-text passage diffs are not implemented. Nothing unreviewed is ever published.
 
@@ -467,6 +469,7 @@ A URL differing from a registered source only by a trailing slash reports `host_
 - **`review_status` is always `confirmed`.** If you ever see another value, we broke a promise — open an issue.
 - **The feed will never require a credential.**
 - **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `status.json`, their versioned schemas, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
+- **An empty jurisdiction feed is not an answer.** `feed-us-tx.xml` with no items is the same bytes whether all four Texas sources were read and unchanged, two never answered, Texas was outside the last run's scope, or nothing has ever run. Read `status-us-tx.json`, which says which. Its `coverage` distinguishes `covered`, `not_in_run` (and names the run that skipped you), `never_covered`, and `store_unavailable` — that last one means the publisher had no evidence store to read and is **not** a report that nothing ran.
 - **Run health is a separate fact.** Read `status.json` before interpreting feed silence. Its `generated_at` never means a watch succeeded; use `state`, `last_attempted_run`, and `last_successful_run`. The contract is `schema/status-v1.schema.json`.
 - **A successful retrieval is not the same as an observation.** `unmeasured_source_ids` (schema 1.1) names every source whose fetch succeeded and produced no readable text — a client-rendered shell, an empty 200, a bot-wall. Those pages were **not compared against anything**, so for them the run is not evidence of no change, and a run holding one is `partial` rather than `quiet`. `observed_source_count` is the number actually compared. Do not compute a watched-page count from `successful_retrieval_count` alone:
 

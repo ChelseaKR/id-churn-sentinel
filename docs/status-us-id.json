@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-08T02:03:36.984700+00:00",
+  "jurisdiction": "ID",
+  "coverage": "covered",
+  "statement": "The last run covering ID (072bc26bf44247b5af57af754b6ad5d2, failed) compared 0 of 3 registered source(s) in this jurisdiction against the committed baseline. For the remaining 3, this run is not evidence that nothing changed.",
+  "outcome_vocabulary": {
+    "observed_unchanged": "The last covering run read this page and it matched the committed baseline.",
+    "observed_changed": "The last covering run read this page and it differed from the committed baseline; the difference is in the review queue, and appears in a feed only once a human has confirmed it.",
+    "unreachable": "The last covering run tried to fetch this page and did not get one. Nothing about this source was compared, so this run is not evidence that it did not change.",
+    "unreadable": "The last covering run fetched this page and it yielded no extractable text, so there was nothing to compare against the baseline. Not evidence of no change.",
+    "not_eligible": "The last covering run considered this source and did not attempt it \u2014 see the recorded eligibility reasons.",
+    "not_attempted": "The last covering run did not attempt this source. Where there is no run at all, every source reads this way.",
+    "in_flight": "The last covering run has not recorded an outcome for this source. It is running, or it ended without answering for this one.",
+    "outcome_unknown": "The run recorded a retrieval for this source but not what was observed. Receipts written before observation outcomes were persisted read this way.",
+    "not_in_run": "This source was not in the last covering run at all \u2014 it is newer than that run, or it was outside its scope."
+  },
+  "run": {
+    "run_id": "072bc26bf44247b5af57af754b6ad5d2",
+    "state": "failed",
+    "scope": "all jurisdictions",
+    "as_of": "2026-08-29",
+    "started_at": "2026-08-29T17:00:52.463546+00:00",
+    "completed_at": "2026-08-29T17:00:52.466137+00:00"
+  },
+  "latest_run": {
+    "run_id": "072bc26bf44247b5af57af754b6ad5d2",
+    "state": "failed",
+    "scope": "all jurisdictions",
+    "as_of": "2026-08-29",
+    "started_at": "2026-08-29T17:00:52.463546+00:00",
+    "completed_at": "2026-08-29T17:00:52.466137+00:00"
+  },
+  "counts": {
+    "observed_unchanged": 0,
+    "observed_changed": 0,
+    "unreachable": 0,
+    "unreadable": 0,
+    "not_eligible": 3,
+    "not_attempted": 0,
+    "in_flight": 0,
+    "outcome_unknown": 0,
+    "not_in_run": 0
+  },
+  "sources": [
+    {
+      "source_id": "id-code-49-306-license-application",
+      "jurisdiction": "ID",
+      "document_class": "drivers_license",
+      "url": "https://legislature.idaho.gov/statutesrules/idstat/Title49/T49CH3/SECT49-306/",
+      "authority": "Idaho Legislature \u2014 Idaho Code \u00a749-306 (administered by the Idaho Transportation Department)",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "eligible_in_run": false,
+      "eligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "outcome": "not_eligible",
+      "outcome_statement": "The last covering run considered this source and did not attempt it \u2014 see the recorded eligibility reasons."
+    },
+    {
+      "source_id": "id-court-self-help",
+      "jurisdiction": "ID",
+      "document_class": "court_order_name_change",
+      "url": "https://courtselfhelp.idaho.gov/",
+      "authority": "Idaho Supreme Court, Court Assistance Office",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "eligible_in_run": false,
+      "eligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "outcome": "not_eligible",
+      "outcome_statement": "The last covering run considered this source and did not attempt it \u2014 see the recorded eligibility reasons."
+    },
+    {
+      "source_id": "id-dhw-change-birth-certificate",
+      "jurisdiction": "ID",
+      "document_class": "birth_certificate",
+      "url": "https://healthandwelfare.idaho.gov/services-programs/birth-marriage-death-records/change-birth-certificate",
+      "authority": "Idaho Department of Health and Welfare, Bureau of Vital Records and Health Statistics",
+      "verification_status": "unverified",
+      "human_verified": false,
+      "verified_by": "",
+      "verified_at": "",
+      "verification_statement": "UNVERIFIED \u2014 machine-checked, not human-confirmed. A live fetch confirmed this URL answers and its title was read; NO HUMAN has confirmed that it is the official page for this document class in this jurisdiction. Do not rely on it as authoritative guidance.",
+      "eligible_in_run": false,
+      "eligibility_reasons": [
+        "unverified",
+        "fetch-policy-unreviewed"
+      ],
+      "outcome": "not_eligible",
+      "outcome_statement": "The last covering run considered this source and did not attempt it \u2014 see the recorded eligibility reasons."
+    }
+  ]
+}

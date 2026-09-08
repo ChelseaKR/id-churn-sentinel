@@ -56,6 +56,7 @@ from pathlib import Path
 
 from id_churn_sentinel.core.baseline import default_baseline_path
 from id_churn_sentinel.core.coverage import repo_root
+from id_churn_sentinel.core.jurisdiction_status import COVERAGE_STORE_UNAVAILABLE
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import load_registry
 from id_churn_sentinel.core.site import PAGES_URL
@@ -67,6 +68,17 @@ PUBLISHED = repo_root() / "docs"
 #: The two artifacts that are watch-run health rather than registry projection. See the
 #: module docstring: the store they come from is not committed.
 STORE_DERIVED = ("status.json",)
+
+#: The per-jurisdiction watch receipts (issue #76) are the same kind of thing, one file per
+#: jurisdiction. Matched by prefix rather than listed, because the list is the registry's
+#: jurisdictions and would go stale the first time one is added -- and it would go stale by
+#: silently pulling a file INTO a byte comparison it cannot pass, which reads as drift.
+STORE_DERIVED_PREFIX = "status-us"
+
+
+def _is_store_derived(name: str) -> bool:
+    return name in STORE_DERIVED or name.startswith(STORE_DERIVED_PREFIX)
+
 
 #: The `index.html` block rendered from that same run health, delimited exactly as
 #: `core/site.py` emits it.
@@ -147,7 +159,7 @@ def test_every_registry_derived_artifact_regenerates_byte_for_byte(tmp_path: Pat
     generated file under `docs/` was hand-edited.
     """
     written = _regenerate(tmp_path)
-    compared = [name for name in written if name not in STORE_DERIVED and name != "index.html"]
+    compared = [name for name in written if not _is_store_derived(name) and name != "index.html"]
     # 52 jurisdictions x (feed + changes), plus feed.xml, changes.json, sources.json and
     # .nojekyll. Asserted as a floor so the loop below can never be vacuous.
     assert len(compared) > 100, (
@@ -211,6 +223,51 @@ def test_the_excluded_run_health_section_agrees_with_the_committed_status_json()
     else:
         assert attempted["run_id"] in section, (
             "docs/index.html names a different latest attempt than docs/status.json"
+        )
+
+
+def test_the_committed_jurisdiction_receipts_agree_with_the_committed_status_json() -> None:
+    """The other excluded artifacts, checked against the same two committed documents.
+
+    `status-us-xx.json` is store-derived, so it is out of the byte comparison for the reason
+    `status.json` is. That exclusion has to buy something back, so: every receipt covers
+    exactly the registry's sources for its jurisdiction, and any receipt that claims to have
+    read the store has to name the same latest run `status.json` does. A receipt regenerated
+    on a different day, from a different store, or by hand fails one of the two.
+
+    The `store_unavailable` case carries no run and is exempt from the second half by
+    construction — that is what the word means, and it is why it exists as a separate value
+    rather than being folded into `never_covered`.
+    """
+    registry = load_registry()
+    status = json.loads((PUBLISHED / "status.json").read_text(encoding="utf-8"))
+    attempted = status["last_attempted_run"]
+
+    receipts = sorted(PUBLISHED.glob("status-us*.json"))
+    assert len(receipts) == len(registry.jurisdictions), (
+        f"{len(receipts)} committed receipt(s) for {len(registry.jurisdictions)} "
+        f"jurisdiction(s). Run `make publish` and commit the result."
+    )
+
+    for path in receipts:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        jurisdiction = document["jurisdiction"]
+        expected = sorted(
+            source.id for source in registry.sources if source.jurisdiction == jurisdiction
+        )
+        assert [entry["source_id"] for entry in document["sources"]] == expected, (
+            f"{path.name} does not list the registry's sources for {jurisdiction}"
+        )
+        assert sum(document["counts"].values()) == len(expected)
+        if document["coverage"] == COVERAGE_STORE_UNAVAILABLE:
+            assert document["run"] is None and document["latest_run"] is None
+            continue
+        assert attempted is not None, (
+            f"{path.name} reports a run, but docs/status.json records none; one of the two "
+            f"was published separately"
+        )
+        assert document["latest_run"]["run_id"] == attempted["run_id"], (
+            f"{path.name} names a different latest run than docs/status.json"
         )
 
 

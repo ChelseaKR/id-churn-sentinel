@@ -307,7 +307,7 @@ def test_every_reading_outcome_word_is_one_the_receipt_publishes(
     from id_churn_sentinel.core.jurisdiction_status import _READING_OUTCOMES
 
     assert _READING_OUTCOMES, "the reading vocabulary is empty; the numerator is always 0"
-    assert _READING_OUTCOMES <= set(OUTCOMES), sorted(_READING_OUTCOMES - set(OUTCOMES))
+    assert set(OUTCOMES) >= _READING_OUTCOMES, sorted(_READING_OUTCOMES - set(OUTCOMES))
 
 
 def test_no_store_and_no_run_are_different_words(

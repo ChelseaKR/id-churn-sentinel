@@ -308,7 +308,9 @@ def test_every_committed_receipts_sentence_re_derives_from_its_own_published_fie
             outcomes=[entry["outcome"] for entry in document["sources"]],
         )
         if document["statement"] != expected:
-            wrong.append(f"{path.name}\n  committed: {document['statement']}\n  derives to: {expected}")
+            wrong.append(
+                f"{path.name}\n  committed: {document['statement']}\n  derives to: {expected}"
+            )
 
     assert not wrong, (
         f"{len(wrong)} committed receipt(s) carry a sentence their own published fields do "

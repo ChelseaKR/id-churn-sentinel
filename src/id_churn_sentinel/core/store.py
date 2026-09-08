@@ -1328,11 +1328,24 @@ class WatchRun:
 
     @property
     def observed_count(self) -> int:
-        """Sources this run actually managed to compare against a baseline.
+        """Sources this run actually READ: retrieved, and with text in them.
 
         Not ``successful_count``: a fetch that returned no extractable text succeeded and
         observed nothing. This is the numerator a reader means by "how many sources did the
         watcher actually look at this week".
+
+        It is a claim about *reading* and deliberately not a claim about *comparing*
+        (issue #99). The first sentence of this docstring used to say "compare against a
+        baseline", which is a stronger claim than the expression below can support: a page
+        read for the first time, a page whose registry entry has been re-pointed at a
+        different URL, and a page whose committed hash is not re-derivable under today's
+        normalization contract are all fetched, all measured, and all counted here — and
+        none of them is held against a baseline. ``core/baseline.py``'s
+        ``BaselineReport.observed`` names itself the deliberate twin of this property and
+        has always said so correctly; the two definitions had drifted and only one of them
+        was published. What was actually compared is a separate question, answered by
+        ``baseline check``'s own ``baseline-check-unbaselined-count`` and
+        ``baseline-check-url-changed-count`` markers, and a caller needs both numbers.
         """
         return len(set(self.successful_source_ids) - set(self.unmeasured_source_ids))
 

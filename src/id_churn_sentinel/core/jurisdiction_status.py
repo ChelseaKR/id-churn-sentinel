@@ -57,6 +57,7 @@ __all__ = [
     "build_jurisdiction_status",
     "jurisdiction_status_json",
     "no_run_jurisdiction_status",
+    "statement_for",
     "store_unavailable_jurisdiction_status",
 ]
 
@@ -122,6 +123,18 @@ OUTCOMES: dict[str, str] = {
         "or it was outside its scope."
     ),
 }
+
+#: The outcome words that mean the page was RETRIEVED AND READ. Deliberately not "the words
+#: that mean it was compared against a baseline": three of `detect.py`'s non-drift buckets
+#: (a first sighting, a re-pointed registry URL, an unrenormalizable committed hash) also
+#: persist as `observed_unchanged` today, and none of them was held against anything
+#: (issue #99). `_statement` publishes the size of this set as a reading count and says so.
+#:
+#: One constant, read by `_statement` and by the drift gate's re-derivation of the committed
+#: receipts' own sentence. A second copy in the test would let the two drift with nothing to
+#: notice, which is a shape this portfolio has already measured going green over a widened
+#: gate.
+_READING_OUTCOMES: frozenset[str] = frozenset({"observed_unchanged", "observed_changed"})
 
 _NO_RUN_STATEMENT = (
     "No watch run has ever covered this jurisdiction, so nothing here has been compared "
@@ -341,24 +354,61 @@ def _counts(outcomes: Sequence[str]) -> dict[str, int]:
     return tally
 
 
-def _statement(status: JurisdictionStatus) -> str:
-    """The sentence a person reads. It may never claim more than the receipt holds."""
-    if status.coverage == COVERAGE_STORE_UNAVAILABLE:
+def statement_for(
+    *,
+    jurisdiction: str,
+    coverage: str,
+    run_id: str | None,
+    run_state: str | None,
+    outcomes: Sequence[str],
+) -> str:
+    """The sentence a person reads, from the fields the receipt itself publishes.
+
+    Deliberately takes primitives rather than a :class:`JurisdictionStatus`. Every input is
+    a field of the published document (``jurisdiction``, ``coverage``, ``run.run_id``,
+    ``run.state``, and each source's ``outcome``), so this sentence can be **re-derived from
+    a committed receipt** and byte-compared against the ``statement`` beside them. That is
+    what buys back the drift gate's exclusion of these files: they cannot be regenerated
+    from committed inputs, but their prose can be held to their own data.
+
+    One implementation, two callers -- the publisher and the gate. A gate that formatted the
+    sentence itself would be a second copy, and a second copy of the thing under test can
+    drift from it with nothing to notice.
+    """
+    if coverage == COVERAGE_STORE_UNAVAILABLE:
         return _NO_STORE_STATEMENT
-    if status.run is None:
+    if run_id is None:
         return _NO_RUN_STATEMENT
-    words = [outcome for _, outcome in status.sources]
-    read = sum(1 for word in words if word in {"observed_unchanged", "observed_changed"})
-    total = len(words)
+    # READ, not COMPARED. The variable was always named `read` and the sentence used to say
+    # "compared ... against the committed baseline", which claims more than the two words
+    # summed here can support: `observed_unchanged` is emitted for a first sighting, for a
+    # source the registry has re-pointed at a different URL, and for one whose committed
+    # hash is not re-derivable under today's normalization contract, and none of those was
+    # held against a baseline (issue #99). Narrowing the verb makes the sentence true under
+    # both today's vocabulary and whatever #99 settles on, and it never claims more than the
+    # receipt holds -- which is this function's own stated rule.
+    read = sum(1 for word in outcomes if word in _READING_OUTCOMES)
+    total = len(outcomes)
     scope = (
-        f"The last run covering {status.jurisdiction} "
-        if status.coverage == COVERAGE_COVERED
-        else f"{status.jurisdiction} was not in the most recent run. The last run that did cover it "
+        f"The last run covering {jurisdiction} "
+        if coverage == COVERAGE_COVERED
+        else f"{jurisdiction} was not in the most recent run. The last run that did cover it "
     )
     return (
-        f"{scope}({status.run.run_id}, {status.run.state}) compared {read} of {total} "
-        f"registered source(s) in this jurisdiction against the committed baseline. For the "
-        f"remaining {total - read}, this run is not evidence that nothing changed."
+        f"{scope}({run_id}, {run_state}) read {read} of {total} "
+        f"registered source(s) in this jurisdiction. For the remaining {total - read}, "
+        f"this run is not evidence that nothing changed."
+    )
+
+
+def _statement(status: JurisdictionStatus) -> str:
+    """The sentence a person reads. It may never claim more than the receipt holds."""
+    return statement_for(
+        jurisdiction=status.jurisdiction,
+        coverage=status.coverage,
+        run_id=None if status.run is None else status.run.run_id,
+        run_state=None if status.run is None else status.run.state,
+        outcomes=[outcome for _, outcome in status.sources],
     )
 
 

@@ -312,11 +312,15 @@ def _run_status_section(status: PublicRunStatus) -> str:
         # inferred from the gap between two counters (issue #19). "N successful retrievals"
         # alone reads as "N pages watched", and for a JS shell or a bot-wall that is the one
         # thing it does not mean.
+        # `observed_count` is a READING count, not a comparison count (issue #99): a first
+        # sighting, a re-pointed URL and an unrenormalizable baseline are all read and none
+        # is held against anything. "Actually compared" overstated it by exactly those three
+        # cases, so this says what the number measures.
         unmeasured_text = (
             f" <strong>{attempted.unmeasured_count} of those retrievals returned no "
             f"extractable text and were not compared against a baseline</strong>, so this run "
             f"is not evidence of no change for them; {attempted.observed_count} source(s) were "
-            f"actually compared."
+            f"actually read."
             if attempted.unmeasured_count
             else ""
         )

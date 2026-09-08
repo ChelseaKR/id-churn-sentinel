@@ -3,7 +3,7 @@
   "generated_at": "2026-09-08T02:03:36.984700+00:00",
   "jurisdiction": "OR",
   "coverage": "covered",
-  "statement": "The last run covering OR (072bc26bf44247b5af57af754b6ad5d2, failed) compared 0 of 4 registered source(s) in this jurisdiction against the committed baseline. For the remaining 4, this run is not evidence that nothing changed.",
+  "statement": "The last run covering OR (072bc26bf44247b5af57af754b6ad5d2, failed) read 0 of 4 registered source(s) in this jurisdiction. For the remaining 4, this run is not evidence that nothing changed.",
   "outcome_vocabulary": {
     "observed_unchanged": "The last covering run read this page and it matched the committed baseline.",
     "observed_changed": "The last covering run read this page and it differed from the committed baseline; the difference is in the review queue, and appears in a feed only once a human has confirmed it.",

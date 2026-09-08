@@ -258,6 +258,58 @@ def test_publishing_with_no_run_at_all_says_not_attempted_and_a_null_run(
         assert "not evidence of no change" in document["statement"]
 
 
+def test_the_statement_counts_readings_and_never_claims_a_comparison(
+    store: SnapshotStore, registry: Registry, texas: Source
+) -> None:
+    """Issue #99, the half that needs no vocabulary decision.
+
+    The numerator has always been a count of `observed_unchanged` + `observed_changed`, and
+    the sentence built from it used to read *"compared N of M ... against the committed
+    baseline"*. `observed_unchanged` is also what a **first sighting** persists as, and what
+    a source whose registry entry has been re-pointed persists as, and what an
+    unrenormalizable committed hash persists as -- `detect.py` refuses the comparison in the
+    last two cases *in terms*. So on the ordinary first run, over an empty store, the
+    sentence claimed 156 comparisons against baselines that did not exist.
+
+    Both halves are asserted. The presence assertion is not decoration: "the word `compared`
+    is absent" is satisfied by a fixture that produces no sentence at all, and the fixture
+    here is one attempt in one jurisdiction, which is exactly where a mistake would hide.
+    """
+    run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
+    _attempt(store, run_id, texas, ok=True)
+    store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+
+    document = _payload(
+        jurisdiction_status_json(
+            build_jurisdiction_status(store, "TX", registry=registry), generated_at=NOW
+        )
+    )
+    statement = document["statement"]
+
+    # No snapshot was ever recorded for this source, so nothing was held against anything.
+    assert _outcomes(document)[texas.id] == "observed_unchanged"
+    assert "read 1 of 1 registered source(s)" in statement, statement
+    assert run_id in statement
+    assert "compared" not in statement, statement
+    assert "against the committed baseline" not in statement, statement
+
+
+def test_every_reading_outcome_word_is_one_the_receipt_publishes(
+    store: SnapshotStore, registry: Registry, texas: Source
+) -> None:
+    """The statement's numerator is drawn from the published vocabulary, not beside it.
+
+    `_READING_OUTCOMES` decides the number every receipt prints. A word in it that `OUTCOMES`
+    does not declare would be counted and never emitted, so the numerator would describe a
+    set no reader can see -- and renaming an outcome would silently drop it from the count
+    with the sentence still reading as a total.
+    """
+    from id_churn_sentinel.core.jurisdiction_status import _READING_OUTCOMES
+
+    assert _READING_OUTCOMES, "the reading vocabulary is empty; the numerator is always 0"
+    assert set(OUTCOMES) >= _READING_OUTCOMES, sorted(_READING_OUTCOMES - set(OUTCOMES))
+
+
 def test_no_store_and_no_run_are_different_words(
     tmp_path: Path, store: SnapshotStore, registry: Registry
 ) -> None:

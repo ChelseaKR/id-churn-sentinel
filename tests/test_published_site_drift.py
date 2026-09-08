@@ -56,7 +56,10 @@ from pathlib import Path
 
 from id_churn_sentinel.core.baseline import default_baseline_path
 from id_churn_sentinel.core.coverage import repo_root
-from id_churn_sentinel.core.jurisdiction_status import COVERAGE_STORE_UNAVAILABLE
+from id_churn_sentinel.core.jurisdiction_status import (
+    COVERAGE_STORE_UNAVAILABLE,
+    statement_for,
+)
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import load_registry
 from id_churn_sentinel.core.site import PAGES_URL
@@ -269,6 +272,51 @@ def test_the_committed_jurisdiction_receipts_agree_with_the_committed_status_jso
         assert document["latest_run"]["run_id"] == attempted["run_id"], (
             f"{path.name} names a different latest run than docs/status.json"
         )
+
+
+def test_every_committed_receipts_sentence_re_derives_from_its_own_published_fields() -> None:
+    """The prose on the excluded artifacts, held to the data printed beside it.
+
+    The receipts are out of the byte comparison because a clean checkout has no store to
+    rebuild them from. Their **sentence** needs no store: `statement_for` takes only fields
+    the document itself publishes -- `jurisdiction`, `coverage`, `run.run_id`, `run.state`
+    and each source's `outcome` -- so it can be recomputed here and compared exactly.
+
+    That closes the half of the exclusion nothing else reaches. The sibling check above
+    proves a receipt lists the right sources and names the right run; it says nothing about
+    the one field a human actually reads. A statement carried forward from an older publish,
+    hand-edited, or left behind by a renderer change fails here and nowhere else.
+
+    It is also the check that would have caught the defect this test arrived with: issue #99
+    found the sentence claiming a *comparison* over a count of *readings*, and the wrong verb
+    was published on all 52 receipts with nothing holding the prose to anything.
+    """
+    receipts = sorted(PUBLISHED.glob("status-us*.json"))
+    assert len(receipts) > 50, (
+        f"only {len(receipts)} receipt(s) found -- this check stopped finding its subject"
+    )
+
+    wrong: list[str] = []
+    for path in receipts:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        run = document["run"]
+        expected = statement_for(
+            jurisdiction=document["jurisdiction"],
+            coverage=document["coverage"],
+            run_id=None if run is None else run["run_id"],
+            run_state=None if run is None else run["state"],
+            outcomes=[entry["outcome"] for entry in document["sources"]],
+        )
+        if document["statement"] != expected:
+            wrong.append(
+                f"{path.name}\n  committed: {document['statement']}\n  derives to: {expected}"
+            )
+
+    assert not wrong, (
+        f"{len(wrong)} committed receipt(s) carry a sentence their own published fields do "
+        f"not produce. Run `make publish` against the operator's store and commit the "
+        f"result; never hand-edit a generated file under docs/.\n" + "\n".join(wrong)
+    )
 
 
 def test_no_orphan_published_artifact_survives_in_the_commit(tmp_path: Path) -> None:

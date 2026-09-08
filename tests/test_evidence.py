@@ -346,6 +346,82 @@ def test_the_feed_cross_check_matches_a_real_published_changes_document(
     assert result.exit_code == EXIT_VERIFIED, [check.to_dict() for check in result.failed]
     check = next(c for c in result.checks if c.name == "published-feed")
     assert check.outcome == CHECK_OK
+    # The one legitimate asymmetry, named rather than passed over in silence:
+    # `publish._change_payload` is `{**record.to_dict(), "source_verification": ...}`, so
+    # every real feed entry carries exactly one field no bundle record does.
+    assert "source_verification" in check.detail
+    assert "does not attest" in check.detail
+
+
+def test_a_feed_that_omits_a_field_the_bundle_attests_fails(bundle: Path, tmp_path: Path) -> None:
+    """The defect this widening removes: the comparison was over the INTERSECTION.
+
+    Measured on `origin/main` against this same exported bundle: deleting `new_hash`,
+    `diff_excerpt` and `previous_hash` from the served entry left `published-feed: ok`,
+    `exit_code` 0, and the report's last line reading "VERIFIED - every check ran and
+    passed." Three of the fields the bundle exists to attest, never compared, certified
+    as matching by the command a third party runs to check exactly that.
+    """
+
+    change = json.loads((bundle / "change.json").read_text(encoding="utf-8"))
+    omitted = ["diff_excerpt", "new_hash", "previous_hash"]
+    for key in omitted:
+        assert key in change, f"the fixture no longer carries {key}; this proves nothing"
+        del change[key]
+    feed = tmp_path / "changes.json"
+    feed.write_text(json.dumps({"changes": [change]}, indent=2), encoding="utf-8")
+
+    result = verify_bundle(bundle, changes_path=feed)
+    assert result.exit_code == EXIT_MISMATCH
+    check = next(c for c in result.checks if c.name == "published-feed")
+    assert check.outcome == CHECK_FAILED
+    for key in omitted:
+        assert key in check.detail
+    assert "does not carry at all" in check.detail
+
+
+def test_an_omission_and_a_mismatch_are_reported_as_two_causes(
+    bundle: Path, tmp_path: Path
+) -> None:
+    """Two causes, two sentences: one is a feed that publishes something else, the other
+    is a feed that publishes nothing there, and they send a reader to different places."""
+
+    change = json.loads((bundle / "change.json").read_text(encoding="utf-8"))
+    change["new_hash"] = "0" * 64
+    del change["diff_excerpt"]
+    feed = tmp_path / "changes.json"
+    feed.write_text(json.dumps({"changes": [change]}, indent=2), encoding="utf-8")
+
+    check = next(
+        c for c in verify_bundle(bundle, changes_path=feed).checks if c.name == "published-feed"
+    )
+    assert check.outcome == CHECK_FAILED
+    assert "differs on: ['new_hash']" in check.detail
+    assert "does not carry at all: ['diff_excerpt']" in check.detail
+
+
+def test_a_feed_entry_carrying_an_extra_field_still_passes_and_names_it(
+    bundle: Path, tmp_path: Path
+) -> None:
+    """A field the bundle does not attest must not fail the check, and must not vanish.
+
+    Failing on it would fail on every honest bundle, since `source_verification` is on
+    every published entry. Ignoring it silently would let the entry grow three more
+    fields with the report still saying only "matches".
+    """
+
+    change = json.loads((bundle / "change.json").read_text(encoding="utf-8"))
+    change["source_verification"] = {"status": "unverified"}
+    change["something_new"] = 1
+    feed = tmp_path / "changes.json"
+    feed.write_text(json.dumps({"changes": [change]}, indent=2), encoding="utf-8")
+
+    result = verify_bundle(bundle, changes_path=feed)
+    assert result.exit_code == EXIT_VERIFIED
+    check = next(c for c in result.checks if c.name == "published-feed")
+    assert check.outcome == CHECK_OK
+    assert "something_new" in check.detail
+    assert "source_verification" in check.detail
 
 
 def test_a_feed_that_serves_a_different_record_for_this_id_fails(

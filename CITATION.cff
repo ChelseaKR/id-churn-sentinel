@@ -21,4 +21,12 @@ keywords:
   - policy-monitoring
   - change-detection
   - civic-tech
-date-released: 2026-07-17
+# `version` and `date-released` are the release-specific fields, and this
+# project's own docs/standards/DOCUMENTATION-STANDARD.md says to omit them
+# before the first tag rather than to date a release that was never cut. This
+# file carried `date-released: 2026-07-17` against a repository with no tag in
+# it; the date named a day, not a release. Both fields come back on the release
+# commit, carrying the tag's version and the day it was pushed.
+#
+# tests/test_release_claims.py holds that in both directions, so the absent
+# field is a checked fact rather than an omission somebody has to remember.

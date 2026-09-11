@@ -49,6 +49,7 @@ from id_churn_sentinel.core.registry import (
     OVERLAY_ID_KEY,
     Registry,
     Source,
+    load_registry,
     parse_registry_document,
     read_registry_document,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "Overlay",
     "load_overlay",
     "load_overlays",
+    "load_registry_file",
     "validate_overlays",
 ]
 
@@ -74,7 +76,8 @@ _OVERLAY_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # stated, rather than discovered as an overwritten file. Held equal to `site.feed_slug` over
 # every jurisdiction by `tests/test_overlays.py`.
 RESERVED_OVERLAY_IDS: frozenset[str] = frozenset(
-    {"us"} | {f"us-{jurisdiction.lower()}" for jurisdiction in JURISDICTIONS if jurisdiction != "US"}
+    {"us"}
+    | {f"us-{jurisdiction.lower()}" for jurisdiction in JURISDICTIONS if jurisdiction != "US"}
 )
 
 
@@ -113,6 +116,17 @@ def load_overlay(path: Path) -> Overlay:
         registry=parse_registry_document(raw, overlay_id=overlay_id),
         path=path,
     )
+
+
+def load_registry_file(path: Path) -> Registry:
+    """Load the committed registry or an overlay — whichever the file itself declares.
+
+    For the writers `sentinel verify` and `sentinel sources policy`, which record a human's
+    decision into a file and then load it back through the validator to prove it is still
+    loadable. The file says which validator it answers to; the writer does not get to choose.
+    """
+    raw = read_registry_document(path)
+    return load_overlay(path).registry if OVERLAY_ID_KEY in raw else load_registry(path)
 
 
 def load_overlays(paths: Sequence[Path], committed: Registry) -> tuple[Overlay, ...]:

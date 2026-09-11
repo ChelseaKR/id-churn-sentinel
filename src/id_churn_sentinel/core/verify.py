@@ -75,6 +75,7 @@ from urllib.parse import urlsplit
 from id_churn_sentinel.core.eligibility import evaluate_source, parse_as_of
 from id_churn_sentinel.core.fetch import Fetcher, FetchResult
 from id_churn_sentinel.core.normalize import content_hash, excerpt, page_title
+from id_churn_sentinel.core.overlay import load_registry_file
 from id_churn_sentinel.core.registry import (
     FETCH_POLICY_ALLOW,
     FETCH_POLICY_DENY,
@@ -386,7 +387,7 @@ def _write(path: Path, raw: dict[str, Any]) -> None:
     registry unloadable would be discovered at the next `make verify` — after the verifier
     has done another forty of them."""
     path.write_text(dump_registry_text(raw), encoding="utf-8")
-    load_registry(path)
+    load_registry_file(path)
 
 
 def write_verification_receipt(

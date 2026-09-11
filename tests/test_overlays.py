@@ -34,10 +34,12 @@ from id_churn_sentinel.core.changes import (
     ReviewStatus,
     Significance,
     change_id,
+    observation_fields_are_valid,
 )
-from id_churn_sentinel.core.coverage import repo_root
-from id_churn_sentinel.core.detect import watch_registry
+from id_churn_sentinel.core.coverage import overlay_coverage, repo_root
+from id_churn_sentinel.core.detect import check_stability, watch_registry
 from id_churn_sentinel.core.eligibility import evaluate_source, registry_revision
+from id_churn_sentinel.core.fetch import FetchResult
 from id_churn_sentinel.core.jurisdiction_status import build_jurisdiction_status
 from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSION
 from id_churn_sentinel.core.overlay import (
@@ -45,6 +47,7 @@ from id_churn_sentinel.core.overlay import (
     Overlay,
     load_overlay,
     load_overlays,
+    validate_overlays,
 )
 from id_churn_sentinel.core.publish import (
     default_public_site,
@@ -1474,3 +1477,155 @@ def test_a_near_miss_of_a_reserved_id_is_accepted_by_both(tmp_path: Path) -> Non
 
     assert _validate(document, schema, schema, "$") == []
     assert load_overlay(path).overlay_id == "us-zz"
+
+
+# ---------------------------------------------------------------------------------------
+# Every refusal and success path this PR added that the first gate run never executed.
+# Found by intersecting that run's uncovered lines with the lines this branch adds; each test
+# is written so the one guard it names is the only thing that can answer.
+# ---------------------------------------------------------------------------------------
+
+
+def test_sources_validate_reports_each_overlay_it_loaded(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = _write_overlay(tmp_path, "county-x", [_entry("clerk-page", OVERLAY_URL)])
+
+    code, out, _ = _run(capsys, ["sources", "validate", "--overlay", str(path)])
+
+    assert code == 0
+    assert f"sources validate: overlay county-x — 1 entr(ies) OK in {path}" in out
+    assert "  human-verified: 1/1" in out
+
+
+def test_publish_overlay_cli_publishes_that_overlays_reviewed_changes_and_nothing_else(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    fixture_before: bytes,
+    fixture_after: bytes,
+) -> None:
+    registry_path = _write_registry(tmp_path, COMMITTED)
+    overlay_path = _write_overlay(tmp_path, "county-x", [_entry("clerk-page", OVERLAY_URL)])
+    fetcher = StubFetcher(
+        {COMMITTED.url: (fixture_before, HTML), OVERLAY_URL: (fixture_before, HTML)}
+    )
+    db = tmp_path / "s.db"
+    common = ["--registry", str(registry_path), "--db", str(db)]
+    watch = [*common, "watch", "--overlay", str(overlay_path)]
+    assert cli.main(watch, fetcher=fetcher) == 0
+    fetcher.set(COMMITTED.url, fixture_after)
+    fetcher.set(OVERLAY_URL, fixture_after)
+    assert cli.main(watch, fetcher=fetcher) == 0
+    feeds = tmp_path / "feeds"
+    publish_args = [
+        *common,
+        "publish",
+        "--overlay",
+        str(overlay_path),
+        "--out",
+        str(feeds),
+        "--feed-url",
+        OVERLAY_FEED_URL,
+    ]
+    capsys.readouterr()
+
+    assert cli.main(publish_args) == 0
+    out = capsys.readouterr().out
+    assert "publish --overlay county-x: 0 reviewed change(s)" in out
+    assert "(1 unreviewed change(s) in this overlay withheld" in out
+
+    # Confirm the committed observation too: if the command read the store without naming the
+    # overlay, it would hand the committed record to the overlay's feed, and the run below fails.
+    with SnapshotStore(db) as store:
+        for change in store.changes(overlay_id=None):
+            _confirm(store, change)
+    assert cli.main(publish_args) == 0
+    document = json.loads((feeds / "changes-county-x.json").read_text(encoding="utf-8"))
+    assert [item["url"] for item in document["changes"]] == [OVERLAY_URL]
+
+
+@pytest.mark.parametrize("overlay_id", ["a/b", "-lead", "County", "x y"])
+def test_the_observation_validator_refuses_a_namespace_outside_the_slug_grammar(
+    overlay_id: str,
+) -> None:
+    """The id is computed WITH the bad namespace, so without the grammar check every other
+    field of this row would validate and only that one line can refuse it."""
+    identifier = change_id("s", "a" * 64, "b" * 64, overlay_id=overlay_id)
+    fields = ("s", PINNED, "a" * 64, "b" * 64, "-old passage\n+new passage", "content_drift")
+    good = change_id("s", "a" * 64, "b" * 64, overlay_id="county-x")
+
+    assert observation_fields_are_valid(good, *fields, "county-x") is True
+    assert observation_fields_are_valid(identifier, *fields, overlay_id) is False
+
+
+def test_overlay_coverage_refuses_the_committed_registry() -> None:
+    with pytest.raises(ValueError, match="overlay's registry"):
+        overlay_coverage(_committed(), as_of=AS_OF)
+
+
+def test_the_committed_side_of_a_collision_check_cannot_itself_be_an_overlay(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(RegistryError, match="cannot itself be an overlay"):
+        validate_overlays(_overlay(tmp_path).registry, ())
+
+
+def test_publish_overlay_refuses_the_committed_registry(tmp_path: Path) -> None:
+    with pytest.raises(PublishError, match="overlay's registry"):
+        publish_overlay(
+            (),
+            tmp_path / "out",
+            overlay=_committed(),
+            feed_url=OVERLAY_FEED_URL,
+            public_site=tmp_path / "site",
+            now=PINNED,
+        )
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "overlays",
+    [(("county-x", "a" * 64), ("county-x", "b" * 64)), (("", "a" * 64),)],
+    ids=["declared-twice", "empty-id"],
+)
+def test_a_run_declares_each_overlay_once_and_by_a_real_id(
+    store: SnapshotStore, overlays: tuple[tuple[str, str], ...]
+) -> None:
+    with pytest.raises(StoreError, match="declares each overlay once"):
+        store.start_watch_run(
+            as_of=AS_OF,
+            registry_version="1.0",
+            registry_revision="a" * 64,
+            jurisdiction=None,
+            sources=(_run_input("committed"),),
+            overlays=overlays,
+        )
+
+
+class _AnswersOnce:
+    """A fetcher that serves a page once and refuses the second request for it."""
+
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+        self.seen: set[str] = set()
+
+    def fetch(self, url: str) -> FetchResult:
+        if url in self.seen:
+            return FetchResult.failure(url, "second request refused")
+        self.seen.add(url)
+        return FetchResult(
+            url=url,
+            ok=True,
+            status=200,
+            content_type=HTML,
+            body=self.body,
+            fetched_at=datetime.now(UTC),
+        )
+
+
+def test_sources_check_twice_names_an_overlay_entry_by_its_store_key(
+    tmp_path: Path, fixture_before: bytes
+) -> None:
+    report = check_stability(_overlay(tmp_path).sources, _AnswersOnce(fixture_before))
+
+    assert report.unreachable == [("county-x/clerk-page", "second request refused")]

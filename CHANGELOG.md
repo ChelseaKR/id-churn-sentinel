@@ -15,8 +15,9 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   new `core/overlay.py`; store migration 12.
 
   An overlay is a registry-shaped file with an `overlay_id`, parsed by the committed registry's
-  own validator and judged by the same eligibility predicate. Every source-keyed store row is now
-  keyed on `(overlay_id, source_id)`, with `''` for the committed registry: migration 12 adds the
+  own validator and judged by the same eligibility predicate. The five tables the watcher writes
+  about a source are now keyed on `(overlay_id, source_id)`, with `''` for the committed
+  registry (the HEAD-only `probes` table is not; `probe` takes no overlay): migration 12 adds the
   column to `snapshots` and `changes` and rebuilds `source_health`, `run_sources` and
   `fetch_attempts`, copying every existing row under `''`. No existing row changes meaning and no
   existing change id moves.

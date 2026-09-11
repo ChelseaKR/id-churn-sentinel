@@ -508,8 +508,10 @@ What holds, and where it is enforced:
   committed registry goes through, so a `verified: true` nobody signed does not load, and each
   entry is attempted only once it carries a named human's verification with evidence and an
   expiry *and* a dated fetch-policy decision. An overlay cannot buy itself eligibility.
-- **Its own namespace.** Every store row about a source is keyed on `(overlay_id, source_id)`,
-  with `''` for the committed registry. Two overlays that both call a page `clerk-name-change`
+- **Its own namespace.** Every row the watcher writes about a source — snapshots, change
+  records, health, run denominators and fetch attempts — is keyed on `(overlay_id, source_id)`,
+  with `''` for the committed registry. (The HEAD-only `probe` takes no overlay, so its rows
+  are the committed registry's by construction.) Two overlays that both call a page `clerk-name-change`
   share nothing, and neither shares anything with a committed entry of that name; an overlay
   observation's change id includes its namespace.
 - **Collisions are refused by name.** An entry at a URL the committed registry already watches

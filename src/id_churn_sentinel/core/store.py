@@ -1028,7 +1028,7 @@ END;
         12,
         "v1-overlay-namespaced-source-rows",
         # Registry overlays (#77). An organization may now watch its own sources under this
-        # repository's discipline, and every store row about a source has to say WHOSE source
+        # repository's discipline, and every row the watcher writes about a source says WHOSE source
         # it is — otherwise two counties that both call a page `clerk-name-change` share one
         # health streak, one snapshot history and one change id, and neither can tell.
         #

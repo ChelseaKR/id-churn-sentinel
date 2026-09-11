@@ -60,6 +60,9 @@ MANIFEST_SCHEMA_PATH = (
 WATCH_MAP_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "docs" / "schema" / "consumer-watch-map-v1.schema.json"
 )
+OVERLAY_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "docs" / "schema" / "registry-overlay-v1.schema.json"
+)
 V1_VERIFICATION_SCHEMA_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "source-verification-v1.0.schema.json"
 )
@@ -364,6 +367,10 @@ def _route_example(payload: Mapping[str, Any]) -> str:
     nothing validates is exactly the kind of contract fixture that goes stale
     in an integrator's editor rather than in this repository's CI.
     """
+    if "overlay_id" in payload:
+        # Also a document the READER authors: an organization's own sources (#77). It carries
+        # `sources`, so it is routed before anything that might one day key on that.
+        return "registry-overlay"
     if "pages" in payload:
         # A document the READER authors. Checking it against the feed schema would
         # report it as invalid and teach the maintainer to loosen a gate that is
@@ -392,6 +399,7 @@ def test_every_consumer_json_example_is_complete_and_schema_valid(
         "feed": schema,
         "consumer-manifest": json.loads(MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8")),
         "consumer-watch-map": json.loads(WATCH_MAP_SCHEMA_PATH.read_text(encoding="utf-8")),
+        "registry-overlay": json.loads(OVERLAY_SCHEMA_PATH.read_text(encoding="utf-8")),
     }
     routed: dict[str, int] = dict.fromkeys(schemas, 0)
     for index, block in enumerate(blocks):

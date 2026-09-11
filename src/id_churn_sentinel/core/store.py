@@ -53,6 +53,7 @@ from id_churn_sentinel.core.changes import (
     public_copy_is_safe,
 )
 from id_churn_sentinel.core.fetch import RedirectHop
+from id_churn_sentinel.core.registry import source_key
 from id_churn_sentinel.errors import StoreError
 
 __all__ = [
@@ -1023,6 +1024,397 @@ BEGIN
 END;
 """,
     ),
+    (
+        12,
+        "v1-overlay-namespaced-source-rows",
+        # Registry overlays (#77). An organization may now watch its own sources under this
+        # repository's discipline, and every row the watcher writes about a source says WHOSE source
+        # it is — otherwise two counties that both call a page `clerk-name-change` share one
+        # health streak, one snapshot history and one change id, and neither can tell.
+        #
+        # The key is `(overlay_id, source_id)` with `''` meaning the committed registry, and it
+        # is deliberately NOT a nullable column. `NULL` would make "this row belongs to the
+        # committed registry" and "nobody set this field" the same value — absence rendered as
+        # a value, in a primary key, which is the hardest place to repair it once rows exist.
+        # `''` is a value this migration chose, for rows whose namespace is known: every row
+        # written before overlays existed was written about a committed-registry source,
+        # because there was no other kind. So no existing row changes meaning, and no
+        # existing change id moves — `change_id` hashes the bare source id for `''`.
+        #
+        # The CHECK is the SQL half of the slug grammar that matters here: no `/`, so the
+        # Python store key `<overlay>/<source>` cannot be forged from either half. The full
+        # grammar is enforced where the id is read, in `core/overlay.py`.
+        #
+        # `snapshots` and `changes` gain the column in place. `source_health`, `run_sources`
+        # and `fetch_attempts` are rebuilt, because SQLite cannot alter a primary key: every
+        # row is copied column for column under `''`. The rebuilt tables' triggers are
+        # recreated only AFTER the pre-migration tables are dropped, and in that order for a
+        # reason worth a sentence: a renamed table keeps its triggers, so a
+        # `CREATE TRIGGER IF NOT EXISTS` issued while it still exists finds the name taken and
+        # silently creates nothing. The same rename has a second reach, and it is why
+        # `run_overlays` is created last: `ALTER TABLE ... RENAME` also rewrites the BODY of any
+        # other trigger that names the table, so a trigger reading `run_sources` created before
+        # the rebuild ends up reading `run_sources_pre_overlay` — which this migration drops.
+        # Nothing fails until a statement on that trigger's table is next prepared.
+        # The copies run with foreign keys enforced, so a row that would lose the row it
+        # references fails its `INSERT ... SELECT`, and the whole migration rolls back with it.
+        #
+        # `run_overlays` records which overlays, at which revision, a run carried. It is also
+        # the boundary for the public artifact: a run that declared any overlay is excluded
+        # from `status.json` and every per-jurisdiction receipt, which describe runs over the
+        # committed registry only. A trigger makes that exclusion sound — an overlay row cannot
+        # enter a run's denominator unless the run declared the overlay, and a run declares its
+        # overlays before its denominator exists, never after.
+        """
+ALTER TABLE snapshots
+    ADD COLUMN overlay_id TEXT NOT NULL DEFAULT ''
+        CHECK (overlay_id NOT GLOB '*[^a-z0-9-]*');
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_overlay_source
+    ON snapshots (overlay_id, source_id, snapshot_id DESC);
+
+ALTER TABLE changes
+    ADD COLUMN overlay_id TEXT NOT NULL DEFAULT ''
+        CHECK (overlay_id NOT GLOB '*[^a-z0-9-]*');
+
+DROP TRIGGER trg_changes_observation_valid_on_insert;
+
+CREATE TRIGGER IF NOT EXISTS trg_changes_observation_valid_on_insert
+BEFORE INSERT ON changes
+BEGIN
+    SELECT CASE WHEN NOT observation_fields_are_valid(
+        NEW.change_id, NEW.source_id, NEW.observed_at, NEW.previous_hash,
+        NEW.new_hash, NEW.diff_excerpt, NEW.kind, NEW.overlay_id
+    ) THEN RAISE(ABORT, 'change observation fields are invalid') END;
+END;
+
+DROP TRIGGER trg_changes_observation_no_update;
+
+CREATE TRIGGER IF NOT EXISTS trg_changes_observation_no_update
+BEFORE UPDATE OF change_id, source_id, overlay_id, jurisdiction, document_class, url,
+                 observed_at, previous_hash, new_hash, diff_excerpt, kind ON changes
+BEGIN
+    SELECT RAISE(ABORT, 'change observations are append-only');
+END;
+
+DROP TRIGGER trg_correction_requires_publishable_replacement;
+
+CREATE TRIGGER IF NOT EXISTS trg_correction_requires_publishable_replacement
+BEFORE INSERT ON change_lifecycle_events
+WHEN NEW.action = 'corrected'
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1
+        FROM changes AS subject
+        JOIN changes AS replacement
+          ON replacement.change_id = NEW.superseded_by_change_id
+        WHERE subject.change_id = NEW.change_id
+          AND replacement.overlay_id = subject.overlay_id
+          AND replacement.source_id = subject.source_id
+          AND replacement.jurisdiction = subject.jurisdiction
+          AND replacement.document_class = subject.document_class
+          AND replacement.url = subject.url
+    ) THEN RAISE(ABORT, 'correction replacement source identity differs') END;
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM review_decisions AS first
+        WHERE first.change_id = NEW.superseded_by_change_id
+          AND first.stage = 'first'
+          AND first.decision = 'confirmed'
+          AND first.significance <> 'unclassified'
+          AND length(trim(first.public_copy)) > 0
+          AND (
+              first.significance <> 'substantive'
+              OR EXISTS (
+                  SELECT 1 FROM review_decisions AS second
+                  WHERE second.change_id = NEW.superseded_by_change_id
+                    AND second.stage = 'independent'
+                    AND second.decision = 'confirmed'
+                    AND actor_identity(second.actor) <> actor_identity(first.actor)
+              )
+          )
+    ) THEN RAISE(ABORT, 'correction replacement must be publishable and reviewed') END;
+    SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM review_decisions AS decision
+        WHERE decision.change_id = NEW.superseded_by_change_id
+          AND julianday(NEW.decided_at) < julianday(decision.decided_at)
+    ) THEN RAISE(ABORT, 'correction cannot precede replacement review') END;
+    SELECT CASE WHEN EXISTS (
+        WITH RECURSIVE successors(change_id) AS (
+            SELECT NEW.superseded_by_change_id
+            UNION ALL
+            SELECT event.superseded_by_change_id
+            FROM change_lifecycle_events AS event
+            JOIN successors ON event.change_id = successors.change_id
+            WHERE event.action = 'corrected'
+              AND event.superseded_by_change_id IS NOT NULL
+        )
+        SELECT 1 FROM successors WHERE change_id = NEW.change_id
+    ) THEN RAISE(ABORT, 'correction supersession cycle') END;
+END;
+
+CREATE TABLE source_health_namespaced (
+    overlay_id           TEXT NOT NULL DEFAULT ''
+        CHECK (overlay_id NOT GLOB '*[^a-z0-9-]*'),
+    source_id            TEXT NOT NULL,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0
+        CHECK (consecutive_failures >= 0),
+    last_status          INTEGER,
+    last_error           TEXT,
+    last_failure_at      TEXT,
+    last_success_at      TEXT,
+    streak_started_at    TEXT,
+    PRIMARY KEY (overlay_id, source_id)
+);
+
+INSERT INTO source_health_namespaced (
+    overlay_id, source_id, consecutive_failures, last_status, last_error, last_failure_at,
+    last_success_at, streak_started_at
+)
+SELECT
+    '', source_id, consecutive_failures, last_status, last_error, last_failure_at,
+    last_success_at, streak_started_at
+FROM source_health;
+
+DROP TABLE source_health;
+
+ALTER TABLE source_health_namespaced RENAME TO source_health;
+
+ALTER TABLE fetch_attempts RENAME TO fetch_attempts_pre_overlay;
+
+ALTER TABLE run_sources RENAME TO run_sources_pre_overlay;
+
+CREATE TABLE run_sources (
+    run_id               TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    overlay_id           TEXT NOT NULL DEFAULT ''
+        CHECK (overlay_id NOT GLOB '*[^a-z0-9-]*'),
+    source_id            TEXT NOT NULL,
+    jurisdiction         TEXT NOT NULL,
+    document_class       TEXT NOT NULL,
+    url                  TEXT NOT NULL,
+    authority            TEXT NOT NULL,
+    eligible             INTEGER NOT NULL CHECK (eligible IN (0, 1)),
+    eligibility_reasons  TEXT NOT NULL,
+    attempted            INTEGER NOT NULL DEFAULT 0 CHECK (attempted IN (0, 1)),
+    retrieval_success    INTEGER CHECK (retrieval_success IN (0, 1)),
+    outcome              TEXT NOT NULL DEFAULT '',
+    error                TEXT NOT NULL DEFAULT '',
+    observation_outcome  TEXT NOT NULL DEFAULT ''
+        CHECK (observation_outcome IN
+               ('', 'measured', 'no-text', 'not-retrieved', 'legacy-unknown')),
+    PRIMARY KEY (run_id, overlay_id, source_id)
+);
+
+INSERT INTO run_sources (
+    run_id, overlay_id, source_id, jurisdiction, document_class, url, authority, eligible,
+    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome
+)
+SELECT
+    run_id, '', source_id, jurisdiction, document_class, url, authority, eligible,
+    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome
+FROM run_sources_pre_overlay;
+
+CREATE TABLE fetch_attempts (
+    run_id             TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    overlay_id         TEXT NOT NULL DEFAULT ''
+        CHECK (overlay_id NOT GLOB '*[^a-z0-9-]*'),
+    source_id          TEXT NOT NULL,
+    url                TEXT NOT NULL,
+    attempted_at       TEXT NOT NULL,
+    completed_at       TEXT,
+    ok                 INTEGER CHECK (ok IN (0, 1)),
+    http_status        INTEGER,
+    content_type       TEXT NOT NULL DEFAULT '',
+    error              TEXT NOT NULL DEFAULT '',
+    normalizer_version TEXT NOT NULL DEFAULT '',
+    extractor_version  TEXT NOT NULL DEFAULT '',
+    final_url          TEXT NOT NULL DEFAULT '',
+    redirect_chain     TEXT NOT NULL DEFAULT '[]',
+    raw_sha256         TEXT NOT NULL DEFAULT '',
+    normalized_sha256  TEXT NOT NULL DEFAULT '',
+    bytes_received     INTEGER CHECK (bytes_received IS NULL OR bytes_received >= 0),
+    byte_limit         INTEGER CHECK (byte_limit IS NULL OR byte_limit > 0),
+    truncated          INTEGER CHECK (truncated IN (0, 1)),
+    extraction_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (extraction_outcome IN
+               ('', 'text-normalized', 'binary-no-extractor', 'pdf-text-extracted',
+                'pdf-extraction-refused', 'legacy-unknown')),
+    error_class        TEXT NOT NULL DEFAULT ''
+        CHECK (error_class IN
+               ('', 'non-https-scheme', 'robots-disallowed', 'body-too-large',
+                'http-error', 'unreachable', 'legacy-unknown')),
+    PRIMARY KEY (run_id, overlay_id, source_id),
+    FOREIGN KEY (run_id, overlay_id, source_id)
+        REFERENCES run_sources(run_id, overlay_id, source_id) ON DELETE RESTRICT
+);
+
+INSERT INTO fetch_attempts (
+    run_id, overlay_id, source_id, url, attempted_at, completed_at, ok, http_status,
+    content_type, error, normalizer_version, extractor_version, final_url, redirect_chain,
+    raw_sha256, normalized_sha256, bytes_received, byte_limit, truncated, extraction_outcome,
+    error_class
+)
+SELECT
+    run_id, '', source_id, url, attempted_at, completed_at, ok, http_status,
+    content_type, error, normalizer_version, extractor_version, final_url, redirect_chain,
+    raw_sha256, normalized_sha256, bytes_received, byte_limit, truncated, extraction_outcome,
+    error_class
+FROM fetch_attempts_pre_overlay;
+
+DROP TABLE fetch_attempts_pre_overlay;
+
+DROP TABLE run_sources_pre_overlay;
+
+CREATE TABLE run_overlays (
+    run_id            TEXT NOT NULL REFERENCES watch_runs(run_id) ON DELETE RESTRICT,
+    overlay_id        TEXT NOT NULL
+        CHECK (overlay_id <> '' AND overlay_id NOT GLOB '*[^a-z0-9-]*'),
+    overlay_revision  TEXT NOT NULL
+        CHECK (length(overlay_revision) = 64 AND overlay_revision NOT GLOB '*[^0-9a-f]*'),
+    PRIMARY KEY (run_id, overlay_id)
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_run_overlays_declared_before_the_denominator
+BEFORE INSERT ON run_overlays
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM watch_runs AS run
+        WHERE run.run_id = NEW.run_id AND run.state = 'running'
+    ) OR EXISTS (
+        SELECT 1 FROM run_sources AS source WHERE source.run_id = NEW.run_id
+    ) THEN RAISE(ABORT, 'a run declares its overlays before its source denominator') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_run_overlays_no_update
+BEFORE UPDATE ON run_overlays
+BEGIN
+    SELECT RAISE(ABORT, 'run overlays are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_run_overlays_no_delete
+BEFORE DELETE ON run_overlays
+BEGIN
+    SELECT RAISE(ABORT, 'run overlays are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_representation_versions
+BEFORE UPDATE OF ok, normalizer_version, extractor_version ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_representation_versions
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM representation_contracts AS contract
+        WHERE contract.normalizer_version = NEW.normalizer_version
+          AND contract.extractor_version = NEW.extractor_version
+    )
+        THEN RAISE(ABORT, 'successful attempts require explicit representation versions') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome IN ('text-normalized', 'pdf-text-extracted')
+              AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome IN ('binary-no-extractor', 'pdf-extraction-refused')
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_successful_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 1
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 <> ''
+        AND NEW.bytes_received IS NOT NULL
+        AND NEW.truncated = 0
+        AND NEW.error_class = ''
+        AND ((NEW.extraction_outcome IN ('text-normalized', 'pdf-text-extracted')
+              AND NEW.normalized_sha256 <> '')
+             OR (NEW.extraction_outcome IN ('binary-no-extractor', 'pdf-extraction-refused')
+                 AND NEW.normalized_sha256 = ''))
+    ) THEN RAISE(ABORT, 'successful attempts require complete fetch evidence') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempts_require_fetch_evidence
+BEFORE UPDATE OF ok, final_url, redirect_chain, raw_sha256, normalized_sha256,
+                 bytes_received, byte_limit, truncated, extraction_outcome, error_class
+ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_failed_attempt_inserts_require_fetch_evidence
+BEFORE INSERT ON fetch_attempts
+WHEN NEW.ok = 0
+BEGIN
+    SELECT CASE WHEN NOT (
+        NEW.error_class IN ('non-https-scheme', 'robots-disallowed', 'body-too-large',
+                            'http-error', 'unreachable')
+        AND NEW.final_url <> ''
+        AND json_valid(NEW.redirect_chain)
+        AND NEW.raw_sha256 = ''
+        AND NEW.normalized_sha256 = ''
+        AND NEW.extraction_outcome = ''
+        AND NEW.truncated IS NOT NULL
+        AND ((NEW.error_class = 'body-too-large' AND NEW.truncated = 1)
+             OR (NEW.error_class <> 'body-too-large' AND NEW.truncated = 0))
+    ) THEN RAISE(ABORT,
+        'failed attempts require a stable error class and may fabricate no hashes') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_overlay_run_sources_require_a_declared_overlay
+BEFORE INSERT ON run_sources
+WHEN NEW.overlay_id <> ''
+BEGIN
+    SELECT CASE WHEN NOT EXISTS (
+        SELECT 1 FROM run_overlays AS declared
+        WHERE declared.run_id = NEW.run_id AND declared.overlay_id = NEW.overlay_id
+    ) THEN RAISE(ABORT, 'an overlay source row requires its run to declare the overlay') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_run_sources_namespace_is_immutable
+BEFORE UPDATE OF overlay_id ON run_sources
+BEGIN
+    SELECT RAISE(ABORT, 'a run source keeps the namespace it was frozen with');
+END;
+""",
+    ),
 )
 
 # What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
@@ -1194,6 +1586,8 @@ class RunSourceInput:
     authority: str
     eligible: bool
     eligibility_reasons: tuple[str, ...]
+    #: ``""`` for a committed-registry source; the overlay's id otherwise (migration 12).
+    overlay_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -1203,6 +1597,9 @@ class RunSourceOutcome:
     Every field is the run's own judgement at the time, never today's. `retrieval_success`
     is tri-state on purpose: `None` means the run has not recorded an answer for this source
     (it is in flight, or it ended without doing so), which is a different fact from `False`.
+
+    `source_id` is the store key (`Source.key`): the bare id for a committed-registry source,
+    `<overlay>/<id>` for an overlay's.
     """
 
     source_id: str
@@ -1284,11 +1681,17 @@ class FetchAttempt:
     truncated: bool | None
     extraction_outcome: str
     error_class: str
+    overlay_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class WatchRun:
-    """A persisted watcher receipt with exact numerator and denominator source sets."""
+    """A persisted watcher receipt with exact numerator and denominator source sets.
+
+    The sets hold store keys (`Source.key`): bare ids for committed-registry sources, which is
+    every key there has ever been, and `<overlay>/<id>` for a source a run carried from an
+    overlay (#77), so a committed entry and an overlay entry of the same name are two members.
+    """
 
     run_id: str
     started_at: datetime
@@ -1491,6 +1894,7 @@ class Snapshot:
         "http_status",
         "normalized_text",
         "normalizer_version",
+        "overlay_id",
         "raw_bytes",
         "snapshot_id",
         "source_id",
@@ -1510,6 +1914,7 @@ class Snapshot:
         normalized_text: str,
         normalizer_version: str,
         extractor_version: str,
+        overlay_id: str = "",
     ) -> None:
         self.snapshot_id = snapshot_id
         self.source_id = source_id
@@ -1521,6 +1926,7 @@ class Snapshot:
         self.normalized_text = normalized_text
         self.normalizer_version = normalizer_version
         self.extractor_version = extractor_version
+        self.overlay_id = overlay_id
 
 
 class SnapshotStore:
@@ -1552,12 +1958,15 @@ class SnapshotStore:
             self._conn.create_function(
                 "private_text_is_safe", 1, private_text_is_safe, deterministic=True
             )
-            self._conn.create_function(
-                "observation_fields_are_valid",
-                7,
-                observation_fields_are_valid,
-                deterministic=True,
-            )
+            # Both arities: migration 12's insert trigger passes the namespace, and a store still
+            # at an earlier migration prefix calls the seven-argument form it was built with.
+            for arity in (7, 8):
+                self._conn.create_function(
+                    "observation_fields_are_valid",
+                    arity,
+                    observation_fields_are_valid,
+                    deterministic=True,
+                )
             self._conn.execute("PRAGMA foreign_keys = ON")
             _initialize_base_schema(self._conn)
             _migrate(self._conn)
@@ -1598,12 +2007,15 @@ class SnapshotStore:
         normalized_text: str,
         normalizer_version: str,
         extractor_version: str,
+        overlay_id: str = "",
     ) -> int:
         cursor = self._conn.execute(
             "INSERT INTO snapshots "
-            "(source_id, url, fetched_at, http_status, content_sha256, raw_bytes, normalized_text, "
-            "normalizer_version, extractor_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(overlay_id, source_id, url, fetched_at, http_status, content_sha256, raw_bytes, "
+            "normalized_text, normalizer_version, extractor_version) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
+                overlay_id,
                 source_id,
                 url,
                 fetched_at.isoformat(),
@@ -1615,42 +2027,44 @@ class SnapshotStore:
                 extractor_version,
             ),
         )
-        self._prune(source_id)
+        self._prune(source_id, overlay_id)
         self._conn.commit()
         snapshot_id = cursor.lastrowid
         if snapshot_id is None:  # pragma: no cover — sqlite always sets this on INSERT
             raise StoreError("sqlite did not return a snapshot id")
         return snapshot_id
 
-    def latest_snapshot(self, source_id: str) -> Snapshot | None:
+    def latest_snapshot(self, source_id: str, *, overlay_id: str = "") -> Snapshot | None:
         """The most recent retained snapshot, or None if this source has never been fetched.
         `None` is the baseline case: a first sighting is not a change, and `watch` must not
         report one."""
         row = self._conn.execute(
-            "SELECT * FROM snapshots WHERE source_id = ? ORDER BY snapshot_id DESC LIMIT 1",
-            (source_id,),
+            "SELECT * FROM snapshots WHERE overlay_id = ? AND source_id = ? "
+            "ORDER BY snapshot_id DESC LIMIT 1",
+            (overlay_id, source_id),
         ).fetchone()
         return _row_to_snapshot(row) if row else None
 
-    def snapshots(self, source_id: str) -> tuple[Snapshot, ...]:
+    def snapshots(self, source_id: str, *, overlay_id: str = "") -> tuple[Snapshot, ...]:
         """Retained snapshots, newest first."""
         rows = self._conn.execute(
-            "SELECT * FROM snapshots WHERE source_id = ? ORDER BY snapshot_id DESC",
-            (source_id,),
+            "SELECT * FROM snapshots WHERE overlay_id = ? AND source_id = ? "
+            "ORDER BY snapshot_id DESC",
+            (overlay_id, source_id),
         ).fetchall()
         return tuple(_row_to_snapshot(row) for row in rows)
 
-    def _prune(self, source_id: str) -> None:
+    def _prune(self, source_id: str, overlay_id: str) -> None:
         """Keep the newest `retention` snapshots for this source; drop the rest. Bounded
         storage is a feature: this runs unattended on a cheap box, and an unbounded blob
         table of every fetch of every state page for a decade is how a solo-dev service
         quietly dies."""
         self._conn.execute(
-            "DELETE FROM snapshots WHERE source_id = ? AND snapshot_id NOT IN ("
-            "  SELECT snapshot_id FROM snapshots WHERE source_id = ?"
+            "DELETE FROM snapshots WHERE overlay_id = ? AND source_id = ? AND snapshot_id NOT IN ("
+            "  SELECT snapshot_id FROM snapshots WHERE overlay_id = ? AND source_id = ?"
             "  ORDER BY snapshot_id DESC LIMIT ?"
             ")",
-            (source_id, source_id, self._retention),
+            (overlay_id, source_id, overlay_id, source_id, self._retention),
         )
 
     # -- source health (the outage-vs-removal signal) -----------------------------
@@ -1662,6 +2076,7 @@ class SnapshotStore:
         error: str,
         status: int | None = None,
         now: datetime | None = None,
+        overlay_id: str = "",
     ) -> int:
         """Record one failed fetch and return the source's new consecutive-failure count.
 
@@ -1684,10 +2099,10 @@ class SnapshotStore:
         stamp = (now or datetime.now(UTC)).isoformat()
         self._conn.execute(
             "INSERT INTO source_health"
-            " (source_id, consecutive_failures, last_status, last_error, last_failure_at,"
-            "  streak_started_at)"
-            " VALUES (?, 1, ?, ?, ?, ?)"
-            " ON CONFLICT (source_id) DO UPDATE SET"
+            " (overlay_id, source_id, consecutive_failures, last_status, last_error,"
+            "  last_failure_at, streak_started_at)"
+            " VALUES (?, ?, 1, ?, ?, ?, ?)"
+            " ON CONFLICT (overlay_id, source_id) DO UPDATE SET"
             "   consecutive_failures = source_health.consecutive_failures + 1,"
             "   last_status = excluded.last_status,"
             "   last_error = excluded.last_error,"
@@ -1696,12 +2111,14 @@ class SnapshotStore:
             "     WHEN source_health.consecutive_failures = 0 THEN excluded.streak_started_at"
             "     WHEN source_health.streak_started_at IS NULL THEN excluded.streak_started_at"
             "     ELSE source_health.streak_started_at END",
-            (source_id, status, error, stamp, stamp),
+            (overlay_id, source_id, status, error, stamp, stamp),
         )
         self._conn.commit()
-        return self.failure_streak(source_id)
+        return self.failure_streak(source_id, overlay_id=overlay_id)
 
-    def record_success(self, source_id: str, *, now: datetime | None = None) -> None:
+    def record_success(
+        self, source_id: str, *, now: datetime | None = None, overlay_id: str = ""
+    ) -> None:
         """Reset the streak. A single successful fetch is total exoneration: whatever was
         wrong — an outage, a WAF mood, a bad deploy — the source is answering again, and a
         source that is answering again is not a source that was taken down. Carrying any
@@ -1712,27 +2129,27 @@ class SnapshotStore:
         outage has no running silence to measure."""
         self._conn.execute(
             "INSERT INTO source_health"
-            " (source_id, consecutive_failures, last_success_at) VALUES (?, 0, ?)"
-            " ON CONFLICT (source_id) DO UPDATE SET"
+            " (overlay_id, source_id, consecutive_failures, last_success_at) VALUES (?, ?, 0, ?)"
+            " ON CONFLICT (overlay_id, source_id) DO UPDATE SET"
             "   consecutive_failures = 0,"
             "   last_error = NULL,"
             "   last_status = NULL,"
             "   streak_started_at = NULL,"
             "   last_success_at = excluded.last_success_at",
-            (source_id, (now or datetime.now(UTC)).isoformat()),
+            (overlay_id, source_id, (now or datetime.now(UTC)).isoformat()),
         )
         self._conn.commit()
 
-    def failure_streak(self, source_id: str) -> int:
+    def failure_streak(self, source_id: str, *, overlay_id: str = "") -> int:
         """Consecutive failed fetches. Zero for a source that has never been fetched, and
         zero for one that succeeded last run."""
         row = self._conn.execute(
-            "SELECT consecutive_failures FROM source_health WHERE source_id = ?",
-            (source_id,),
+            "SELECT consecutive_failures FROM source_health WHERE overlay_id = ? AND source_id = ?",
+            (overlay_id, source_id),
         ).fetchone()
         return int(row["consecutive_failures"]) if row else 0
 
-    def silence_window(self, source_id: str) -> SilenceWindow:
+    def silence_window(self, source_id: str, *, overlay_id: str = "") -> SilenceWindow:
         """How long this source has been failing, as a count AND as a duration.
 
         The two are different measurements and the escalation needs both: the count says
@@ -1742,8 +2159,8 @@ class SnapshotStore:
         """
         row = self._conn.execute(
             "SELECT consecutive_failures, streak_started_at, last_failure_at"
-            " FROM source_health WHERE source_id = ?",
-            (source_id,),
+            " FROM source_health WHERE overlay_id = ? AND source_id = ?",
+            (overlay_id, source_id),
         ).fetchone()
         if row is None:
             return SilenceWindow(0, None, None)
@@ -1763,6 +2180,7 @@ class SnapshotStore:
         registry_revision: str,
         jurisdiction: str | None,
         sources: tuple[RunSourceInput, ...],
+        overlays: Sequence[tuple[str, str]] = (),
         started_at: datetime | None = None,
     ) -> str:
         """Create the immutable run denominator before the first network attempt.
@@ -1770,11 +2188,23 @@ class SnapshotStore:
         Every considered source is copied into ``run_sources`` with the exact eligibility
         reasons used on this date.  That makes a later percentage auditable as a set of IDs,
         not just two counters whose membership disappeared with a registry edit.
+
+        ``overlays`` is ``(overlay_id, overlay_revision)`` for every overlay this run carries
+        (#77), recorded before the denominator so an overlay row can never be added to a run
+        that did not declare its overlay — and so the public status can exclude such a run.
         """
 
-        ids = [source.source_id for source in sources]
+        ids = [(source.overlay_id, source.source_id) for source in sources]
         if len(ids) != len(set(ids)):
             raise StoreError("run source ids must be unique")
+        declared = [overlay_id for overlay_id, _ in overlays]
+        if len(declared) != len(set(declared)) or "" in declared:
+            raise StoreError("a run declares each overlay once, by a non-empty overlay id")
+        undeclared = sorted({s.overlay_id for s in sources if s.overlay_id} - set(declared))
+        if undeclared:
+            raise StoreError(
+                "run sources name overlay(s) the run does not declare: " + ", ".join(undeclared)
+            )
         run_id = uuid4().hex
         stamp = _as_utc(started_at or datetime.now(UTC))
         eligible_count = sum(source.eligible for source in sources)
@@ -1795,13 +2225,20 @@ class SnapshotStore:
                     eligible_count,
                 ),
             )
+            if overlays:
+                self._conn.executemany(
+                    "INSERT INTO run_overlays (run_id, overlay_id, overlay_revision) "
+                    "VALUES (?, ?, ?)",
+                    ((run_id, overlay_id, revision) for overlay_id, revision in overlays),
+                )
             self._conn.executemany(
                 "INSERT INTO run_sources "
-                "(run_id, source_id, jurisdiction, document_class, url, authority, eligible, "
-                " eligibility_reasons) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "(run_id, overlay_id, source_id, jurisdiction, document_class, url, authority, "
+                " eligible, eligibility_reasons) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     (
                         run_id,
+                        source.overlay_id,
                         source.source_id,
                         source.jurisdiction,
                         source.document_class,
@@ -1826,6 +2263,7 @@ class SnapshotStore:
         source_id: str,
         url: str,
         attempted_at: datetime | None = None,
+        overlay_id: str = "",
     ) -> None:
         """Persist an attempt before calling the network boundary.
 
@@ -1839,21 +2277,22 @@ class SnapshotStore:
             self._conn.execute("BEGIN IMMEDIATE")
             cursor = self._conn.execute(
                 "UPDATE run_sources SET attempted = 1, outcome = 'running' "
-                "WHERE run_id = ? AND source_id = ? AND url = ? AND eligible = 1 "
+                "WHERE run_id = ? AND overlay_id = ? AND source_id = ? AND url = ? "
+                "AND eligible = 1 "
                 "AND EXISTS (SELECT 1 FROM watch_runs "
                 "            WHERE run_id = ? AND state = 'running')",
-                (run_id, source_id, url, run_id),
+                (run_id, overlay_id, source_id, url, run_id),
             )
             if cursor.rowcount != 1:
                 self._conn.rollback()
                 raise StoreError(
                     "attempt refused for ineligible or unknown, identity-mismatched, or terminal "
-                    f"run source: {run_id}/{source_id}"
+                    f"run source: {run_id}/{source_key(overlay_id, source_id)}"
                 )
             self._conn.execute(
-                "INSERT INTO fetch_attempts (run_id, source_id, url, attempted_at) "
-                "VALUES (?, ?, ?, ?)",
-                (run_id, source_id, url, stamp),
+                "INSERT INTO fetch_attempts (run_id, overlay_id, source_id, url, attempted_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (run_id, overlay_id, source_id, url, stamp),
             )
         except sqlite3.IntegrityError as exc:
             self._conn.rollback()
@@ -1879,6 +2318,7 @@ class SnapshotStore:
         evidence: AttemptEvidence,
         measured: bool = True,
         completed_at: datetime | None = None,
+        overlay_id: str = "",
     ) -> None:
         """Record one terminal attempt, its evidence, and whether it observed anything.
 
@@ -1910,7 +2350,7 @@ class SnapshotStore:
                 "final_url = ?, redirect_chain = ?, raw_sha256 = ?, normalized_sha256 = ?, "
                 "bytes_received = ?, byte_limit = ?, truncated = ?, extraction_outcome = ?, "
                 "error_class = ? "
-                "WHERE run_id = ? AND source_id = ? "
+                "WHERE run_id = ? AND overlay_id = ? AND source_id = ? "
                 "AND completed_at IS NULL "
                 "AND EXISTS (SELECT 1 FROM watch_runs "
                 "            WHERE run_id = ? AND state = 'running')",
@@ -1932,6 +2372,7 @@ class SnapshotStore:
                     evidence.extraction_outcome,
                     evidence.error_class,
                     run_id,
+                    overlay_id,
                     source_id,
                     run_id,
                 ),
@@ -1945,8 +2386,8 @@ class SnapshotStore:
             source_cursor = self._conn.execute(
                 "UPDATE run_sources SET retrieval_success = ?, outcome = ?, "
                 "observation_outcome = ?, error = ? "
-                "WHERE run_id = ? AND source_id = ? AND attempted = 1",
-                (int(ok), outcome, observation, error, run_id, source_id),
+                "WHERE run_id = ? AND overlay_id = ? AND source_id = ? AND attempted = 1",
+                (int(ok), outcome, observation, error, run_id, overlay_id, source_id),
             )
             if source_cursor.rowcount != 1:
                 self._conn.rollback()
@@ -1961,12 +2402,14 @@ class SnapshotStore:
         source id. This is the read side of the `DATA-04` contract: what `watch` recorded
         is exactly what a later auditor — or a restored backup — gets back."""
         rows = self._conn.execute(
-            "SELECT * FROM fetch_attempts WHERE run_id = ? ORDER BY source_id",
+            "SELECT * FROM fetch_attempts WHERE run_id = ? ORDER BY overlay_id, source_id",
             (run_id,),
         ).fetchall()
         return tuple(_row_to_fetch_attempt(row) for row in rows)
 
-    def fetch_attempts_for_source(self, source_id: str) -> tuple[FetchAttempt, ...]:
+    def fetch_attempts_for_source(
+        self, source_id: str, *, overlay_id: str = ""
+    ) -> tuple[FetchAttempt, ...]:
         """Every persisted attempt against one source, across every run, oldest first.
 
         The run-scoped reader above answers "what did this run do?". This one answers "what
@@ -1976,8 +2419,9 @@ class SnapshotStore:
         forwards.
         """
         rows = self._conn.execute(
-            "SELECT * FROM fetch_attempts WHERE source_id = ? ORDER BY attempted_at, run_id",
-            (source_id,),
+            "SELECT * FROM fetch_attempts WHERE overlay_id = ? AND source_id = ? "
+            "ORDER BY attempted_at, run_id",
+            (overlay_id, source_id),
         ).fetchall()
         return tuple(_row_to_fetch_attempt(row) for row in rows)
 
@@ -2112,12 +2556,18 @@ class SnapshotStore:
         *,
         successful_only: bool = False,
         aggregate_only: bool = False,
+        include_overlay_runs: bool = False,
     ) -> WatchRun | None:
         """Return the newest receipt, optionally restricted to whole-registry runs.
 
         A jurisdiction-scoped run is useful operational evidence for that jurisdiction, but
         it cannot make the aggregate public feed green.  ``aggregate_only`` makes that safety
         boundary explicit at the query rather than asking a caller to inspect scope later.
+
+        A run that carried an overlay (#77) is excluded unless asked for, by default and at
+        the query, for the same reason: `status.json` describes runs over the committed
+        registry, and a run whose denominator held an organization's own sources — whose
+        state their outcomes helped decide — is not one. Every public reader takes the default.
         """
 
         clauses: list[str] = []
@@ -2128,6 +2578,8 @@ class SnapshotStore:
             params.extend(sorted(_SUCCESSFUL_RUN_STATES))
         if aggregate_only:
             clauses.append("jurisdiction IS NULL")
+        if not include_overlay_runs:
+            clauses.append(_NOT_AN_OVERLAY_RUN)
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         row = self._conn.execute(
             f"SELECT * FROM watch_runs{where} "  # noqa: S608 -- clauses are module literals
@@ -2138,17 +2590,17 @@ class SnapshotStore:
 
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
         source_rows = self._conn.execute(
-            "SELECT source_id, eligible, attempted, retrieval_success, observation_outcome "
-            "FROM run_sources WHERE run_id = ? ORDER BY source_id",
+            "SELECT overlay_id, source_id, eligible, attempted, retrieval_success, "
+            "observation_outcome FROM run_sources WHERE run_id = ? ORDER BY overlay_id, source_id",
             (row["run_id"],),
         ).fetchall()
-        eligible = tuple(str(source["source_id"]) for source in source_rows if source["eligible"])
-        attempted = tuple(str(source["source_id"]) for source in source_rows if source["attempted"])
+        eligible = tuple(_row_key(source) for source in source_rows if source["eligible"])
+        attempted = tuple(_row_key(source) for source in source_rows if source["attempted"])
         successful = tuple(
-            str(source["source_id"]) for source in source_rows if source["retrieval_success"] == 1
+            _row_key(source) for source in source_rows if source["retrieval_success"] == 1
         )
         unmeasured = tuple(
-            str(source["source_id"])
+            _row_key(source)
             for source in source_rows
             if source["observation_outcome"] == OBSERVATION_NO_TEXT
         )
@@ -2211,14 +2663,14 @@ class SnapshotStore:
         answered that the source was unreachable.
         """
         rows = self._conn.execute(
-            "SELECT source_id, jurisdiction, eligible, eligibility_reasons, attempted, "
+            "SELECT overlay_id, source_id, jurisdiction, eligible, eligibility_reasons, attempted, "
             "retrieval_success, observation_outcome FROM run_sources WHERE run_id = ? "
-            "ORDER BY source_id",
+            "ORDER BY overlay_id, source_id",
             (run_id,),
         ).fetchall()
         return tuple(
             RunSourceOutcome(
-                source_id=str(row["source_id"]),
+                source_id=_row_key(row),
                 jurisdiction=str(row["jurisdiction"]),
                 eligible=bool(row["eligible"]),
                 eligibility_reasons=_decode_reasons(row["eligibility_reasons"]),
@@ -2241,14 +2693,26 @@ class SnapshotStore:
         run's observation to this one whenever two runs overlap.
         """
         rows = self._conn.execute(
-            "SELECT DISTINCT change.source_id AS source_id FROM run_observations AS observation "
+            "SELECT DISTINCT change.overlay_id AS overlay_id, change.source_id AS source_id "
+            "FROM run_observations AS observation "
             "JOIN changes AS change ON change.change_id = observation.change_id "
             "WHERE observation.run_id = ?",
             (run_id,),
         ).fetchall()
-        return frozenset(str(row["source_id"]) for row in rows)
+        return frozenset(_row_key(row) for row in rows)
 
-    def latest_watch_run_covering(self, jurisdiction: str) -> WatchRun | None:
+    def run_overlays(self, run_id: str) -> tuple[tuple[str, str], ...]:
+        """``(overlay_id, overlay_revision)`` for every overlay one run declared, by id."""
+        rows = self._conn.execute(
+            "SELECT overlay_id, overlay_revision FROM run_overlays WHERE run_id = ? "
+            "ORDER BY overlay_id",
+            (run_id,),
+        ).fetchall()
+        return tuple((str(row["overlay_id"]), str(row["overlay_revision"])) for row in rows)
+
+    def latest_watch_run_covering(
+        self, jurisdiction: str, *, include_overlay_runs: bool = False
+    ) -> WatchRun | None:
         """The newest receipt whose scope included `jurisdiction`, or `None`.
 
         A run's scope is what the run itself declared: an aggregate run (`jurisdiction IS
@@ -2258,9 +2722,10 @@ class SnapshotStore:
         would then read as "not covered by any run", which is the opposite of true -- the
         run looked, and had nothing eligible to fetch.
         """
+        overlay_clause = "" if include_overlay_runs else f" AND {_NOT_AN_OVERLAY_RUN}"
         row = self._conn.execute(
-            "SELECT * FROM watch_runs WHERE jurisdiction IS NULL OR jurisdiction = ? "
-            "ORDER BY started_at DESC, run_id DESC LIMIT 1",
+            "SELECT * FROM watch_runs WHERE (jurisdiction IS NULL OR jurisdiction = ?)"  # noqa: S608 -- the clause is a module literal
+            f"{overlay_clause} ORDER BY started_at DESC, run_id DESC LIMIT 1",
             (jurisdiction,),
         ).fetchone()
         return self._row_to_watch_run(row) if row is not None else None
@@ -2290,13 +2755,14 @@ class SnapshotStore:
             self._conn.execute("BEGIN IMMEDIATE")
             self._conn.execute(
                 "INSERT INTO changes "
-                "(change_id, source_id, jurisdiction, document_class, url, observed_at,"
-                " previous_hash, new_hash, diff_excerpt, kind, significance, review_status,"
-                " reviewer, reviewed_at, review_note)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "(change_id, overlay_id, source_id, jurisdiction, document_class, url,"
+                " observed_at, previous_hash, new_hash, diff_excerpt, kind, significance,"
+                " review_status, reviewer, reviewed_at, review_note)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 " ON CONFLICT (change_id) DO NOTHING",
                 (
                     change.id,
+                    change.overlay_id,
                     change.source_id,
                     change.jurisdiction,
                     change.document_class,
@@ -2320,7 +2786,8 @@ class SnapshotStore:
                     "(SELECT 1 FROM watch_runs AS run "
                     " JOIN run_sources AS source ON source.run_id = run.run_id "
                     " WHERE run.run_id = ? AND run.state = 'running' "
-                    " AND source.source_id = ? AND source.jurisdiction = ? "
+                    " AND source.overlay_id = ? AND source.source_id = ? "
+                    " AND source.jurisdiction = ? "
                     " AND source.document_class = ? AND source.url = ? "
                     " AND source.eligible = 1 AND source.attempted = 1) "
                     "ON CONFLICT (run_id, change_id) DO NOTHING",
@@ -2329,6 +2796,7 @@ class SnapshotStore:
                         change.id,
                         _as_utc(change.observed_at).isoformat(),
                         run_id,
+                        change.overlay_id,
                         change.source_id,
                         change.jurisdiction,
                         change.document_class,
@@ -2533,7 +3001,7 @@ class SnapshotStore:
     # Kept in its own section, below the review methods and above the change queries, so it
     # is visually obvious that nothing here feeds the projection `publish()` reads.
 
-    def retained_content_hashes(self, source_id: str) -> frozenset[str]:
+    def retained_content_hashes(self, source_id: str, *, overlay_id: str = "") -> frozenset[str]:
         """Which content hashes this store still holds bytes for, for one source.
 
         `calibrate` uses this to tell a change it can honestly replay from one whose evidence
@@ -2544,8 +3012,8 @@ class SnapshotStore:
         """
 
         rows = self._conn.execute(
-            "SELECT DISTINCT content_sha256 FROM snapshots WHERE source_id = ?",
-            (source_id,),
+            "SELECT DISTINCT content_sha256 FROM snapshots WHERE overlay_id = ? AND source_id = ?",
+            (overlay_id, source_id),
         ).fetchall()
         return frozenset(str(row["content_sha256"]) for row in rows)
 
@@ -2624,14 +3092,23 @@ class SnapshotStore:
         *,
         review_status: ReviewStatus | None = None,
         jurisdiction: str | None = None,
+        overlay_id: str | None = "",
     ) -> tuple[ChangeRecord, ...]:
         """Query changes, newest first, then filter the immutable-event projection.
 
         Review state no longer lives in mutable columns: each row is projected from
         append-only decisions before any review-status filter is applied.
+
+        ``overlay_id`` defaults to ``""``, the committed registry's namespace, so every caller
+        that predates overlays — the public publisher first among them — sees exactly the rows
+        it always saw. An overlay's records are returned only to a caller that names that
+        overlay, or passes ``None`` to mean every namespace (#77).
         """
         clauses: list[str] = []
         params: list[str] = []
+        if overlay_id is not None:
+            clauses.append("overlay_id = ?")
+            params.append(overlay_id)
         if jurisdiction is not None:
             clauses.append("jurisdiction = ?")
             params.append(jurisdiction.upper())
@@ -2724,6 +3201,7 @@ def _row_to_snapshot(row: sqlite3.Row) -> Snapshot:
         normalized_text=row["normalized_text"],
         normalizer_version=row["normalizer_version"],
         extractor_version=row["extractor_version"],
+        overlay_id=row["overlay_id"],
     )
 
 
@@ -2735,7 +3213,7 @@ def _row_to_fetch_attempt(row: sqlite3.Row) -> FetchAttempt:
         hops = json.loads(str(row["redirect_chain"]))
     except json.JSONDecodeError as exc:
         raise StoreError(
-            f"fetch attempt {row['run_id']}/{row['source_id']} holds an unreadable "
+            f"fetch attempt {row['run_id']}/{_row_key(row)} holds an unreadable "
             f"redirect chain: {exc}"
         ) from exc
     return FetchAttempt(
@@ -2761,6 +3239,7 @@ def _row_to_fetch_attempt(row: sqlite3.Row) -> FetchAttempt:
         truncated=bool(truncated) if truncated is not None else None,
         extraction_outcome=row["extraction_outcome"],
         error_class=row["error_class"],
+        overlay_id=row["overlay_id"],
     )
 
 
@@ -2782,7 +3261,20 @@ def _row_to_change(row: sqlite3.Row) -> ChangeRecord:
         reviewer=row["reviewer"],
         reviewed_at=_parse_dt(reviewed_at) if reviewed_at else None,
         review_note=row["review_note"],
+        overlay_id=row["overlay_id"],
     )
+
+
+def _row_key(row: sqlite3.Row) -> str:
+    """The store key (`Source.key`) of a row carrying `overlay_id` and `source_id`."""
+    return source_key(str(row["overlay_id"]), str(row["source_id"]))
+
+
+# The public readers' boundary (#77): a run that declared any overlay is not a run over the
+# committed registry. A module literal, so the queries that interpolate it bind no user value.
+_NOT_AN_OVERLAY_RUN = (
+    "NOT EXISTS (SELECT 1 FROM run_overlays AS overlay WHERE overlay.run_id = watch_runs.run_id)"
+)
 
 
 def _parse_dt(value: str) -> datetime:

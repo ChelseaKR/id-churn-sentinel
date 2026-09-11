@@ -79,6 +79,7 @@ from id_churn_sentinel.core.coverage import (
     check_docs,
     completeness_violations,
     coverage,
+    overlay_coverage,
     repo_root,
 )
 from id_churn_sentinel.core.crosswalk import (
@@ -124,6 +125,7 @@ from id_churn_sentinel.core.normalize import (
     page_title,
     passages,
 )
+from id_churn_sentinel.core.overlay import Overlay, load_overlays, load_registry_file
 from id_churn_sentinel.core.probe import (
     HttpProber,
     Prober,
@@ -132,12 +134,18 @@ from id_churn_sentinel.core.probe import (
     render_report,
     run_probe,
 )
-from id_churn_sentinel.core.publish import publish
+from id_churn_sentinel.core.publish import (
+    default_public_site,
+    publish,
+    publish_overlay,
+    refuse_public_destination,
+)
 from id_churn_sentinel.core.registry import (
     DOCUMENT_CLASSES,
     FETCH_POLICY_ALLOW,
     FETCH_POLICY_DENY,
     Registry,
+    Source,
     default_registry_path,
     load_registry,
 )
@@ -174,11 +182,37 @@ from id_churn_sentinel.core.verify import (
     today,
     write_verification_receipt,
 )
-from id_churn_sentinel.errors import SentinelError
+from id_churn_sentinel.errors import PublishError, RegistryError, SentinelError
 
 __all__ = ["build_parser", "main", "run"]
 
 DEFAULT_DB = Path("var/sentinel.db")
+
+
+_OVERLAY_HELP = (
+    "a registry OVERLAY: a file of an organization's own sources, validated exactly like the "
+    "committed registry and recorded under its own `overlay_id` namespace. It never enters the "
+    "public artifact. See docs/CONSUMERS.md"
+)
+
+
+def _add_overlay_flag(parser: argparse.ArgumentParser, *, many: bool) -> None:
+    """`--overlay FILE` (#77). Repeatable where a command merges overlays into one pass;
+    single where the command writes into, or publishes from, exactly one file."""
+    if many:
+        parser.add_argument(
+            "--overlay",
+            dest="overlays",
+            action="append",
+            type=Path,
+            default=[],
+            metavar="FILE",
+            help=f"{_OVERLAY_HELP}. Repeatable.",
+        )
+    else:
+        parser.add_argument(
+            "--overlay", dest="overlay", type=Path, default=None, metavar="FILE", help=_OVERLAY_HELP
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -199,7 +233,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sources = sub.add_parser("sources", help="registry commands")
     sources_sub = sources.add_subparsers(dest="sources_command", required=True)
-    sources_sub.add_parser("validate", help="validate the committed registry (merge-blocking)")
+    validate_cmd = sources_sub.add_parser(
+        "validate", help="validate the committed registry (merge-blocking)"
+    )
+    _add_overlay_flag(validate_cmd, many=True)
     eligibility_cmd = sources_sub.add_parser(
         "eligibility",
         help="report the fail-closed V1 watcher/publisher source denominator",
@@ -255,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
             "permission we hold."
         ),
     )
+    _add_overlay_flag(policy_cmd, many=False)
     rotation_cmd = sources_sub.add_parser(
         "rotation",
         help="name sources a reviewer keeps dismissing as editorial (reads the store; no network)",
@@ -295,6 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
             "host: an operator's diagnostic, never the weekly job."
         ),
     )
+    _add_overlay_flag(check_cmd, many=True)
 
     registry_cmd = sub.add_parser("registry", help="commands over the registry as it changes")
     registry_sub = registry_cmd.add_subparsers(dest="registry_command", required=True)
@@ -551,6 +590,7 @@ def build_parser() -> argparse.ArgumentParser:
             "flagged for repair"
         ),
     )
+    _add_overlay_flag(verify_cmd, many=False)
 
     coverage_cmd = sub.add_parser(
         "coverage",
@@ -567,9 +607,13 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     coverage_cmd.add_argument("--json", action="store_true", help="machine-readable output")
+    # Reported apart, and never read by `--check-docs`: the merge gate's output is byte-identical
+    # whatever `--overlay` names, because an overlay is not something this project watches.
+    _add_overlay_flag(coverage_cmd, many=True)
 
     watch_cmd = sub.add_parser("watch", help="fetch sources and record any drift")
     watch_cmd.add_argument("--jurisdiction", help="limit to one jurisdiction, e.g. TX or US")
+    _add_overlay_flag(watch_cmd, many=True)
     watch_cmd.add_argument(
         "--removal-threshold",
         type=int,
@@ -599,6 +643,7 @@ def build_parser() -> argparse.ArgumentParser:
         "write", help="export the store's latest hash per source into the committed file"
     )
     baseline_write.add_argument("--out", type=Path, default=None)
+    _add_overlay_flag(baseline_write, many=False)
     baseline_check = baseline_sub.add_parser(
         "check",
         help=(
@@ -608,6 +653,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     baseline_check.add_argument("--baselines", type=Path, default=None)
     baseline_check.add_argument("--jurisdiction", help="limit to one jurisdiction, e.g. TX or US")
+    _add_overlay_flag(baseline_check, many=False)
 
     diff_cmd = sub.add_parser("diff", help="show the full diff for one change")
     diff_cmd.add_argument("change_id")
@@ -791,7 +837,15 @@ def build_parser() -> argparse.ArgumentParser:
     publish_cmd.add_argument("--out", type=Path, default=Path("docs"))
     # The canonical home written into every artifact's `feed_url`. It defaults to the
     # repository, which resolves today; point it at the Pages URL once Pages is switched on.
-    publish_cmd.add_argument("--feed-url", default=REPO_URL)
+    publish_cmd.add_argument(
+        "--feed-url",
+        default=None,
+        help=(
+            "the canonical home written into every artifact's `feed_url` (default: this "
+            "repository). With --overlay it is required and may not be this project's own."
+        ),
+    )
+    _add_overlay_flag(publish_cmd, many=False)
 
     return parser
 
@@ -918,14 +972,35 @@ def _dispatch_sources(args: argparse.Namespace, registry: Registry, fetcher: Fet
     if args.sources_command == "eligibility":
         return _cmd_sources_eligibility(registry, args.as_of)
     if args.sources_command == "policy":
-        return _cmd_sources_policy(args)
+        return _cmd_sources_policy(args, registry)
     if args.sources_command == "rotation":
         return _cmd_sources_rotation(args)
     if args.sources_command == "check":
         if args.twice:
-            return _cmd_sources_stability(registry, fetcher)
-        return _cmd_sources_check(registry, fetcher)
-    return _cmd_sources_validate(registry, args.registry or default_registry_path())
+            return _cmd_sources_stability(registry, fetcher, _overlays(args, registry))
+        return _cmd_sources_check(registry, fetcher, _overlays(args, registry))
+    return _cmd_sources_validate(
+        registry, args.registry or default_registry_path(), _overlays(args, registry)
+    )
+
+
+def _overlays(args: argparse.Namespace, registry: Registry) -> tuple[Overlay, ...]:
+    """Every `--overlay` a merging command was given, loaded and collision-checked (#77)."""
+    return load_overlays(getattr(args, "overlays", None) or [], registry)
+
+
+def _with_overlays(registry: Registry, overlays: Sequence[Overlay]) -> tuple[Source, ...]:
+    """The committed entries, then each overlay's, for a command that merges them into one pass."""
+    return registry.sources + tuple(source for overlay in overlays for source in overlay.sources)
+
+
+def _decision_target(args: argparse.Namespace, registry: Registry) -> Path:
+    """The file a human's decision is written into: the overlay when one is named (validated,
+    collisions included, before anything is written into it), the committed registry otherwise."""
+    if args.overlay is not None:
+        load_overlays([args.overlay], registry)
+        return Path(args.overlay)
+    return Path(args.registry or default_registry_path())
 
 
 def _cmd_stale(args: argparse.Namespace, registry: Registry) -> int:
@@ -1140,15 +1215,18 @@ def _cmd_probe_report(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_sources_policy(args: argparse.Namespace) -> int:
+def _cmd_sources_policy(args: argparse.Namespace, registry: Registry) -> int:
     """Write one dated fetch-policy decision, and say what it did and did not unlock.
 
     The closing line is the point. A reviewer who records `allow` has done half of what a
     source needs, and the other half is a different person's job on a different day — so the
     command reports the source's eligibility *after* the write rather than implying the
     decision was sufficient (issue #18).
+
+    With `--overlay` the decision is written into the overlay's file (#77): the same human
+    reading, recorded against the organization's own entry, never into `sources/registry.json`.
     """
-    path = args.registry or default_registry_path()
+    path = _decision_target(args, registry)
     decision = record_fetch_policy(
         path,
         args.source_id,
@@ -1164,7 +1242,7 @@ def _cmd_sources_policy(args: argparse.Namespace) -> int:
     print(f"  re-read due: {decision.expires_at}")
     print(f"  written to {path}")
 
-    reloaded = load_registry(path)
+    reloaded = load_registry_file(path)
     source = next((entry for entry in reloaded.sources if entry.id == args.source_id), None)
     if source is None:  # pragma: no cover - the writer above would have raised
         return 0
@@ -1198,7 +1276,7 @@ def _cmd_sources_eligibility(registry: Registry, raw_as_of: str) -> int:
     return 0
 
 
-def _cmd_sources_validate(registry: Registry, path: Path) -> int:
+def _cmd_sources_validate(registry: Registry, path: Path, overlays: Sequence[Overlay] = ()) -> int:
     """The gate. Reaching this line means the registry loaded, which means every entry
     already passed: closed-vocabulary jurisdiction, closed-vocabulary document class,
     well-formed https URL with no fragment and no credentials, a named authority, a unique
@@ -1228,6 +1306,18 @@ def _cmd_sources_validate(registry: Registry, path: Path) -> int:
             f"        sentinel verify --verifier 'Your Name' --federal-first   "
             f"(see docs/VERIFYING.md)"
         )
+    for overlay in overlays:
+        # Reaching this line means `load_overlays` already refused every collision, so the one
+        # thing left to say is what was loaded and how much of it a human has confirmed.
+        print(
+            f"sources validate: overlay {overlay.overlay_id} — {len(overlay.sources)} "
+            f"entr(ies) OK in {overlay.path}"
+        )
+        print(
+            "  loaded by the committed registry's own validator; no URL in it is watched by "
+            "the committed registry or by any other overlay given"
+        )
+        print(f"  human-verified: {len(overlay.registry.verified_sources)}/{len(overlay.sources)}")
     return 0
 
 
@@ -1244,7 +1334,10 @@ def _cmd_verify(
     what the page says about itself, and writes down what the human decided. The machine's job
     here is to make the human's job take thirty seconds instead of five minutes.
     """
-    path = args.registry or default_registry_path()
+    path = _decision_target(args, registry)
+    if args.overlay is not None:
+        # The overlay's own queue, written into the overlay's own file (#77).
+        registry = load_registry_file(path)
 
     if args.list:
         # The whole queue first, then the sitting. `--limit` is a page size, not a
@@ -1327,7 +1420,8 @@ def _cmd_verify_one(args: argparse.Namespace, path: Path, fetcher: Fetcher | Non
     """
     if args.confirm:
         source = next(
-            (entry for entry in load_registry(path).sources if entry.id == args.source_id), None
+            (entry for entry in load_registry_file(path).sources if entry.id == args.source_id),
+            None,
         )
         if source is None:
             print(f"error: unknown source id: {args.source_id!r}", file=sys.stderr)
@@ -1375,7 +1469,9 @@ def _cmd_verify_one(args: argparse.Namespace, path: Path, fetcher: Fetcher | Non
     return 0
 
 
-def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
+def _cmd_sources_check(
+    registry: Registry, fetcher: Fetcher | None, overlays: Sequence[Overlay] = ()
+) -> int:
     """Live-fetch every source and print its status. This is the tool a human uses to
     verify a seeded entry before flipping `verified: true`. It is NOT a merge gate: a state
     website being down must never fail someone's build.
@@ -1390,13 +1486,14 @@ def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
     """
     active = fetcher or HttpFetcher()
     failures = 0
-    for source in registry.sources:
+    sources = _with_overlays(registry, overlays)
+    for source in sources:
         result = active.fetch(source.url)
         if result.ok:
-            line = f"  ok    {source.id:<28} {result.status} {source.url}"
+            line = f"  ok    {source.key:<28} {result.status} {source.url}"
         else:
             failures += 1
-            line = f"  FAIL  {source.id:<28} {result.error} {source.url}"
+            line = f"  FAIL  {source.key:<28} {result.error} {source.url}"
         # flush=True: this loop can take minutes against two dozen government servers, and
         # Python buffers stdout when it is piped. Without the flush an operator watching
         # `sentinel sources check | tee log` sees nothing at all until the run ends — and
@@ -1404,7 +1501,7 @@ def _cmd_sources_check(registry: Registry, fetcher: Fetcher | None) -> int:
         print(line, flush=True)
         if result.ok:
             print(f"        {_text_check_line(result.body, result.content_type)}", flush=True)
-    print(f"sources check: {len(registry) - failures}/{len(registry)} reachable")
+    print(f"sources check: {len(sources) - failures}/{len(sources)} reachable")
     return 0  # never a gate — an outage is not a build failure
 
 
@@ -1505,7 +1602,9 @@ def _print_rotation_report(report: RotationReport) -> None:
         )
 
 
-def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
+def _cmd_sources_stability(
+    registry: Registry, fetcher: Fetcher | None, overlays: Sequence[Overlay] = ()
+) -> int:
     """`sources check --twice`: find the sources that would cry wolf.
 
     A page that re-rolls a rotating widget on every request hashes differently twice in a
@@ -1522,7 +1621,7 @@ def _cmd_sources_stability(registry: Registry, fetcher: Fetcher | None) -> int:
     additions.
     """
     active = fetcher or HttpFetcher()
-    report = check_stability(registry.sources, active)
+    report = check_stability(_with_overlays(registry, overlays), active)
     for source_id, first, second in report.unstable:
         print(f"  UNSTABLE  {source_id:<28} {first[:12]} != {second[:12]} (two fetches, no wait)")
     for source_id, url in report.no_text:
@@ -1566,6 +1665,11 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
     something. (It found DC and RI missing on the day it was written.)
     """
     report = coverage(registry)
+    # `--check-docs` never opens an overlay file, so its output — the merge gate's — is the same
+    # bytes whatever `--overlay` names (#77). Every other form reports each overlay apart.
+    overlays = () if args.check_docs else _overlays(args, registry)
+    today = datetime.now(UTC).date()
+    figures = tuple(overlay_coverage(overlay.registry, as_of=today) for overlay in overlays)
 
     if args.json:
         payload = {
@@ -1583,11 +1687,27 @@ def _cmd_coverage(args: argparse.Namespace, registry: Registry) -> int:
             "by_document_class": dict(report.by_document_class),
             "gaps_by_reason": dict(report.by_reason),
         }
+        if figures:
+            payload["overlays"] = [
+                {
+                    "overlay_id": figure.overlay_id,
+                    "entries": figure.entries,
+                    "jurisdictions": figure.jurisdictions,
+                    "gaps_recorded": figure.gaps,
+                    "human_verified": figure.human_verified,
+                    "attempt_eligible": figure.attempt_eligible,
+                }
+                for figure in figures
+            ]
         print(json.dumps(payload, indent=2))
         return 0
 
     for line in report.lines():
         print(line)
+    for figure in figures:
+        print()
+        for line in figure.lines():
+            print(line)
 
     if not args.check_docs:
         return 0
@@ -1647,6 +1767,7 @@ def _report_violations(headline: str, violations: Sequence[str], *, remedy: str)
 
 
 def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | None) -> int:
+    overlays = _overlays(args, registry)
     active = fetcher or HttpFetcher()
     with SnapshotStore(args.db) as store:
         report = watch(
@@ -1654,6 +1775,7 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
             store,
             active,
             jurisdiction=args.jurisdiction,
+            overlays=overlays,
             removal_threshold=args.removal_threshold,
             min_removal_silence=timedelta(days=args.min_removal_silence_days),
         )
@@ -1669,6 +1791,7 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
         f"watch: run {report.run_id} {report.state.upper()} — "
         f"{len(report.eligible_source_ids)} attempt-eligible source(s); {report.summary()}"
     )
+    _print_overlay_run(report, overlays)
     _print_ineligible_sources(report.ineligible)
     if report.state == "failed":
         print(
@@ -1701,7 +1824,7 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
         print(f"  ∅ NO EXTRACTABLE TEXT (not baselined, NO drift claimed either way): {source_id}")
         print(f"      {url}")
         print("      a human should open this page: JS shell, soft 404, or bot-wall are typical")
-    escalated = {change.source_id for change in report.possibly_removed}
+    escalated = {change.source_key for change in report.possibly_removed}
     for source_id, error in report.unreachable:
         # Reported, never counted as drift. This is the discipline inherited from
         # an earlier content-hash watcher, and it is the reason this tool can be
@@ -1715,6 +1838,23 @@ def _cmd_watch(args: argparse.Namespace, registry: Registry, fetcher: Fetcher | 
         _print_pending_change(change)
     _print_watch_tail(report, rotation)
     return 0
+
+
+def _print_overlay_run(report: WatchReport, overlays: Sequence[Overlay]) -> None:
+    """Which overlays this run carried, and what such a run can never become (#77)."""
+    if not overlays:
+        return
+    for overlay in overlays:
+        prefix = f"{overlay.overlay_id}/"
+        eligible = sum(1 for key in report.eligible_source_ids if key.startswith(prefix))
+        print(
+            f"  overlay {overlay.overlay_id}: {len(overlay.sources)} entr(ies), {eligible} "
+            "attempt-eligible, recorded under its own namespace"
+        )
+    print(
+        "  a run that carries an overlay is not a committed-registry run: status.json and every "
+        "per-jurisdiction receipt ignore it, and nothing it found can reach the public feed."
+    )
 
 
 def _print_watch_tail(report: WatchReport, rotation: RotationReport) -> None:
@@ -1749,14 +1889,16 @@ def _print_pending_change(change: ChangeRecord) -> None:
         # longer the most likely explanation. Not a content change, and NOT an assertion
         # that it was taken down — an escalation that a human is required to resolve.
         print(
-            f"  ⛔ POSSIBLY REMOVED: {change.source_id}  {change.jurisdiction}/{change.document_class}"
+            f"  ⛔ POSSIBLY REMOVED: {change.source_key}  "
+            f"{change.jurisdiction}/{change.document_class}"
         )
         print(f"      {change.url}")
         print("      unreachable for too many consecutive runs — this is NOT auto-classified")
         print("      as a policy change. A human must decide: removed, blocked, or down?")
         print(f"      sentinel diff {change.id}")
     else:
-        print(f"  ✎ drift: {change.id}  {change.jurisdiction}/{change.document_class}")
+        namespace = f"  [overlay {change.overlay_id}]" if change.overlay_id else ""
+        print(f"  ✎ drift: {change.id}  {change.jurisdiction}/{change.document_class}{namespace}")
         print(f"      {change.url}")
         print("      unreviewed — a human must review it before it can be published:")
         print(f"      sentinel diff {change.id}")
@@ -1806,10 +1948,10 @@ def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
     sighting, a first sighting is a baseline rather than drift, and the tool cannot tell you
     that anything moved until it has watched for a week.
     """
-    out = args.out or default_baseline_path()
+    target, out = _baseline_target(args, registry, args.out)
     with SnapshotStore(args.db) as store:
-        written = write_baselines(store, registry, out)
-    print(f"baseline write: {written.written}/{len(registry)} source(s) → {out}")
+        written = write_baselines(store, target, out)
+    print(f"baseline write: {written.written}/{len(target)} source(s) → {out}")
     if written.unreachable:
         print(
             f"  ({written.unreachable} source(s) have never been fetched successfully and "
@@ -1825,6 +1967,27 @@ def _cmd_baseline_write(args: argparse.Namespace, registry: Registry) -> int:
             f"and carry NO hash — the sha256 of nothing is not a baseline)"
         )
     return 0
+
+
+def _baseline_target(
+    args: argparse.Namespace, registry: Registry, requested: Path | None
+) -> tuple[Registry, Path]:
+    """Which registry a baseline command works over, and which file it reads or writes.
+
+    With `--overlay` it is the overlay's own entries and the overlay's own file — beside the
+    overlay by default (`<name>.baseline-hashes.json`), and never `sources/baseline-hashes.json`,
+    which is a committed artifact whose hash count the README states and `--check-docs` holds.
+    """
+    if args.overlay is None:
+        return registry, requested or default_baseline_path()
+    overlay = load_overlays([args.overlay], registry)[0]
+    path = requested or overlay.path.with_name(f"{overlay.path.stem}.baseline-hashes.json")
+    if path.resolve() == default_baseline_path().resolve():
+        raise RegistryError(
+            f"refusing to use {path} for overlay {overlay.overlay_id!r}: it is the committed "
+            "registry's baseline. An overlay's hashes are kept in a file of its own."
+        )
+    return overlay.registry, path
 
 
 def _refuse_empty_baseline_check() -> int:
@@ -1956,18 +2119,19 @@ def _cmd_baseline_check(
     the same dated eligibility predicate as `sentinel watch`: a portable diagnostic is not
     permission to fetch a source whose verification or fetch-policy review is incomplete.
     """
-    baselines = load_baselines(args.baselines)
+    registry, baseline_path = _baseline_target(args, registry, args.baselines)
+    baselines = load_baselines(baseline_path)
     selected = (
         registry.for_jurisdiction(args.jurisdiction) if args.jurisdiction else registry.sources
     )
     as_of = datetime.now(UTC).date()
     eligibility = eligibility_report(registry, as_of=as_of)
-    selected_ids = {source.id for source in selected}
+    selected_ids = {source.key for source in selected}
     selected_decisions = tuple(
         decision for decision in eligibility.decisions if decision.source_id in selected_ids
     )
     eligible_ids = {decision.source_id for decision in selected_decisions if decision.eligible}
-    sources = tuple(source for source in selected if source.id in eligible_ids)
+    sources = tuple(source for source in selected if source.key in eligible_ids)
 
     print(
         f"baseline eligibility as of {as_of.isoformat()}: "
@@ -2217,8 +2381,12 @@ def _cmd_review(args: argparse.Namespace) -> int:
     """
     with SnapshotStore(args.db) as store:
         if args.list:
+            # Every namespace: an overlay's observations need a named human exactly as the
+            # committed registry's do, and each is marked with the overlay it came from (#77).
             queue = store.changes(
-                review_status=ReviewStatus.UNREVIEWED, jurisdiction=args.jurisdiction
+                review_status=ReviewStatus.UNREVIEWED,
+                jurisdiction=args.jurisdiction,
+                overlay_id=None,
             )
             for change in queue:
                 _print_pending_change(change)
@@ -2299,6 +2467,8 @@ def _cmd_withdraw(args: argparse.Namespace) -> int:
 
 
 def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
+    if args.overlay is not None:
+        return _cmd_publish_overlay(args, registry)
     with SnapshotStore(args.db) as store:
         # Confirmed only, projected from immutable review decisions. `publish()`
         # re-asserts the predicate on every record — see core/publish.py::_guard.
@@ -2317,7 +2487,7 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
         records,
         args.out,
         registry=registry,
-        feed_url=args.feed_url,
+        feed_url=args.feed_url or REPO_URL,
         run_status=run_status,
         jurisdiction_status=jurisdiction_status,
     )
@@ -2345,6 +2515,39 @@ def _cmd_publish(args: argparse.Namespace, registry: Registry) -> int:
             f"{len(registry)} sources are UNVERIFIED — machine-checked, not human-confirmed. "
             f"That is published as a field on every source, not as a footnote."
         )
+    return 0
+
+
+def _cmd_publish_overlay(args: argparse.Namespace, registry: Registry) -> int:
+    """`publish --overlay`: one overlay's reviewed changes, as two files outside the public site.
+
+    The destination is refused FIRST — before the overlay is read and before the store is
+    opened — so `publish --out docs/ --overlay x.json` exits non-zero having written nothing,
+    whatever else is wrong with the invocation (#77).
+    """
+    refuse_public_destination(args.out, public_site=default_public_site())
+    overlay = load_overlays([args.overlay], registry)[0]
+    if not args.feed_url:
+        raise PublishError(
+            "publish --overlay needs --feed-url: the address the overlay's own artifacts are "
+            "served from. It is the organization's, never this project's."
+        )
+    with SnapshotStore(args.db) as store:
+        records = store.changes(review_status=ReviewStatus.CONFIRMED, overlay_id=overlay.overlay_id)
+        unreviewed = len(
+            store.changes(review_status=ReviewStatus.UNREVIEWED, overlay_id=overlay.overlay_id)
+        )
+    result = publish_overlay(records, args.out, overlay=overlay.registry, feed_url=args.feed_url)
+    print(
+        f"publish --overlay {overlay.overlay_id}: {result.published} reviewed change(s) → "
+        f"{result.changes_path}, {result.feed_path}"
+    )
+    print(
+        "  written outside the public site: nothing here enters docs/, status.json or any "
+        "committed-registry feed"
+    )
+    if unreviewed:
+        print(f"  ({unreviewed} unreviewed change(s) in this overlay withheld — they need a human)")
     return 0
 
 

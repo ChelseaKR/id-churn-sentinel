@@ -385,6 +385,37 @@ def _start_run(store: SnapshotStore, *, sources: tuple[RunSourceInput, ...] | No
     )
 
 
+def _seed_legacy_attempt(store: SnapshotStore) -> str:
+    """A running run, its one eligible source and a begun attempt — written with SQL.
+
+    For the rollback tests only. A store held at a migration prefix before 12 has no
+    `overlay_id` column, and today's writers name it, so the rows such a store held are written
+    the way it held them: the same values `_start_run` and `begin_fetch_attempt` would write for
+    the `eligible` source, and nothing the prefix did not have.
+    """
+    run_id = "legacy-run"
+    store._conn.execute(
+        "INSERT INTO watch_runs (run_id, started_at, as_of, registry_version, registry_revision, "
+        "jurisdiction, state, eligible_count) VALUES (?, ?, '2026-07-13', '1.0', ?, NULL, "
+        "'running', 1)",
+        (run_id, NOW.isoformat(), "a" * 64),
+    )
+    store._conn.execute(
+        "INSERT INTO run_sources (run_id, source_id, jurisdiction, document_class, url, authority, "
+        "eligible, eligibility_reasons, attempted, outcome) VALUES (?, 'eligible', 'TX', "
+        "'drivers_license', 'https://example.gov/eligible', 'Example authority', 1, '[]', 1, "
+        "'running')",
+        (run_id,),
+    )
+    store._conn.execute(
+        "INSERT INTO fetch_attempts (run_id, source_id, url, attempted_at) "
+        "VALUES (?, 'eligible', 'https://example.gov/eligible', ?)",
+        (run_id, NOW.isoformat()),
+    )
+    store._conn.commit()
+    return run_id
+
+
 def _ok_evidence() -> AttemptEvidence:
     """Complete synthetic evidence for a successful attempt — the store's triggers refuse
     a success recorded without it, so every test success states the full receipt."""
@@ -1180,8 +1211,7 @@ def test_legacy_attempts_are_labelled_not_backfilled(
     monkeypatch.setattr(store_module, "_MIGRATIONS", pre_evidence)
     monkeypatch.setattr(store_module, "_V1_REQUIRED_COLUMNS", pre_evidence_required)
     with SnapshotStore(db) as old:
-        run_id = _start_run(old)
-        old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
+        run_id = _seed_legacy_attempt(old)
         # Terminalize the attempt the way the pre-migration code did: without evidence, and
         # under the representation contract that was current at the time. That is the literal
         # `passage-text-v1`/`none-v1`, not today's NORMALIZER_VERSION/EXTRACTOR_VERSION — the
@@ -1282,22 +1312,27 @@ def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_r
     pre_pdf = tuple(migration for migration in store_module._MIGRATIONS if migration[0] <= 8)
     monkeypatch.setattr(store_module, "_MIGRATIONS", pre_pdf)
     with SnapshotStore(db) as old:
-        run_id = _start_run(old)
-        old.begin_fetch_attempt(run_id, source_id="eligible", url="https://example.gov/eligible")
-        old.finish_fetch_attempt(
-            run_id,
-            source_id="eligible",
-            ok=True,
-            http_status=200,
-            content_type="application/pdf",
-            normalizer_version=NORMALIZER_VERSION,
-            extractor_version="none-v1",
-            error="",
-            evidence=replace(
-                _ok_evidence(), normalized_sha256="", extraction_outcome="binary-no-extractor"
+        run_id = _seed_legacy_attempt(old)
+        # Terminalized with the values `finish_fetch_attempt` would have written for a PDF read
+        # before an extractor existed, through SQL for the reason `_seed_legacy_attempt` gives.
+        evidence = _ok_evidence()
+        old._conn.execute(
+            "UPDATE fetch_attempts SET ok = 1, completed_at = ?, http_status = 200, "
+            "content_type = 'application/pdf', normalizer_version = ?, extractor_version = ?, "
+            "error = '', final_url = ?, redirect_chain = '[]', raw_sha256 = ?, "
+            "normalized_sha256 = '', bytes_received = ?, byte_limit = ?, truncated = 0, "
+            "extraction_outcome = 'binary-no-extractor', error_class = '' "
+            "WHERE run_id = ? AND source_id = 'eligible'",
+            (
+                NOW.isoformat(),
+                NORMALIZER_VERSION,
+                "none-v1",
+                evidence.final_url,
+                evidence.raw_sha256,
+                evidence.bytes_received,
+                evidence.byte_limit,
+                run_id,
             ),
-            measured=True,
-            completed_at=NOW,
         )
     monkeypatch.undo()
 

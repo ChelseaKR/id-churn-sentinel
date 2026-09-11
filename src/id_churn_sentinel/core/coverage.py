@@ -44,8 +44,10 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
+from id_churn_sentinel.core.eligibility import eligibility_report
 from id_churn_sentinel.core.registry import (
     CORE_STATE_DOCUMENT_CLASSES,
     JURISDICTIONS,
@@ -58,10 +60,12 @@ __all__ = [
     "BASELINE_HASHES_PATH",
     "DOC_PATHS",
     "CoverageReport",
+    "OverlayCoverage",
     "check_docs",
     "committed_baseline_hashes",
     "completeness_violations",
     "coverage",
+    "overlay_coverage",
     "repo_root",
 ]
 
@@ -201,6 +205,50 @@ def coverage(registry: Registry) -> CoverageReport:
         by_reason=tuple(sorted(by_reason.items())),
         gaps=registry.gaps,
         unreachable=registry.unreachable,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class OverlayCoverage:
+    """One overlay's own figures (#77), reported beside the registry's and never summed into it.
+
+    Every line is phrased OUTSIDE the grammar `check_docs` reads — "entries", "gaps recorded" —
+    and that is the point rather than a style choice. The gated phrases are reserved for live
+    claims about what this project watches, and an overlay is not that. A line reading "3
+    sources" about an organization's own list is one a document could quote as ours.
+    `tests/test_overlays.py` holds every line to it.
+    """
+
+    overlay_id: str
+    entries: int
+    jurisdictions: int
+    gaps: int
+    human_verified: int
+    attempt_eligible: int
+
+    def lines(self) -> list[str]:
+        return [
+            f"overlay {self.overlay_id} — reported apart from every figure above, "
+            "and never added to them:",
+            f"  entries:          {self.entries}",
+            f"  jurisdictions:    {self.jurisdictions}",
+            f"  gaps recorded:    {self.gaps}",
+            f"  human-verified:   {self.human_verified} of {self.entries} entries",
+            f"  attempt-eligible: {self.attempt_eligible} of {self.entries} entries today",
+        ]
+
+
+def overlay_coverage(registry: Registry, *, as_of: date) -> OverlayCoverage:
+    """Derive one overlay's figures from its own registry, with the same predicate as ours."""
+    if not registry.overlay_id:
+        raise ValueError("overlay_coverage needs an overlay's registry, not the committed one")
+    return OverlayCoverage(
+        overlay_id=registry.overlay_id,
+        entries=len(registry.sources),
+        jurisdictions=len(registry.jurisdictions),
+        gaps=len(registry.gaps),
+        human_verified=len(registry.verified_sources),
+        attempt_eligible=len(eligibility_report(registry, as_of=as_of).eligible),
     )
 
 

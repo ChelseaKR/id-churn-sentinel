@@ -99,7 +99,10 @@ def evaluate_source(source: Source, *, as_of: date) -> SourceEligibility:
 
     ordered = tuple(dict.fromkeys(reasons))
     return SourceEligibility(
-        source_id=source.id,
+        # The store identity (`Source.key`): the bare id for the committed registry, so every
+        # committed decision is unchanged, and `<overlay>/<id>` for an overlay entry, so a run
+        # holding both can never let one entry's decision stand in for another's (#77).
+        source_id=source.key,
         as_of=as_of,
         eligible=not ordered,
         reasons=ordered,
@@ -210,6 +213,11 @@ def registry_revision(registry: Registry) -> str:
             for gap in registry.gaps
         ],
     }
+    # Only an overlay's revision names its namespace. The committed registry's payload is the
+    # one it has always been, so its digest — recorded on every existing run receipt — does not
+    # move because overlays exist.
+    if registry.overlay_id:
+        payload["overlay_id"] = registry.overlay_id
     encoded = json.dumps(
         payload,
         ensure_ascii=False,

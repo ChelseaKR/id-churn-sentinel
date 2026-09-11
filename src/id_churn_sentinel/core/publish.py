@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from email.utils import format_datetime
 from hashlib import sha256
@@ -74,7 +75,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from id_churn_sentinel.core.changes import ChangeKind, ChangeRecord, PublicationStatus
-from id_churn_sentinel.core.coverage import coverage
+from id_churn_sentinel.core.coverage import coverage, repo_root
 from id_churn_sentinel.core.eligibility import eligibility_report, evaluate_source
 from id_churn_sentinel.core.jurisdiction_status import (
     JurisdictionStatus,
@@ -87,7 +88,7 @@ from id_churn_sentinel.core.registry import (
     Source,
     Verification,
 )
-from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_site
+from id_churn_sentinel.core.site import PAGES_URL, REPO_URL, feed_slug, render_site
 from id_churn_sentinel.core.staleness import normalize_url
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status, status_json
 from id_churn_sentinel.errors import PublishError, RegistryError
@@ -95,10 +96,14 @@ from id_churn_sentinel.errors import PublishError, RegistryError
 __all__ = [
     "FEED_SCHEMA_VERSION",
     "SOURCES_SCHEMA_VERSION",
+    "OverlayPublishResult",
     "PublishResult",
     "changes_json",
+    "default_public_site",
     "feed_xml",
     "publish",
+    "publish_overlay",
+    "refuse_public_destination",
     "source_payload",
     "sources_json",
 ]
@@ -128,6 +133,25 @@ FEED_DESCRIPTION = (
     "and the passage that changed. This feed reports that a source changed; it does not assert "
     "what the law is."
 )
+
+# An overlay's feed (#77) must not be mistakable for this one. It names the overlay, says it is
+# an organization's own list held to the same rules, and says in terms that this project has
+# reviewed none of it — the reader of an overlay feed is exactly the reader who might otherwise
+# assume it carries this repository's weight.
+OVERLAY_FEED_TITLE = (
+    "ID Churn Sentinel overlay {overlay_id} — reviewed changes to one organization's own sources"
+)
+OVERLAY_FEED_DESCRIPTION = (
+    "Human-reviewed observations from sources one organization registered for itself in the "
+    "overlay {overlay_id!r}, under the same verification and fetch-policy rules as the "
+    "id-churn-sentinel registry. This is NOT the public id-churn-sentinel feed, and nothing in "
+    "it was reviewed by that project. Each item cites the registered source URL and the passage "
+    "that changed. This feed reports that a source changed; it does not assert what the law is."
+)
+
+# The two files only the public publisher writes. A directory holding either is a copy of the
+# public site wherever it lives, and an overlay's artifacts are not written into one.
+_PUBLIC_SITE_MARKERS = ("sources.json", "status.json")
 
 # Said in every artifact, next to the sources themselves, because the registry's status is not
 # a detail about our process — it is the thing that decides how much weight a reader may put on
@@ -195,6 +219,17 @@ def _guard(
     hash change to organizations who will reasonably read it as "the law changed."
     """
     candidates = tuple(records)
+    # One namespace per artifact (#77). The committed registry's artifacts carry committed
+    # observations only, and an overlay's carry that overlay's only. The store already filters
+    # by namespace; this is the proof, for the same reason the `publishable` re-check below
+    # exists — a widened query must crash here rather than publish.
+    foreign = tuple(record.id for record in candidates if record.overlay_id != registry.overlay_id)
+    if foreign:
+        scope = f"overlay {registry.overlay_id!r}" if registry.overlay_id else "the public registry"
+        raise PublishError(
+            f"refusing to publish change(s) from another namespace into the artifacts for "
+            f"{scope}: " + ", ".join(foreign)
+        )
     malformed_observations = tuple(
         record.id for record in candidates if not record.observation_valid
     )
@@ -343,6 +378,12 @@ def publish(
     needs a URL it can subscribe to now, and a feed that only springs into existence when
     something has already gone wrong is a feed nobody is subscribed to on the day it matters.
     """
+    if registry.overlay_id or any(source.overlay_id for source in registry.sources):
+        raise PublishError(
+            "refusing to write the public site from an overlay registry. The public artifact set "
+            "describes the committed registry only; an organization's own sources are published "
+            "with `sentinel publish --overlay`, into a directory of its own."
+        )
     generated_at = now or datetime.now(UTC)
     publication_as_of = eligibility_as_of or generated_at.date()
     published = _guard(
@@ -454,6 +495,127 @@ def publish(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class OverlayPublishResult:
+    """The two files one overlay publish wrote, and how many reviewed records reached them."""
+
+    changes_path: Path
+    feed_path: Path
+    published: int
+
+
+def default_public_site() -> Path:
+    """The committed public site: `docs/` at the repository root, served by Pages as-is."""
+    return repo_root() / "docs"
+
+
+def refuse_public_destination(out_dir: Path, *, public_site: Path) -> None:
+    """Refuse, before anything is rendered or written, to put an overlay's files in the public site.
+
+    Two tests, because there are two ways to be in it. By path: the destination is the committed
+    `docs/`, or inside it — compared after resolving both, so `./docs/`, an absolute path and a
+    symlink into it are one place. And by content: the destination already holds a file only the
+    public publisher writes, which is a copy of the public site wherever it happens to live.
+    """
+    target = out_dir.resolve()
+    protected = public_site.resolve()
+    if target == protected or target.is_relative_to(protected):
+        raise PublishError(
+            f"refusing to write an overlay's artifacts into {out_dir}: that is the committed "
+            f"public site ({public_site}). The public site describes the committed registry and "
+            "nothing else, and an overlay's sources never enter it. Choose a directory of your "
+            "own; nothing was written."
+        )
+    held = [name for name in _PUBLIC_SITE_MARKERS if (out_dir / name).exists()]
+    if held:
+        raise PublishError(
+            f"refusing to write an overlay's artifacts into {out_dir}: it already holds "
+            f"{', '.join(held)}, which only the public publisher writes, so it is a copy of the "
+            "public site. Choose a directory of your own; nothing was written."
+        )
+
+
+def _claims_the_public_home(feed_url: str) -> bool:
+    """Whether a URL points at this project's own repository or Pages site."""
+    candidate = normalize_url(feed_url).rstrip("/")
+    return any(
+        candidate == home or candidate.startswith(home + "/")
+        for home in (normalize_url(REPO_URL).rstrip("/"), normalize_url(PAGES_URL).rstrip("/"))
+    )
+
+
+def _write_overlay_artifacts(out_dir: Path, rendered: Mapping[str, str]) -> None:
+    """The only write `publish_overlay` makes, reached after every refusal has had its say."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for filename, content in rendered.items():
+        (out_dir / filename).write_text(content, encoding="utf-8")
+
+
+def publish_overlay(
+    records: Iterable[ChangeRecord],
+    out_dir: Path,
+    *,
+    overlay: Registry,
+    feed_url: str,
+    public_site: Path | None = None,
+    now: datetime | None = None,
+    eligibility_as_of: date | None = None,
+) -> OverlayPublishResult:
+    """Write one overlay's reviewed changes as `changes-<id>.json` and `feed-<id>.xml` (#77).
+
+    The same renderers and the same `_guard` as the public feed, so an overlay record reaches
+    its feed only confirmed by a named human, cited to an entry that is eligible under the
+    same predicate, and never across namespaces. What differs is where it may go and what it
+    may call itself:
+
+    * **Never into the public site.** `refuse_public_destination` runs first — before any
+      rendering, before `mkdir` — so a refusal leaves the destination byte-for-byte as it was.
+    * **Under its own home.** `feed_url` is required and may not be this project's repository
+      or Pages site: an overlay feed that named the public feed as its home would lend it this
+      project's weight, which is the one thing an overlay must not borrow.
+    * **Two files, named for the overlay.** No inventory, no site, no status: those describe
+      the committed registry. The overlay's sources travel inside `changes-<id>.json` with
+      their verification status, as they do in every per-jurisdiction file.
+    """
+    refuse_public_destination(out_dir, public_site=public_site or default_public_site())
+    if not overlay.overlay_id:
+        raise PublishError("publish_overlay needs an overlay's registry, not the committed one")
+    if not feed_url.strip():
+        raise PublishError("an overlay's artifacts need a --feed-url of the overlay's own")
+    if _claims_the_public_home(feed_url):
+        raise PublishError(
+            f"refusing feed URL {feed_url!r}: it is this project's own home. An overlay's "
+            "artifacts are an organization's, and name the organization's address."
+        )
+    generated_at = now or datetime.now(UTC)
+    as_of = eligibility_as_of or generated_at.date()
+    published = _guard(records, registry=overlay, as_of=as_of)
+    changes_name = f"changes-{overlay.overlay_id}.json"
+    feed_name = f"feed-{overlay.overlay_id}.xml"
+    rendered = {
+        changes_name: changes_json(
+            published,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=overlay,
+            eligibility_as_of=as_of,
+        ),
+        feed_name: feed_xml(
+            published,
+            feed_url=feed_url,
+            generated_at=generated_at,
+            registry=overlay,
+            eligibility_as_of=as_of,
+        ),
+    }
+    _write_overlay_artifacts(out_dir, rendered)
+    return OverlayPublishResult(
+        changes_path=out_dir / changes_name,
+        feed_path=out_dir / feed_name,
+        published=len(published),
+    )
+
+
 def source_payload(source: Source) -> dict[str, Any]:
     """One source, as an integrator receives it — **status included, always**.
 
@@ -547,7 +709,9 @@ def changes_json(
         "that nothing changed at any registered candidate."
     )
     payload["registry_verification"] = _verification_summary(
-        scoped_sources, scope=jurisdiction or "all jurisdictions"
+        scoped_sources,
+        scope=jurisdiction
+        or (f"overlay {registry.overlay_id}" if registry.overlay_id else "all jurisdictions"),
     )
     payload["changes"] = [
         _change_payload(record, registry.verification_of(record.source_id))
@@ -713,10 +877,16 @@ def feed_xml(
             f"evidence that nothing changed there."
         )
     )
-    description = (
-        f"{description} "
-        f"{_registry_sentence(scoped_sources, jurisdiction, as_of=eligibility_as_of or generated_at.date())}"
+    if registry.overlay_id:
+        title = OVERLAY_FEED_TITLE.format(overlay_id=registry.overlay_id)
+        description = OVERLAY_FEED_DESCRIPTION.format(overlay_id=registry.overlay_id)
+    sentence = _registry_sentence(
+        scoped_sources,
+        jurisdiction,
+        as_of=eligibility_as_of or generated_at.date(),
+        overlay=bool(registry.overlay_id),
     )
+    description = f"{description} {sentence}"
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<rss version="2.0">\n'
@@ -733,7 +903,9 @@ def feed_xml(
     )
 
 
-def _registry_sentence(sources: Sequence[Source], jurisdiction: str | None, *, as_of: date) -> str:
+def _registry_sentence(
+    sources: Sequence[Source], jurisdiction: str | None, *, as_of: date, overlay: bool = False
+) -> str:
     """One sentence, in the channel description, stating the registry's verification state for
     whatever this feed is scoped to. Counted, not asserted — it will read differently the day
     someone finishes the burn-down, and it will read differently *by itself*.
@@ -749,7 +921,7 @@ def _registry_sentence(sources: Sequence[Source], jurisdiction: str | None, *, a
     scope = jurisdiction or "the registry"
     verified = sum(1 for s in sources if s.verified)
     monitored = sum(1 for s in sources if evaluate_source(s, as_of=as_of).eligible)
-    where = f"in {scope}" if jurisdiction else "in the registry"
+    where = f"in {scope}" if jurisdiction else "in this overlay" if overlay else "in the registry"
     if verified == len(sources) and sources and monitored == len(sources):
         return f"All {len(sources)} sources {where} are HUMAN-VERIFIED. {REGISTRY_DISCLAIMER}"
     if verified == len(sources) and sources:

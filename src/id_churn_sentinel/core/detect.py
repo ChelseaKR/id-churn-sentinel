@@ -125,7 +125,7 @@ bucket existed**, because a bucket in a report is not the same thing as a refusa
 from __future__ import annotations
 
 import difflib
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
@@ -148,6 +148,7 @@ from id_churn_sentinel.core.normalize import (
     passages,
     representation_contract,
 )
+from id_churn_sentinel.core.overlay import Overlay, validate_overlays
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
     RUN_COMPLETE,
@@ -415,7 +416,7 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
     for source in sources:
         first = fetcher.fetch(source.url)
         if not first.ok:
-            report.unreachable.append((source.id, first.error or "unknown error"))
+            report.unreachable.append((source.key, first.error or "unknown error"))
             continue
 
         first_hash, first_text = content_hash(first.body, first.content_type)
@@ -423,12 +424,12 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
             # Refused before the second fetch, not after: the comparison this command exists
             # to make is between two readings of a page, and there is no reading here. A
             # second request would buy the host's bandwidth and answer nothing.
-            report.no_text.append((source.id, source.url))
+            report.no_text.append((source.key, source.url))
             continue
 
         second = fetcher.fetch(source.url)
         if not second.ok:
-            report.unreachable.append((source.id, second.error or "unknown error"))
+            report.unreachable.append((source.key, second.error or "unknown error"))
             continue
 
         second_hash, second_text = content_hash(second.body, second.content_type)
@@ -437,13 +438,13 @@ def check_stability(sources: Iterable[Source], fetcher: Fetcher) -> StabilityRep
             # against `sha256("")` — and reporting that as UNSTABLE would name a rotating
             # widget that is not there. A page that intermittently serves nothing is a page
             # we cannot read, not a page that churns.
-            report.no_text.append((source.id, source.url))
+            report.no_text.append((source.key, source.url))
             continue
 
         if first_hash == second_hash:
-            report.stable.append(source.id)
+            report.stable.append(source.key)
         else:
-            report.unstable.append((source.id, first_hash, second_hash))
+            report.unstable.append((source.key, first_hash, second_hash))
     return report
 
 
@@ -635,7 +636,9 @@ def _watch_authorized_sources(
 
     for source in sources:
         if run_id is not None:
-            store.begin_fetch_attempt(run_id, source_id=source.id, url=source.url)
+            store.begin_fetch_attempt(
+                run_id, source_id=source.id, url=source.url, overlay_id=source.overlay_id
+            )
         result = fetcher.fetch(source.url)
         evidence: ContentEvidence | None = None
         if result.ok:
@@ -650,6 +653,7 @@ def _watch_authorized_sources(
             store.finish_fetch_attempt(
                 run_id,
                 source_id=source.id,
+                overlay_id=source.overlay_id,
                 ok=result.ok,
                 http_status=result.status,
                 content_type=result.content_type or "",
@@ -684,19 +688,20 @@ def _watch_authorized_sources(
             # this source's run ends here — before `record_success` (which would exonerate a
             # source we did not observe) and before `record_snapshot` (which would overwrite
             # the last real baseline with a hash of nothing). Reported every run it recurs.
-            report.no_text.append((source.id, source.url))
+            report.no_text.append((source.key, source.url))
             continue
 
         new_hash, normalized = evidence.detection_sha256, evidence.normalized_text
-        previous = store.latest_snapshot(source.id)
+        previous = store.latest_snapshot(source.id, overlay_id=source.overlay_id)
 
         # The source answered, so whatever was wrong is over. Reset the streak *before*
         # anything else: a source that is serving bytes is not a source that was removed,
         # and leaving a stale streak standing would let old flakiness escalate a healthy page.
-        store.record_success(source.id, now=now)
+        store.record_success(source.id, now=now, overlay_id=source.overlay_id)
 
         store.record_snapshot(
             source_id=source.id,
+            overlay_id=source.overlay_id,
             url=source.url,
             fetched_at=result.fetched_at,
             http_status=result.status,
@@ -748,7 +753,7 @@ def _compare_against_baseline(
     snapshot store rather than downstream of it (issue #19).
     """
     if previous is None:
-        report.new.append(source.id)
+        report.new.append(source.key)
         return
 
     if previous.url != source.url:
@@ -762,7 +767,7 @@ def _compare_against_baseline(
         #
         # A first observation of a watch target is a baseline, and a new URL is a new
         # watch target. So: re-baseline, report it loudly, claim no drift.
-        report.rebaselined.append((source.id, previous.url, source.url))
+        report.rebaselined.append((source.key, previous.url, source.url))
         return
 
     # The baseline may have been recorded under a normalizer this build no longer runs.
@@ -779,7 +784,7 @@ def _compare_against_baseline(
         # caller already recorded — and claim nothing about drift.
         report.unrenormalizable.append(
             (
-                source.id,
+                source.key,
                 representation_contract(previous.normalizer_version, previous.extractor_version),
             )
         )
@@ -787,18 +792,19 @@ def _compare_against_baseline(
 
     if baseline.content_sha256 == new_hash:
         if baseline.renormalized_from is None:
-            report.unchanged.append(source.id)
+            report.unchanged.append(source.key)
         else:
             # A version bump and nothing else. Reported in its own bucket rather than
             # silently folded into `unchanged`, because "your normalizer changed and this
             # page did not" is a fact the operator wants stated once — and because the
             # baseline row now carries a different contract from the one it was compared
             # under, which is provenance, not noise.
-            report.renormalized.append((source.id, baseline.renormalized_from, CURRENT_CONTRACT))
+            report.renormalized.append((source.key, baseline.renormalized_from, CURRENT_CONTRACT))
         return
 
     change = ChangeRecord.observed(
         source_id=source.id,
+        overlay_id=source.overlay_id,
         jurisdiction=source.jurisdiction,
         document_class=source.document_class,
         url=source.url,
@@ -829,6 +835,7 @@ def watch_registry(
     *,
     as_of: date,
     jurisdiction: str | None = None,
+    overlays: Sequence[Overlay] = (),
     removal_threshold: int = REMOVAL_THRESHOLD,
     min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
     started_at: datetime | None = None,
@@ -840,14 +847,22 @@ def watch_registry(
     remain in the receipt with their reasons but cannot enter the attempt denominator.  A
     previous retrieval failure is intentionally absent from the predicate, so an eligible
     source that failed last week is attempted again and remains visible in this week's count.
+
+    ``overlays`` (#77) are merged into the same run: one run id, one denominator, each overlay
+    entry judged by the same predicate and recorded under its own namespace. The run records
+    every overlay it carried and at which revision, and that record is what keeps the run out
+    of the public status — the committed registry's receipts are about the committed registry.
     """
 
-    selected = (
-        registry.for_jurisdiction(jurisdiction) if jurisdiction is not None else registry.sources
+    validate_overlays(registry, overlays)
+    selected = _in_scope(registry, jurisdiction) + tuple(
+        source for overlay in overlays for source in _in_scope(overlay.registry, jurisdiction)
     )
     scoped = Registry(version=registry.version, sources=selected)
     eligibility = eligibility_report(scoped, as_of=as_of)
-    decision_by_id = {decision.source_id: decision for decision in eligibility.decisions}
+    # Keyed on `Source.key`, which `evaluate_source` records as the decision's `source_id`: a
+    # committed entry and an overlay entry sharing a bare id are two decisions, never one.
+    decision_by_key = {decision.source_id: decision for decision in eligibility.decisions}
     inputs = tuple(
         RunSourceInput(
             source_id=source.id,
@@ -855,8 +870,9 @@ def watch_registry(
             document_class=source.document_class,
             url=source.url,
             authority=source.authority,
-            eligible=decision_by_id[source.id].eligible,
-            eligibility_reasons=decision_by_id[source.id].reasons,
+            eligible=decision_by_key[source.key].eligible,
+            eligibility_reasons=decision_by_key[source.key].reasons,
+            overlay_id=source.overlay_id,
         )
         for source in selected
     )
@@ -866,11 +882,14 @@ def watch_registry(
         registry_revision=registry_revision(registry),
         jurisdiction=jurisdiction.upper() if jurisdiction is not None else None,
         sources=inputs,
+        overlays=tuple(
+            (overlay.overlay_id, registry_revision(overlay.registry)) for overlay in overlays
+        ),
         started_at=started_at,
     )
     eligible_ids = eligibility.attempt_source_ids
     eligible_set = frozenset(eligible_ids)
-    authorized = tuple(source for source in selected if source.id in eligible_set)
+    authorized = tuple(source for source in selected if source.key in eligible_set)
 
     if not authorized:
         store.finish_watch_run(
@@ -933,12 +952,18 @@ def watch_registry(
     return report
 
 
+def _in_scope(registry: Registry, jurisdiction: str | None) -> tuple[Source, ...]:
+    """One registry's entries inside a run's jurisdiction scope — all of them when unscoped."""
+    return registry.for_jurisdiction(jurisdiction) if jurisdiction is not None else registry.sources
+
+
 def watch(
     registry: Registry,
     store: SnapshotStore,
     fetcher: Fetcher,
     *,
     jurisdiction: str | None = None,
+    overlays: Sequence[Overlay] = (),
     removal_threshold: int = REMOVAL_THRESHOLD,
     min_removal_silence: timedelta = MIN_REMOVAL_SILENCE,
 ) -> WatchReport:
@@ -956,6 +981,7 @@ def watch(
         fetcher,
         as_of=datetime.now(UTC).date(),
         jurisdiction=jurisdiction,
+        overlays=overlays,
         removal_threshold=removal_threshold,
         min_removal_silence=min_removal_silence,
     )
@@ -1032,20 +1058,22 @@ def _handle_failure(
     retry. See `REMOVAL_THRESHOLD` and `MIN_REMOVAL_SILENCE`.
     """
     reason = error or "unknown error"
-    report.unreachable.append((source.id, reason))
+    report.unreachable.append((source.key, reason))
 
-    streak = store.record_failure(source.id, error=reason, status=status, now=now)
+    streak = store.record_failure(
+        source.id, error=reason, status=status, now=now, overlay_id=source.overlay_id
+    )
     if streak < removal_threshold:
         return
 
     # Enough attempts. Now: enough *time*? A streak with no recorded start has an unknown
     # duration, and unknown is not "long enough" — escalating on it would be exactly the
     # count-as-duration confusion this check exists to end.
-    silence = store.silence_window(source.id)
+    silence = store.silence_window(source.id, overlay_id=source.overlay_id)
     if silence.elapsed is None or silence.elapsed < min_removal_silence:
         return
 
-    baseline = store.latest_snapshot(source.id)
+    baseline = store.latest_snapshot(source.id, overlay_id=source.overlay_id)
     if baseline is None:
         # A source that has NEVER been fetched successfully has no baseline to have lost.
         # Escalating it would claim a page "possibly disappeared" when we never once saw it
@@ -1055,6 +1083,7 @@ def _handle_failure(
 
     escalation = ChangeRecord.possibly_removed(
         source_id=source.id,
+        overlay_id=source.overlay_id,
         jurisdiction=source.jurisdiction,
         document_class=source.document_class,
         url=source.url,

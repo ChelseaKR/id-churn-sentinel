@@ -462,6 +462,79 @@ A URL differing from a registered source only by a trailing slash reports `host_
 
 **The reverse view, without installing anything.** `sources.json` (schema 2.1) publishes `normalized_url` and `host` on every source — the exact identity a `source` match is decided on — so you can do the join in your own language against a file you already fetch. The fields come from the same normalizer this command uses; two that drifted apart would give you two different answers about the same URL.
 
+### Watching your own sources under the same rules (registry overlays)
+
+The committed registry is national and closed by process: every entry needs a named verifier and
+a dated fetch-policy reading before the watcher will attempt it. If your organization needs that
+discipline over pages this registry will never carry — a county clerk's name-change page, a
+district court's local fee schedule, a state agency's Spanish-language mirror — you do not need
+to fork it. Write an **overlay**: a registry-shaped file with one extra key.
+
+```json
+{
+  "registry_version": "1.0",
+  "overlay_id": "example-county-legal-aid",
+  "sources": [
+    {
+      "id": "clerk-name-change",
+      "jurisdiction": "TX",
+      "document_class": "court_order_name_change",
+      "url": "https://www.example-county.gov/clerk/name-change",
+      "authority": "Example County District Clerk",
+      "notes": "our county's filing page"
+    }
+  ],
+  "gaps": []
+}
+```
+
+Pass it with `--overlay`. It is repeatable where a command merges overlays into one pass
+(`watch`, `sources validate`, `sources check`, `coverage`) and takes one file where a command
+writes into it or publishes from it (`verify`, `sources policy`, `baseline`, `publish`):
+
+```sh
+sentinel sources validate --overlay my-sources.json      # load it and refuse any collision
+sentinel verify --overlay my-sources.json --verifier 'Your Name'
+sentinel sources policy --overlay my-sources.json --source-id clerk-name-change \
+  --outcome allow --reviewer 'Your Name' --reason '…' --evidence '…'
+sentinel watch --overlay my-sources.json                 # one run: the registry's and yours
+sentinel review --list                                   # your items are marked [overlay …]
+sentinel publish --overlay my-sources.json --out feeds/ --feed-url https://your.org/feeds/
+```
+
+What holds, and where it is enforced:
+
+- **The same validator and the same predicate.** An overlay is parsed by the function the
+  committed registry goes through, so a `verified: true` nobody signed does not load, and each
+  entry is attempted only once it carries a named human's verification with evidence and an
+  expiry *and* a dated fetch-policy decision. An overlay cannot buy itself eligibility.
+- **Its own namespace.** Every row the watcher writes about a source — snapshots, change
+  records, health, run denominators and fetch attempts — is keyed on `(overlay_id, source_id)`,
+  with `''` for the committed registry. (The HEAD-only `probe` takes no overlay, so its rows
+  are the committed registry's by construction.) Two overlays that both call a page `clerk-name-change`
+  share nothing, and neither shares anything with a committed entry of that name; an overlay
+  observation's change id includes its namespace.
+- **Collisions are refused by name.** An entry at a URL the committed registry already watches
+  fails to load naming both ids, and so does a URL two overlays both list, or two files declaring
+  one `overlay_id`. URLs are compared the way `sentinel crosswalk` compares them. An `overlay_id`
+  may not be the name of a published feed such as `us-tx`.
+- **It never reaches the public artifact.** `publish --overlay` writes exactly two files,
+  `changes-<overlay_id>.json` in the `changes-v2` shape and `feed-<overlay_id>.xml`, whose title
+  names the overlay and says it is not this project's feed. It refuses `docs/`, or any directory
+  already holding `sources.json` or `status.json`, before it reads the overlay or writes
+  anything, and it requires a `--feed-url` that is yours. The public `publish` refuses an overlay
+  registry and any overlay record.
+- **It never moves a published number.** `coverage --overlay` reports each overlay apart, in
+  different words; `coverage --check-docs` never opens an overlay file.
+- **A run that carries an overlay is not a committed-registry run.** `status.json` and every
+  `status-us-xx.json` ignore it, whatever it found.
+- **Your decisions stay in your file.** `verify --overlay` and `sources policy --overlay` write
+  into the overlay, never into `sources/registry.json`. `baseline write --overlay` keeps your
+  hashes in `<name>.baseline-hashes.json` beside the overlay and refuses the committed baseline.
+
+Putting one of your entries into the committed registry is still a reviewed pull request with a
+person reading the page. Sharing an overlay between organizations is out of scope.
+
 ### The versioning promise
 
 - **A major bump means a break.** Version 2 adds independent-review and correction lifecycle fields; the v1 schema remains available for integrations that have not migrated. Pin the major and validate against its matching schema.

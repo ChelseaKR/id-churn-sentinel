@@ -33,6 +33,7 @@ from enum import StrEnum
 from typing import Any
 from unicodedata import category, normalize
 
+from id_churn_sentinel.core.registry import source_key
 from id_churn_sentinel.errors import ReviewError
 
 __all__ = [
@@ -70,6 +71,8 @@ PRIVACY_WITHDRAWAL_COPY = (
 PRIVACY_WITHDRAWAL_DIFF = "Content withheld following a privacy-or-safety withdrawal."
 _PROHIBITED_PUBLIC_CLAIM = re.compile(r"\b(?:operative|requires|permits|effective)\b", re.I)
 _CHANGE_ID = re.compile(r"^[0-9a-f]{16}$")
+# The source-id slug grammar; `""` is the committed registry's namespace (#77).
+_OVERLAY_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class ChangeKind(StrEnum):
@@ -164,6 +167,12 @@ class ChangeRecord:
     lifecycle_reason: str = ""
     lifecycle_actor: str | None = None
     lifecycle_at: datetime | None = None
+    #: The namespace of the source this observation is about: ``""`` for the committed
+    #: registry, an overlay's id otherwise (#77). Part of the observation's identity — it is
+    #: inside the change id and the store's append-only trigger refuses to change it — and
+    #: deliberately NOT part of `to_dict()`: `changes-v2` is a closed schema, and an overlay's
+    #: artifact set says whose it is in its filename and its feed title instead.
+    overlay_id: str = ""
 
     @classmethod
     def observed(
@@ -177,6 +186,7 @@ class ChangeRecord:
         new_hash: str,
         diff_excerpt: str,
         observed_at: datetime | None = None,
+        overlay_id: str = "",
     ) -> ChangeRecord:
         """Mint a record from a detected hash change.
 
@@ -186,7 +196,8 @@ class ChangeRecord:
         is a sentence that cannot be typed.
         """
         return cls(
-            id=change_id(source_id, previous_hash, new_hash),
+            id=change_id(source_id, previous_hash, new_hash, overlay_id=overlay_id),
+            overlay_id=overlay_id,
             source_id=source_id,
             jurisdiction=jurisdiction,
             document_class=document_class,
@@ -213,6 +224,7 @@ class ChangeRecord:
         last_error: str,
         silent_for: timedelta | None = None,
         observed_at: datetime | None = None,
+        overlay_id: str = "",
     ) -> ChangeRecord:
         """Mint a record for a source that has failed to fetch N consecutive times.
 
@@ -232,7 +244,8 @@ class ChangeRecord:
         survives (`ON CONFLICT (change_id) DO NOTHING`).
         """
         return cls(
-            id=change_id(source_id, last_known_hash, ""),
+            id=change_id(source_id, last_known_hash, "", overlay_id=overlay_id),
+            overlay_id=overlay_id,
             source_id=source_id,
             jurisdiction=jurisdiction,
             document_class=document_class,
@@ -411,7 +424,13 @@ class ChangeRecord:
             self.new_hash,
             self.diff_excerpt,
             self.kind,
+            self.overlay_id,
         )
+
+    @property
+    def source_key(self) -> str:
+        """The store identity of the source this observation is about (`Source.key`)."""
+        return source_key(self.overlay_id, self.source_id)
 
     @property
     def first_review_valid(self) -> bool:
@@ -717,8 +736,15 @@ def observation_fields_are_valid(
     new_hash: object,
     diff_excerpt: object,
     kind: object,
+    overlay_id: object = "",
 ) -> bool:
-    """Shared Python/SQLite validator for the append-only observation row."""
+    """Shared Python/SQLite validator for the append-only observation row.
+
+    Registered with SQLite at both arities: the eight-argument form is what migration 12's
+    insert trigger calls, and the seven-argument form is what a store at an earlier migration
+    prefix still calls — those rows are committed-namespace by construction, so its default
+    `""` is the value that store would have written, not a guess about it.
+    """
 
     if (
         not isinstance(identifier, str)
@@ -727,9 +753,12 @@ def observation_fields_are_valid(
         or not isinstance(new_hash, str)
         or not isinstance(diff_excerpt, str)
         or not isinstance(kind, str)
+        or not isinstance(overlay_id, str)
     ):
         return False
     if _utf8_size(source_id) is None:
+        return False
+    if overlay_id and not _OVERLAY_ID.fullmatch(overlay_id):
         return False
     if isinstance(observed_at, str):
         try:
@@ -753,7 +782,7 @@ def observation_fields_are_valid(
         or (observed_kind is ChangeKind.POSSIBLY_REMOVED and new_hash == "")
     )
     try:
-        expected_identifier = change_id(source_id, previous_hash, new_hash)
+        expected_identifier = change_id(source_id, previous_hash, new_hash, overlay_id=overlay_id)
     except ReviewError:
         return False
     return (
@@ -865,7 +894,7 @@ def _describe_duration(value: timedelta) -> str:
     return f"{seconds} seconds"
 
 
-def change_id(source_id: str, previous_hash: str, new_hash: str) -> str:
+def change_id(source_id: str, previous_hash: str, new_hash: str, *, overlay_id: str = "") -> str:
     """A deterministic id for a (source, before, after) transition.
 
     Deterministic on purpose: re-running `watch` over the same drift must produce the same
@@ -873,8 +902,14 @@ def change_id(source_id: str, previous_hash: str, new_hash: str) -> str:
     cited in an email six months ago still resolves. Sixteen hex chars is ~64 bits, which
     is ample for a corpus that will never exceed a few thousand records and is short enough
     to paste into a message.
+
+    The subject is the source's store identity (`Source.key`): the bare id for the committed
+    registry — so every committed id ever minted or cited is unchanged — and
+    `<overlay_id>/<source_id>` for an overlay (#77). Without the namespace, two overlays that
+    both call a page `clerk-name-change` and happen to observe the same bytes would mint one
+    id, and `ON CONFLICT (change_id) DO NOTHING` would silently drop the second observation.
     """
-    identity = f"{source_id}\n{previous_hash}\n{new_hash}"
+    identity = f"{source_key(overlay_id, source_id)}\n{previous_hash}\n{new_hash}"
     if _utf8_size(identity) is None:
         raise ReviewError("change identity components must be well-formed Unicode")
     material = identity.encode("utf-8")

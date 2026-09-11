@@ -9,6 +9,25 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **Registry overlays: an organization's own sources, under this repository's discipline**
+  (2026-09-11), issue #77. `--overlay FILE` on `watch`, `verify`, `sources validate`,
+  `sources check`, `sources policy`, `baseline write`, `baseline check`, `coverage` and `publish`;
+  new `core/overlay.py`; store migration 12.
+
+  An overlay is a registry-shaped file with an `overlay_id`, parsed by the committed registry's
+  own validator and judged by the same eligibility predicate. The five tables the watcher writes
+  about a source are now keyed on `(overlay_id, source_id)`, with `''` for the committed
+  registry (the HEAD-only `probes` table is not; `probe` takes no overlay): migration 12 adds the
+  column to `snapshots` and `changes` and rebuilds `source_health`, `run_sources` and
+  `fetch_attempts`, copying every existing row under `''`. No existing row changes meaning and no
+  existing change id moves.
+
+  An overlay never reaches the public artifact. `publish --overlay` writes `changes-<id>.json`
+  and `feed-<id>.xml` and refuses `docs/` before writing anything; the public `publish` refuses
+  overlay records; `coverage --check-docs` never opens an overlay file; and a run that carried an
+  overlay is excluded from `status.json` and every per-jurisdiction receipt. A URL watched in two
+  namespaces is refused naming both ids.
+
 - **A watch receipt beside every jurisdiction feed, so a silent feed says whether it was
   watched** (2026-09-08), issue #76. New `core/jurisdiction_status.py`, three read-only store
   accessors, `docs/schema/jurisdiction-status-v1.schema.json`, and one `status-us-xx.json`

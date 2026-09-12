@@ -9,6 +9,54 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A merge gate that reads this repository's tags, so what the documents say about
+  releases is held to what has actually been tagged** (2026-09-09), issue #101. New
+  `tests/test_release_claims.py`; `fetch-depth: 0` and `fetch-tags: true` on both
+  workflows that run `make verify`.
+
+  Nothing here read a tag. Measured with a positive control, because a failed grep and a
+  clean tree look identical: the word appears in 23 test files, and no test, tool or
+  Makefile target ran `git tag`, `--tags`, `refs/tags`, `for-each-ref` or `git describe`.
+  So both directions of one fact were unguarded — a branch could delete every sentence
+  saying no version has been cut and merge green over an empty tag list, and a tag could
+  be pushed with all of those sentences left standing. `release/v0-1-0` is the first of
+  those, sitting on `origin`: it rewrites the README's conformance row and SECURITY.md's
+  supported-versions section and closes the changelog at `0.1.0`, and every one of the
+  seven gate stages passed over it, because not one of them could see a tag.
+
+  Two halves, because a denylist is not a guarantee. The **structural** half compares
+  values against the tag list and needs no vocabulary: `CITATION.cff`'s release date, the
+  declared version against the tags that carry it, and the changelog section a released
+  version must have. The **prose** half is a denylist of five sentences over
+  `git ls-files`, and it says in the file that a denylist finds a phrasing somebody has
+  already written and cannot find one nobody has thought of yet.
+
+  It is a scan rather than a list of three filenames because the fact is stated in a
+  fourth place no such list would have named: the header comment of
+  `.github/workflows/release.yml`, wrapped across a line break behind `#` markers, which
+  is findable only after normalisation. Measured on this tree: 131 tracked prose files
+  read of 324 tracked; 5 of 5 vocabulary entries observed somewhere in the tree; 4
+  statements in 3 files that a first tag would make false.
+
+  Four floors keep it from passing over nothing — a non-empty vocabulary, a
+  scanned-file floor, a self-limiting rule that fails until every entry is observed in
+  the tree, and a normalisation control. `CHANGELOG.md` is exempt as a *file*, because
+  its sections record what was true on the day of each entry, and stays in the
+  observation universe, because a phrasing recorded there is still one this project
+  wrote. This module is exempt as a file too and its **docstrings** are read instead —
+  all 23 of them, not the module docstring alone, which would have been 1 of 23 and left
+  the other 22 as prose no reader and no check ever opens.
+
+  A checkout that could not have shown a tag is **refused**, not skipped: shallow and
+  `--no-tags` clones both report an empty tag list over a repository that has tags, and
+  reading that as evidence is this project's own defect class one level inside the check
+  written to catch it. A tree that is not a repository at all is skipped, because an
+  unpacked source archive has no tags to be wrong about. `fetch-depth: 0` and
+  `fetch-tags: true` are what stop CI landing in the refusal, and they matter most on the
+  release workflow, which runs at a tagged commit: a checkout that cannot see that tag
+  would send every check here down its untagged branch on the one run that exists to
+  bless the tag.
+
 - **A watch receipt beside every jurisdiction feed, so a silent feed says whether it was
   watched** (2026-09-08), issue #76. New `core/jurisdiction_status.py`, three read-only store
   accessors, `docs/schema/jurisdiction-status-v1.schema.json`, and one `status-us-xx.json`
@@ -137,6 +185,13 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   candidate's name.
 
 ### Fixed
+
+- **`CITATION.cff` dated a release that was never cut** (2026-09-09), issue #101. The
+  file carried a release date against a repository with no tag in it, so the date named a
+  day rather than a release — and this project's own
+  `docs/standards/DOCUMENTATION-STANDARD.md` already says to omit the release-specific
+  fields before the first tag. The field is gone, with a comment saying what restores it,
+  and the rule is now checked in both directions rather than remembered.
 
 - **A source read but held against nothing was published as one compared against its
   baseline** (2026-09-08), issue #99, in every jurisdiction receipt's `statement`, in

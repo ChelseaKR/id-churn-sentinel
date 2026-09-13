@@ -34,7 +34,14 @@ __all__ = [
 # 1.2 (2026-09-06, issue #74) adds the optional `availability` block: the HEAD-only probe
 # channel's summary. Additive and OPTIONAL — an absent block means that channel has not run,
 # which is not the same as, and must never be read as, "nothing was unavailable".
-STATUS_SCHEMA_VERSION = "1.2"
+# 1.3 (2026-09-13, issue #99) adds `compared_source_ids` and `compared_source_count`.
+# `observed_source_count` is a count of pages READ; three of `detect.py`'s non-drift buckets
+# are readings held against nothing (a first sighting, a registry entry re-pointed at a
+# different page, a committed hash not re-derivable under today's normalization contract).
+# Additive, and published beside the reading count rather than instead of it: a consumer
+# needs both numbers, and the gap between them is the population that would otherwise be
+# read as "checked and unchanged".
+STATUS_SCHEMA_VERSION = "1.3"
 DEFAULT_STALE_AFTER = timedelta(days=8)
 
 
@@ -150,11 +157,18 @@ def _run_payload(run: WatchRun | None) -> dict[str, Any] | None:
         # no observation — and because a source silently missing from a count reads as zero,
         # which here would be a claim that it was watched and nothing changed.
         "unmeasured_source_ids": list(run.unmeasured_source_ids),
+        # Read AND held against a committed baseline (issue #99). A subset of the read set,
+        # and published as its own set for the same reason `unmeasured_source_ids` is: the
+        # reader is entitled to know which sources the run can actually speak for, and a
+        # source silently missing from a count reads as zero, which here would be a claim
+        # that it was compared and nothing changed.
+        "compared_source_ids": list(run.compared_source_ids),
         "eligible_count": run.eligible_count,
         "attempted_count": run.attempted_count,
         "successful_retrieval_count": run.successful_count,
         "unmeasured_count": run.unmeasured_count,
         "observed_source_count": run.observed_count,
+        "compared_source_count": run.compared_count,
         "attempt_completeness": run.attempt_completeness,
         "observation_count": run.observation_count,
         # Raw errors remain operational evidence.  Publishing arbitrary network/database

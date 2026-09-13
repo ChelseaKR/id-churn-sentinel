@@ -9,6 +9,47 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **A source read but held against nothing is published as read-and-held-against-nothing,
+  not as one that matched** (2026-09-13), issue #99. New migration 12
+  (`comparison_outcome` on `run_sources`); four outcome words in
+  `docs/schema/jurisdiction-status-v1.schema.json` (receipt schema 1.1);
+  `compared_source_ids`/`compared_source_count` in `docs/status.json` (status schema 1.3);
+  all 52 committed receipts republished.
+
+  `jurisdiction_status._outcome_for` ended `return "observed_unchanged"`, and the sentence
+  that word publishes is *"it matched the committed baseline"*. `detect.py` produces four
+  non-drift outcomes for a source whose fetch succeeded and yielded text, and only one of
+  them is a comparison: a first sighting has no baseline, a registry entry re-pointed at a
+  different page has its comparison **refused in terms**, and a committed hash not
+  re-derivable under today's normalization contract has nothing comparable behind it. All
+  four persisted identically, because `run_sources` had no column that could tell them
+  apart. The ordinary first run is the case that fires it for every source at once: `var/`
+  is gitignored, so a fresh clone, a hosted runner and the documented `make watch-weekly`
+  on a new machine all begin with an empty store.
+
+  Three of `detect.py`'s own buckets get their own published words rather than one merged
+  one (`observed_unbaselined`, `observed_rebaselined`, `observed_unrenormalizable`),
+  matching the buckets and the markers `baseline check` already emits, because a reader
+  acts differently on each: come back next week, the page you cared about is no longer
+  watched under this entry, and this one needs an operator. A fourth,
+  `observed_comparison_unknown`, is what a row carrying no comparison answer reads as —
+  the migration backfills `legacy-unknown` rather than `compared`, because which of the
+  four happened to a pre-migration row is not recoverable from anything the store kept.
+
+  Two numbers, everywhere the one number used to be. Each receipt's sentence now reads
+  *"read N of M registered source(s) … and held C of those readings against the committed
+  baseline"*; `status.json` carries `compared_source_count` beside `observed_source_count`
+  and the exact id set beside both; `docs/index.html` states both on the run-health line
+  whenever a run attempted anything, rather than only when a retrieval had already failed.
+  Every figure is derived at render time from the outcomes printed beside it.
+
+  Two tests asserted the defect as intended behaviour and now assert the correction.
+  `_attempt` in `tests/test_jurisdiction_status.py` defaults to recording **no** comparison,
+  because "every fixture carries the populated case" is the measured root cause of this
+  defect class portfolio-wide; a test that means "read and matched" has to say so.
+  Negative controls: restoring the bare `return "observed_unchanged"` reddens 6 tests, and
+  widening the comparison vocabulary to equal the reading vocabulary reddens 7.
+
 - **A merge gate that reads this repository's tags, so what the documents say about
   releases is held to what has actually been tagged** (2026-09-09), issue #101. New
   `tests/test_release_claims.py`; `fetch-depth: 0` and `fetch-tags: true` on both

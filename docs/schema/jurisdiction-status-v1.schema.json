@@ -19,8 +19,8 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0",
-      "description": "Bump on any breaking change. The contract is closed (additionalProperties: false), so adding even an optional property is a break."
+      "enum": ["1.0", "1.1"],
+      "description": "Bump on any breaking change. The contract is closed (additionalProperties: false), so adding even an optional property is a break. 1.1 (issue #99) adds four `outcome` words and NARROWS one: `observed_unchanged` was emitted for three readings that had been held against nothing, and now means only what its sentence says. No property was added or removed, and `counts` has always carried every word including the zeroes, so a 1.0 document still validates. Earlier versions stay accepted for the reason `status-v1` gives: a document written before a change is republished by the next `sentinel publish`, never by an edit to a generated file."
     },
     "generated_at": {
       "type": "string",
@@ -134,6 +134,10 @@
           "enum": [
             "observed_unchanged",
             "observed_changed",
+            "observed_unbaselined",
+            "observed_rebaselined",
+            "observed_unrenormalizable",
+            "observed_comparison_unknown",
             "unreachable",
             "unreadable",
             "not_eligible",
@@ -142,7 +146,7 @@
             "outcome_unknown",
             "not_in_run"
           ],
-          "description": "What the last covering run did to this source. Exactly one of nine, and eight of the nine mean the page was NOT compared against its baseline. `not_in_run` and `not_attempted` are separate because `the run never saw this source` and `the run saw it and did not fetch it` lead a reader to different actions."
+          "description": "What the last covering run did to this source. Exactly one word, and exactly TWO of them \u2014 `observed_unchanged` and `observed_changed` \u2014 mean the page was held against its committed baseline. Every other word means it was not, including the four beginning `observed_` that describe a page which WAS read and was compared with nothing: no baseline existed yet, the registry entry now points at a different page, the committed hash is not re-derivable under today\u2019s normalization contract, or the row did not record the answer. Reading and comparing are separate facts and no word folds them. `not_in_run` and `not_attempted` are likewise separate because `the run never saw this source` and `the run saw it and did not fetch it` lead a reader to different actions."
         },
         "outcome_statement": {
           "type": "string",

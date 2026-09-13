@@ -17,8 +17,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "enum": ["1.0", "1.1", "1.2"],
-      "description": "1.1 (issue #19) adds unmeasured_source_ids, unmeasured_count and observed_source_count to every run, so a retrieval that returned no readable text can no longer be counted among the pages we watched. 1.2 (issue #74) adds the OPTIONAL `availability` block, the HEAD-only probe channel's summary. Earlier versions are still accepted because a document written before a change is republished on the next `sentinel publish`, not by an edit to a generated file."
+      "enum": ["1.0", "1.1", "1.2", "1.3"],
+      "description": "1.1 (issue #19) adds unmeasured_source_ids, unmeasured_count and observed_source_count to every run, so a retrieval that returned no readable text can no longer be counted among the pages we watched. 1.2 (issue #74) adds the OPTIONAL `availability` block, the HEAD-only probe channel's summary. 1.3 (issue #99) adds compared_source_ids and compared_source_count, because observed_source_count counts pages READ and a reading held against no baseline \u2014 a first sighting, a registry entry re-pointed at a different page, a committed hash not re-derivable under today's normalization contract \u2014 is not a page compared. Both numbers are published; neither replaces the other. Earlier versions are still accepted because a document written before a change is republished on the next `sentinel publish`, not by an edit to a generated file."
     },
     "generated_at": { "type": "string", "format": "date-time" },
     "state": {
@@ -97,6 +97,8 @@
         "successful_retrieval_count",
         "unmeasured_count",
         "observed_source_count",
+        "compared_source_ids",
+        "compared_source_count",
         "attempt_completeness",
         "observation_count",
         "has_internal_error"
@@ -135,11 +137,18 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
+        "compared_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Sources this run read AND held against a committed baseline. A subset of the read set, never equal to it by construction: three of the watcher's non-drift outcomes are readings compared with nothing."
+        },
         "eligible_count": { "type": "integer", "minimum": 0 },
         "attempted_count": { "type": "integer", "minimum": 0 },
         "successful_retrieval_count": { "type": "integer", "minimum": 0 },
         "unmeasured_count": { "type": "integer", "minimum": 0 },
         "observed_source_count": { "type": "integer", "minimum": 0 },
+        "compared_source_count": { "type": "integer", "minimum": 0 },
         "attempt_completeness": {
           "oneOf": [
             { "type": "number", "minimum": 0, "maximum": 1 },

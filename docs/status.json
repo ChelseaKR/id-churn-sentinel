@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.2",
-  "generated_at": "2026-09-08T02:03:36.984700+00:00",
+  "schema_version": "1.3",
+  "generated_at": "2026-09-13T17:44:48.714078+00:00",
   "state": "stale",
   "stale": true,
   "stale_after_seconds": 691200,
@@ -18,11 +18,13 @@
     "attempted_source_ids": [],
     "successful_source_ids": [],
     "unmeasured_source_ids": [],
+    "compared_source_ids": [],
     "eligible_count": 0,
     "attempted_count": 0,
     "successful_retrieval_count": 0,
     "unmeasured_count": 0,
     "observed_source_count": 0,
+    "compared_source_count": 0,
     "attempt_completeness": null,
     "observation_count": 0,
     "has_internal_error": true

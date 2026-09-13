@@ -150,6 +150,10 @@ from id_churn_sentinel.core.normalize import (
 )
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
+    COMPARISON_COMPARED,
+    COMPARISON_REBASELINED,
+    COMPARISON_UNBASELINED,
+    COMPARISON_UNRENORMALIZABLE,
     RUN_COMPLETE,
     RUN_FAILED,
     RUN_PARTIAL,
@@ -723,6 +727,21 @@ def _watch_authorized_sources(
     return report
 
 
+def _record_comparison(
+    store: SnapshotStore, run_id: str | None, source_id: str, outcome: str
+) -> None:
+    """Persist what this reading was held against, when there is a run to hold it for.
+
+    `run_id` is `None` only in the offline fixture path (`_watch_authorized_sources` called
+    without a run receipt), where there is no `run_sources` row to carry the answer. Silent
+    there and nowhere else: a production run always has one, so a missing comparison outcome
+    on a real row is a bug rather than a configuration.
+    """
+    if run_id is None:
+        return
+    store.record_comparison_outcome(run_id, source_id=source_id, outcome=outcome)
+
+
 def _compare_against_baseline(
     source: Source,
     store: SnapshotStore,
@@ -748,6 +767,7 @@ def _compare_against_baseline(
     snapshot store rather than downstream of it (issue #19).
     """
     if previous is None:
+        _record_comparison(store, run_id, source.id, COMPARISON_UNBASELINED)
         report.new.append(source.id)
         return
 
@@ -762,6 +782,7 @@ def _compare_against_baseline(
         #
         # A first observation of a watch target is a baseline, and a new URL is a new
         # watch target. So: re-baseline, report it loudly, claim no drift.
+        _record_comparison(store, run_id, source.id, COMPARISON_REBASELINED)
         report.rebaselined.append((source.id, previous.url, source.url))
         return
 
@@ -777,6 +798,7 @@ def _compare_against_baseline(
         # comparable baseline) and we must not say it changed (we have no comparable
         # baseline). So we say exactly that, re-baseline on today's fetch — which the
         # caller already recorded — and claim nothing about drift.
+        _record_comparison(store, run_id, source.id, COMPARISON_UNRENORMALIZABLE)
         report.unrenormalizable.append(
             (
                 source.id,
@@ -784,6 +806,13 @@ def _compare_against_baseline(
             )
         )
         return
+
+    # Past every refusal above: a comparable baseline exists and the subtraction happened,
+    # whichever way it came out. This is the ONLY line that may record it, and it sits above
+    # the match/no-match split on purpose -- "was it compared" and "did it match" are two
+    # questions, and answering the first only on the reassuring branch would be the defect
+    # again with the operands swapped.
+    _record_comparison(store, run_id, source.id, COMPARISON_COMPARED)
 
     if baseline.content_sha256 == new_hash:
         if baseline.renormalized_from is None:

@@ -12,8 +12,9 @@ And one encodes the differentiator: `test_drift_produces_the_passage_that_change
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from id_churn_sentinel.core.changes import ReviewStatus, Significance
@@ -1025,3 +1026,88 @@ def test_a_no_text_fetch_does_not_clear_the_failure_streak(
 
     assert report.no_text == [(source.id, source.url)]
     assert store.failure_streak(source.id) == 1
+
+
+def test_the_first_run_over_an_empty_store_publishes_a_receipt_that_compared_nothing(
+    tmp_path: Path, source: Source, fixture_before: bytes, fixture_after: bytes
+) -> None:
+    """Issue #99, end to end through the production watcher and out to the published receipt.
+
+    This is the case the defect fired on for EVERY source at once. `var/` is gitignored (it
+    holds megabytes of retained government HTML), so a fresh clone, a hosted runner and the
+    documented `make watch-weekly` on a new machine all begin with an empty store; every
+    source is then a first sighting, `detect.py` records the fetch as the baseline and
+    concludes nothing, and the receipt used to report all of them as read *and matched*.
+
+    Both runs are asserted, and the second one is not decoration: "the receipt does not say
+    `observed_unchanged`" is satisfied by a build that can no longer produce the word at all,
+    which would be a different bug wearing this fix's clothes.
+    """
+    from datetime import date
+
+    from id_churn_sentinel.core.detect import watch_registry
+    from id_churn_sentinel.core.jurisdiction_status import (
+        build_jurisdiction_status,
+        jurisdiction_status_json,
+    )
+    from id_churn_sentinel.core.registry import Registry
+
+    from .conftest import eligible_source
+
+    registry = Registry(version="1.0", sources=(eligible_source(source),))
+    now = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+
+    def receipt(store: SnapshotStore) -> dict[str, object]:
+        document: dict[str, object] = json.loads(
+            jurisdiction_status_json(
+                build_jurisdiction_status(store, source.jurisdiction, registry=registry),
+                generated_at=now,
+            )
+        )
+        return document
+
+    with SnapshotStore(tmp_path / "first-run.db") as store:
+        first = watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_before, "text/html")}),
+            as_of=date(2026, 7, 13),
+            started_at=now,
+            completed_at=now,
+        )
+        assert first.new == [source.id]
+        assert store.watch_run(first.run_id).compared_count == 0
+
+        opening = receipt(store)
+        rows = opening["sources"]
+        assert isinstance(rows, list)
+        assert [row["outcome"] for row in rows] == ["observed_unbaselined"]
+        counts = opening["counts"]
+        assert isinstance(counts, dict)
+        assert counts["observed_unchanged"] == 0
+        statement = opening["statement"]
+        assert isinstance(statement, str)
+        assert "read 1 of 1 registered source(s)" in statement, statement
+        assert "held 0 of those readings against the committed baseline" in statement, statement
+
+        # The same store, one week later, with a real baseline behind it: now there is a
+        # comparison, and the receipt is allowed to say so.
+        later = now + timedelta(days=7)
+        second = watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_after, "text/html")}),
+            as_of=date(2026, 7, 20),
+            started_at=later,
+            completed_at=later,
+        )
+        assert [change.source_id for change in second.changed] == [source.id]
+        assert store.watch_run(second.run_id).compared_count == 1
+
+        closing = receipt(store)
+        rows = closing["sources"]
+        assert isinstance(rows, list)
+        assert [row["outcome"] for row in rows] == ["observed_changed"]
+        statement = closing["statement"]
+        assert isinstance(statement, str)
+        assert "held 1 of those readings against the committed baseline" in statement, statement

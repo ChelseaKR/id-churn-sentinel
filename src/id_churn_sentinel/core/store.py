@@ -1023,6 +1023,48 @@ BEGIN
 END;
 """,
     ),
+    (
+        12,
+        "v1-record-whether-a-reading-was-compared",
+        # Issue #99. `observation_outcome` says whether bytes arrived and yielded text. It
+        # does NOT say whether that text was ever held against a committed baseline, and
+        # three of `detect.py`'s non-drift buckets are readings that were held against
+        # nothing:
+        #
+        #   `new`              no baseline existed; this fetch BECAME the baseline
+        #   `rebaselined`      the registry now points this id at a different page, so
+        #                      `detect.py` REFUSES the comparison in terms
+        #   `unrenormalizable` the committed hash is not re-derivable under today's
+        #                      normalization contract, so there is nothing comparable
+        #
+        # All three persisted identically to a real match, and the per-jurisdiction receipt
+        # read them back as `observed_unchanged` -- "this page matched the committed
+        # baseline" -- about a page nothing was subtracted from. On the ordinary first run
+        # over an empty `var/` (gitignored, so every fresh clone and hosted runner starts
+        # there) that is EVERY source at once.
+        #
+        # A separate column rather than five more `observation_outcome` members, because the
+        # two answer different questions about the same attempt: a source is `measured`
+        # under every one of the comparison answers below. Folding them is the conflation
+        # this migration exists to undo, one layer down.
+        #
+        # The backfill is deliberately `legacy-unknown` and not `compared`. A row written
+        # before this column existed was measured, and which of the four things then
+        # happened to it is not recoverable from anything the store kept. Writing `compared`
+        # would manufacture the exact claim this migration exists to stop manufacturing --
+        # so `jurisdiction_status` gives `legacy-unknown` its own published word rather than
+        # letting it fall through to the reassuring one.
+        """
+ALTER TABLE run_sources
+    ADD COLUMN comparison_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (comparison_outcome IN
+               ('', 'compared', 'unbaselined', 'rebaselined', 'unrenormalizable',
+                'legacy-unknown'));
+
+UPDATE run_sources SET comparison_outcome = 'legacy-unknown'
+    WHERE observation_outcome = 'measured';
+""",
+    ),
 )
 
 # What one attempted source's bytes turned out to be worth, as a closed vocabulary. See
@@ -1030,6 +1072,30 @@ END;
 OBSERVATION_MEASURED = "measured"
 OBSERVATION_NO_TEXT = "no-text"
 OBSERVATION_NOT_RETRIEVED = "not-retrieved"
+
+# What one READ source's text was actually held against, as a closed vocabulary (issue #99).
+# A second axis rather than more members of the one above: "bytes arrived and yielded text"
+# and "that text was compared against a committed baseline" are two facts, and a receipt
+# that folds them reports agreement it never tested. See migration 12.
+COMPARISON_NONE = ""
+COMPARISON_COMPARED = "compared"
+COMPARISON_UNBASELINED = "unbaselined"
+COMPARISON_REBASELINED = "rebaselined"
+COMPARISON_UNRENORMALIZABLE = "unrenormalizable"
+COMPARISON_LEGACY_UNKNOWN = "legacy-unknown"
+
+#: Every value `comparison_outcome` may hold, mirroring migration 12's CHECK constraint in
+#: Python so a caller cannot invent a sixth and so the two lists cannot drift in silence.
+COMPARISON_OUTCOMES: frozenset[str] = frozenset(
+    {
+        COMPARISON_NONE,
+        COMPARISON_COMPARED,
+        COMPARISON_UNBASELINED,
+        COMPARISON_REBASELINED,
+        COMPARISON_UNRENORMALIZABLE,
+        COMPARISON_LEGACY_UNKNOWN,
+    }
+)
 
 _V1_REQUIRED_COLUMNS = {
     "watch_runs": frozenset(
@@ -1063,6 +1129,7 @@ _V1_REQUIRED_COLUMNS = {
             "attempted",
             "retrieval_success",
             "observation_outcome",
+            "comparison_outcome",
             "outcome",
             "error",
         }
@@ -1212,6 +1279,11 @@ class RunSourceOutcome:
     attempted: bool
     retrieval_success: bool | None
     observation_outcome: str
+    #: What the run held this source's text against, when it read any (issue #99). `''` for a
+    #: source that was never read, `'legacy-unknown'` for a row written before the column
+    #: existed. NEVER inferred from `observation_outcome`: a measured reading is exactly the
+    #: case where all five answers are possible, which is why the column exists.
+    comparison_outcome: str
 
 
 def _decode_reasons(raw: object) -> tuple[str, ...]:
@@ -1307,6 +1379,15 @@ class WatchRun:
     #: subtracted out of the successful one, because "we fetched it" and "we observed it" are
     #: separate facts and a reader is entitled to both.
     unmeasured_source_ids: tuple[str, ...]
+    #: Sources this run READ **and held against a committed baseline** (issue #99). A subset
+    #: of the read set, and deliberately not equal to it: a first sighting, a source the
+    #: registry has re-pointed at a different URL, and one whose committed hash is not
+    #: re-derivable under today's normalization contract are each read, each measured, and
+    #: each compared against nothing. There is no redundant counter column beside this one,
+    #: unlike the four above, because nothing writes a summary of it -- it is derived from
+    #: the exact `run_sources.comparison_outcome` set and from nowhere else, so there is no
+    #: second number it could disagree with.
+    compared_source_ids: tuple[str, ...]
     observation_count: int
     error: str
 
@@ -1325,6 +1406,18 @@ class WatchRun:
     @property
     def unmeasured_count(self) -> int:
         return len(self.unmeasured_source_ids)
+
+    @property
+    def compared_count(self) -> int:
+        """Sources this run read AND held against a committed baseline (issue #99).
+
+        The companion `observed_count` must be published beside it and never instead of it:
+        `observed_count` is the reading number, this is the comparison number, and the gap
+        between them is exactly the population a reader would otherwise take as "checked and
+        fine". A run over an empty store reads every source and compares none, and only this
+        property can say so.
+        """
+        return len(self.compared_source_ids)
 
     @property
     def observed_count(self) -> int:
@@ -1956,6 +2049,43 @@ class SnapshotStore:
             raise StoreError(f"could not finish fetch attempt: {exc}") from exc
         self._conn.commit()
 
+    def record_comparison_outcome(self, run_id: str, *, source_id: str, outcome: str) -> None:
+        """Record what one READ source's text was actually held against (issue #99).
+
+        A separate call from :meth:`finish_fetch_attempt` because the two facts are learned
+        at different moments and by different code: the attempt is terminal as soon as the
+        bytes are in, and whether a baseline existed to compare them with is settled later,
+        inside `detect._compare_against_baseline`. Writing a placeholder at attempt time and
+        correcting it afterwards would leave a window in which the store says `compared`
+        about a comparison that has not happened -- the shape this method exists to close.
+
+        Refused for a source the run did not read. `comparison_outcome` is an answer about a
+        reading, so a row with no reading behind it has no answer to give, and letting one be
+        written would create exactly the unfounded `compared` this is here to prevent.
+        """
+        if outcome not in COMPARISON_OUTCOMES:
+            raise StoreError(f"unknown comparison outcome {outcome!r}")
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                "UPDATE run_sources SET comparison_outcome = ? "
+                "WHERE run_id = ? AND source_id = ? AND retrieval_success = 1 "
+                "AND observation_outcome = ? "
+                "AND EXISTS (SELECT 1 FROM watch_runs "
+                "            WHERE run_id = ? AND state = 'running')",
+                (outcome, run_id, source_id, OBSERVATION_MEASURED, run_id),
+            )
+            if cursor.rowcount != 1:
+                self._conn.rollback()
+                raise StoreError(
+                    "comparison outcome refused for a source this run did not read, or for a "
+                    f"terminal run: {run_id}/{source_id}"
+                )
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not record comparison outcome: {exc}") from exc
+        self._conn.commit()
+
     def fetch_attempts(self, run_id: str) -> tuple[FetchAttempt, ...]:
         """Every persisted attempt of one run, with its complete evidence, ordered by
         source id. This is the read side of the `DATA-04` contract: what `watch` recorded
@@ -2138,8 +2268,8 @@ class SnapshotStore:
 
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
         source_rows = self._conn.execute(
-            "SELECT source_id, eligible, attempted, retrieval_success, observation_outcome "
-            "FROM run_sources WHERE run_id = ? ORDER BY source_id",
+            "SELECT source_id, eligible, attempted, retrieval_success, observation_outcome, "
+            "comparison_outcome FROM run_sources WHERE run_id = ? ORDER BY source_id",
             (row["run_id"],),
         ).fetchall()
         eligible = tuple(str(source["source_id"]) for source in source_rows if source["eligible"])
@@ -2151,6 +2281,11 @@ class SnapshotStore:
             str(source["source_id"])
             for source in source_rows
             if source["observation_outcome"] == OBSERVATION_NO_TEXT
+        )
+        compared = tuple(
+            str(source["source_id"])
+            for source in source_rows
+            if source["comparison_outcome"] == COMPARISON_COMPARED
         )
         persisted_observation_count = int(
             self._conn.execute(
@@ -2192,6 +2327,7 @@ class SnapshotStore:
             attempted_source_ids=attempted,
             successful_source_ids=successful,
             unmeasured_source_ids=unmeasured,
+            compared_source_ids=compared,
             observation_count=int(row["observation_count"]),
             error=str(row["error"]),
         )
@@ -2212,8 +2348,8 @@ class SnapshotStore:
         """
         rows = self._conn.execute(
             "SELECT source_id, jurisdiction, eligible, eligibility_reasons, attempted, "
-            "retrieval_success, observation_outcome FROM run_sources WHERE run_id = ? "
-            "ORDER BY source_id",
+            "retrieval_success, observation_outcome, comparison_outcome FROM run_sources "
+            "WHERE run_id = ? ORDER BY source_id",
             (run_id,),
         ).fetchall()
         return tuple(
@@ -2227,6 +2363,7 @@ class SnapshotStore:
                     None if row["retrieval_success"] is None else bool(row["retrieval_success"])
                 ),
                 observation_outcome=str(row["observation_outcome"]),
+                comparison_outcome=str(row["comparison_outcome"]),
             )
             for row in rows
         )

@@ -5,7 +5,9 @@ the whole registry.  A clinic in Texas does not subscribe to the whole registry.
 subscribes to ``feed-us-tx.xml``, and an empty feed there is compatible with four very
 different weeks:
 
-* all four Texas sources were fetched and none of them had changed;
+* all four Texas sources were fetched, held against their committed baselines, and none of
+  them had changed;
+* all four were fetched and none had a baseline to be held against;
 * two were fetched and two never answered;
 * Texas was not in the last run's scope at all;
 * nothing has ever run.
@@ -24,6 +26,15 @@ deliberately no branch on which "we have no record of this source" becomes
 ``observed_unchanged`` -- that substitution is the single defect this repository exists to
 remove from a monitoring feed, and it would be at its most damaging exactly here, in the
 document a consumer reads to decide whether silence is evidence.
+
+**A source read is not a source compared.**  The same rule one step in: three of
+`detect.py`'s non-drift buckets are fetches it refuses to conclude anything from -- a first
+sighting with no baseline, a registry entry re-pointed at a different page, a committed hash
+not re-derivable under today's normalization contract -- and until issue #99 all three were
+published as ``observed_unchanged``, "it matched the committed baseline".  They now carry
+their own words, and the statement publishes the reading count and the comparison count side
+by side, so the ordinary first run over an empty store says it compared nothing, because it
+did.
 
 **The hash a run observed is not published, because the store cannot bind one to a run.**
 ``snapshots`` carries ``content_sha256`` per source with no run column, and ``run_sources``
@@ -44,7 +55,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 from id_churn_sentinel.core.registry import Registry, Source
-from id_churn_sentinel.core.store import RunSourceOutcome, SnapshotStore, WatchRun
+from id_churn_sentinel.core.store import (
+    COMPARISON_COMPARED,
+    COMPARISON_REBASELINED,
+    COMPARISON_UNBASELINED,
+    COMPARISON_UNRENORMALIZABLE,
+    RunSourceOutcome,
+    SnapshotStore,
+    WatchRun,
+)
 
 __all__ = [
     "COVERAGE_COVERED",
@@ -62,7 +81,14 @@ __all__ = [
 ]
 
 #: 1.0 — the first published shape (issue #76).
-JURISDICTION_STATUS_SCHEMA_VERSION = "1.0"
+#: 1.1 — issue #99. Four outcome words added, and one NARROWED: `observed_unchanged` used to
+#: be emitted for three readings that were held against nothing, and now means only what its
+#: sentence always said. Every existing property keeps its type and its meaning, `counts`
+#: gains four keys (it has always carried every word, including the zeroes), and the
+#: statement gains a second number. A consumer switching on the nine words of 1.0 meets four
+#: it does not know — and that is the change: they were being told `observed_unchanged`
+#: before, which is the wrong answer rather than an unfamiliar one.
+JURISDICTION_STATUS_SCHEMA_VERSION = "1.1"
 
 #: The last run in the store covered this jurisdiction.
 COVERAGE_COVERED = "covered"
@@ -87,12 +113,34 @@ COVERAGE_STORE_UNAVAILABLE = "store_unavailable"
 #: operational fact under one word.
 OUTCOMES: dict[str, str] = {
     "observed_unchanged": (
-        "The last covering run read this page and it matched the committed baseline."
+        "The last covering run read this page, held it against the committed baseline, and "
+        "they matched."
     ),
     "observed_changed": (
         "The last covering run read this page and it differed from the committed baseline; "
         "the difference is in the review queue, and appears in a feed only once a human has "
         "confirmed it."
+    ),
+    "observed_unbaselined": (
+        "The last covering run read this page for the first time. There was no committed "
+        "baseline to hold it against, so this fetch BECAME the baseline and nothing was "
+        "compared. Not evidence of no change — come back after the next run."
+    ),
+    "observed_rebaselined": (
+        "The registry now points this source at a different page than the one the baseline "
+        "was taken from, so the last covering run refused the comparison and re-baselined on "
+        "what it fetched. Nothing was compared. Whatever the old page did is no longer being "
+        "watched under this entry."
+    ),
+    "observed_unrenormalizable": (
+        "The last covering run read this page, and the committed baseline is not re-derivable "
+        "under today's normalization contract, so there was nothing comparable to hold it "
+        "against. Nothing was compared. This one needs an operator, not another run."
+    ),
+    "observed_comparison_unknown": (
+        "The run read this page but did not record whether it was held against a baseline. "
+        "Rows written before comparison outcomes were persisted read this way. It is not a "
+        "report that nothing changed; it is the absence of a report."
     ),
     "unreachable": (
         "The last covering run tried to fetch this page and did not get one. Nothing about "
@@ -124,17 +172,44 @@ OUTCOMES: dict[str, str] = {
     ),
 }
 
-#: The outcome words that mean the page was RETRIEVED AND READ. Deliberately not "the words
-#: that mean it was compared against a baseline": three of `detect.py`'s non-drift buckets
-#: (a first sighting, a re-pointed registry URL, an unrenormalizable committed hash) also
-#: persist as `observed_unchanged` today, and none of them was held against anything
-#: (issue #99). `_statement` publishes the size of this set as a reading count and says so.
+#: The outcome words that mean the page was RETRIEVED AND READ — all six of them. Reading is
+#: the weaker claim and the larger set: every word below describes a fetch that produced text.
 #:
 #: One constant, read by `_statement` and by the drift gate's re-derivation of the committed
 #: receipts' own sentence. A second copy in the test would let the two drift with nothing to
 #: notice, which is a shape this portfolio has already measured going green over a widened
 #: gate.
-_READING_OUTCOMES: frozenset[str] = frozenset({"observed_unchanged", "observed_changed"})
+_READING_OUTCOMES: frozenset[str] = frozenset(
+    {
+        "observed_unchanged",
+        "observed_changed",
+        "observed_unbaselined",
+        "observed_rebaselined",
+        "observed_unrenormalizable",
+        "observed_comparison_unknown",
+    }
+)
+
+#: The outcome words that mean the page was actually HELD AGAINST a committed baseline. A
+#: strict subset of the reading set, and the receipt publishes both counts because the gap
+#: between them is the population a reader would otherwise take as "checked and fine". On the
+#: ordinary first run over an empty store — `var/` is gitignored, so a fresh clone, a hosted
+#: runner and the documented `make watch-weekly` on a new machine all start there — the two
+#: numbers are "every source" and "none", and before issue #99 the receipt published the
+#: first of those under the second's sentence.
+_COMPARED_OUTCOMES: frozenset[str] = frozenset({"observed_unchanged", "observed_changed"})
+
+#: One `run_sources.comparison_outcome` value to the word the receipt publishes for it. A
+#: total map over the stored vocabulary minus the two values that never reach it (`''` and
+#: `'legacy-unknown'`, handled by `_outcome_for`'s fallback), so a value added to the store
+#: without a sentence here fails loudly in `_outcome_statement` rather than reading as a
+#: match.
+_COMPARISON_WORDS: dict[str, str] = {
+    COMPARISON_COMPARED: "observed_unchanged",
+    COMPARISON_UNBASELINED: "observed_unbaselined",
+    COMPARISON_REBASELINED: "observed_rebaselined",
+    COMPARISON_UNRENORMALIZABLE: "observed_unrenormalizable",
+}
 
 _NO_RUN_STATEMENT = (
     "No watch run has ever covered this jurisdiction, so nothing here has been compared "
@@ -289,7 +364,17 @@ def _outcome_for(row: RunSourceOutcome | None, produced_observation: bool) -> st
         # '' (a row mid-flight) and 'legacy-unknown' (a pre-migration row) both mean the run
         # did not record what was observed. Neither is "nothing changed".
         return "outcome_unknown"
-    return "observed_changed" if produced_observation else "observed_unchanged"
+    if produced_observation:
+        # A change record bound to this run: the comparison happened and it came out
+        # different. Answered first because it is the one observation word the store can
+        # evidence from a second table, independent of the column below.
+        return "observed_changed"
+    # No change record, so the page did not move — IF it was held against anything. Which of
+    # the four things happened is a fact the run recorded, and the default is the honest one:
+    # a row carrying no comparison answer (mid-flight, or written before migration 12) reads
+    # as "we do not know what this was compared with", never as a match. Issue #99 was
+    # precisely this line returning `observed_unchanged` for all four.
+    return _COMPARISON_WORDS.get(row.comparison_outcome, "observed_comparison_unknown")
 
 
 def _outcome_statement(outcome: str) -> str:
@@ -388,6 +473,7 @@ def statement_for(
     # both today's vocabulary and whatever #99 settles on, and it never claims more than the
     # receipt holds -- which is this function's own stated rule.
     read = sum(1 for word in outcomes if word in _READING_OUTCOMES)
+    compared = sum(1 for word in outcomes if word in _COMPARED_OUTCOMES)
     total = len(outcomes)
     scope = (
         f"The last run covering {jurisdiction} "
@@ -396,8 +482,9 @@ def statement_for(
     )
     return (
         f"{scope}({run_id}, {run_state}) read {read} of {total} "
-        f"registered source(s) in this jurisdiction. For the remaining {total - read}, "
-        f"this run is not evidence that nothing changed."
+        f"registered source(s) in this jurisdiction, and held {compared} of those readings "
+        f"against the committed baseline. For the other {total - compared}, this run is not "
+        f"evidence that nothing changed."
     )
 
 

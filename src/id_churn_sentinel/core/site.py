@@ -312,16 +312,28 @@ def _run_status_section(status: PublicRunStatus) -> str:
         # inferred from the gap between two counters (issue #19). "N successful retrievals"
         # alone reads as "N pages watched", and for a JS shell or a bot-wall that is the one
         # thing it does not mean.
-        # `observed_count` is a READING count, not a comparison count (issue #99): a first
-        # sighting, a re-pointed URL and an unrenormalizable baseline are all read and none
-        # is held against anything. "Actually compared" overstated it by exactly those three
-        # cases, so this says what the number measures.
         unmeasured_text = (
             f" <strong>{attempted.unmeasured_count} of those retrievals returned no "
             f"extractable text and were not compared against a baseline</strong>, so this run "
-            f"is not evidence of no change for them; {attempted.observed_count} source(s) were "
-            f"actually read."
+            f"is not evidence of no change for them."
             if attempted.unmeasured_count
+            else ""
+        )
+        # TWO numbers, always, whenever anything was attempted (issue #99). `observed_count`
+        # is a READING count and `compared_count` is a comparison count, and the gap between
+        # them is a real population: a first sighting, a re-pointed registry URL and a
+        # baseline not re-derivable under today's contract are each read and each held
+        # against nothing. Publishing only the first — which this line did, and only when
+        # some retrieval had already failed — leaves a reader to fill the second in with the
+        # reassuring default. The unreadable clause above stays because it names a different
+        # shortfall: those retrievals produced no text to read at all.
+        reading_text = (
+            f" <strong>{attempted.observed_count} of those {attempted.attempted_count} "
+            f"attempt(s) produced readable text, and {attempted.compared_count} of those "
+            f"reading(s) were held against a committed baseline</strong>; for the other "
+            f"{attempted.attempted_count - attempted.compared_count}, this run is not "
+            f"evidence that nothing changed."
+            if attempted.attempted_count
             else ""
         )
         # "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and
@@ -344,7 +356,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
             f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; "
-            f"{coverage_text}.{unmeasured_text}"
+            f"{coverage_text}.{reading_text}{unmeasured_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."
@@ -368,7 +380,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<p>{attempted_text}</p>",
             f"<p>{successful_text}</p>",
             '<p><a href="status.json">status.json</a> carries the exact eligible, attempted, '
-            "successful, and unmeasured source ID sets.</p>",
+            "successful, unmeasured, and compared source ID sets.</p>",
             "</section>",
         ]
     )

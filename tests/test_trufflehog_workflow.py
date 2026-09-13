@@ -1,6 +1,6 @@
-"""The scheduled secret scan must stay capable of failing.
+"""The secret scan must stay capable of failing, and must read the whole history.
 
-Three properties of `.github/workflows/trufflehog.yml` are asserted here, because
+Four properties of `.github/workflows/trufflehog.yml` are asserted here, because
 each one has silently un-armed a secret scan in this portfolio and none of them
 shows up as a red build when it breaks:
 
@@ -23,9 +23,24 @@ shows up as a red build when it breaks:
    repository was in exactly that state: the ref said v3.95.8 while the scanner
    downloaded 3.96.0.
 
-3. **`fetch-depth: 0` survives on the checkout.** Without it `actions/checkout`
-   fetches a single commit, and a "full-history" sweep becomes a one-commit scan
-   that still reports success.
+3. **`base: ''` and `head: HEAD` survive on the action.** This is what decides
+   how much history the scan reads, and until 2026-09-13 nothing here asserted
+   it. With both unset, the action derives its range from the triggering event:
+   `--since-commit <event.before> --branch <event.after>` on a push, the pull
+   request's own `base..head` on a PR, and only on `schedule`/`workflow_dispatch`
+   the empty range that means "everything". This workflow also runs on push and
+   pull_request, and `full-history secret scan (verified only)` is a required
+   status check, so the required check was a diff scan six days a week. With
+   `head` non-empty the action takes its first branch and runs
+   `--since-commit "" --branch HEAD` on every event. `HEAD`, not a branch name,
+   because on a pull_request the checkout is a detached merge ref.
+
+4. **`fetch-depth: 0` survives on the checkout.** This is a *precondition*, not
+   the cause. Without it `actions/checkout` fetches a single commit and there is
+   nothing on disk to walk. With it, and with property 3 missing, the whole
+   history sits in the checkout and the scanner is still handed a two-commit
+   range — which is the state this repository was actually in. What the scanner
+   reads is decided by how it is invoked, not by how much was fetched.
 
 The workflow's pin comment is a YAML comment, so it is invisible to a YAML
 parser: these assertions read the file as text on purpose.
@@ -40,6 +55,19 @@ WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "truf
 
 # The tier that a revoked credential lands in. Its absence is the defect.
 REQUIRED_RESULT_TIER = "unverified"
+
+
+_COMMENT = re.compile(r"(?m)^\s*#.*$|\s+#.*$")
+
+
+def _workflow_code() -> str:
+    """The workflow with its comments stripped.
+
+    The comments above the scan step quote the very strings these assertions
+    forbid or require. Four conformance checks elsewhere in this portfolio passed
+    because they matched a tool name inside a comment; these do not read them.
+    """
+    return _COMMENT.sub("", _workflow_text())
 
 
 def _workflow_text() -> str:
@@ -98,14 +126,36 @@ def test_action_ref_and_version_input_name_the_same_release() -> None:
         )
 
 
+def test_the_scan_range_is_not_taken_from_the_event() -> None:
+    """`base: '' `+ `head: HEAD` are what make this a history scan on every event."""
+    code = _workflow_code()
+    assert re.search(r"^\s*base:\s*''\s*$", code, flags=re.MULTILINE), (
+        "`base: ''` is missing. With base and head unset the action derives its range "
+        "from the triggering event and scans a diff on push and pull_request, while "
+        "still reporting as `full-history secret scan (verified only)`."
+    )
+    assert re.search(r"^\s*head:\s*HEAD\s*$", code, flags=re.MULTILINE), (
+        "`head: HEAD` is missing. `base: ''` alone leaves BASE and HEAD both empty, "
+        "which does NOT take the action's explicit-range branch: it falls through to "
+        "the event logic and scans a diff again. `head` must be non-empty, and `HEAD` "
+        "is the only value that resolves in a detached pull_request checkout."
+    )
+
+
 def test_checkout_keeps_full_history() -> None:
-    """`fetch-depth: 0` is what makes this a history scan rather than a one-commit scan."""
+    """A precondition, not the cause: it decides what is on disk, not what is read.
+
+    `fetch-depth: 0` was on this checkout the whole time the push and pull_request
+    runs were scanning a diff. Keep it — without it there is nothing to walk — but
+    `test_the_scan_range_is_not_taken_from_the_event` above is the assertion that
+    makes this a history scan.
+    """
     text = _workflow_text()
     assert "actions/checkout@" in text, "the scan no longer checks the repository out"
     assert re.search(r"^\s*fetch-depth:\s*0\s*(#.*)?$", text, flags=re.MULTILINE), (
-        "`fetch-depth: 0` is missing from the checkout. actions/checkout then fetches a "
-        "single commit and this full-history sweep silently becomes a one-commit scan "
-        "that still reports success."
+        "`fetch-depth: 0` is missing from the checkout, so actions/checkout fetches a "
+        "single commit and `--since-commit '' --branch HEAD` has one commit to walk. "
+        "This is necessary for a history scan and, on its own, not sufficient."
     )
 
 

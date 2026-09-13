@@ -5,6 +5,13 @@
 # credential is `unverified`, not `verified`, so a verified-only scan could not
 # fail on the very case this job exists for).
 #
+# Until 2026-09-13 that was true only of the weekly `schedule` run. The action
+# picks its range from the triggering event, and with `base`/`head` unset it
+# resolved to `--since-commit <event.before> --branch <event.after>` on a push
+# and to the pull request's own base..head on a PR — a diff scan under the name
+# "full-history secret scan", which is also a required status check here. The
+# `base: ''` + `head: HEAD` inputs below take that decision away from the event.
+#
 # Like every workflow in this repository: **do not assume it ever runs** — the
 # account has an Actions spending limit (see ci.yml's header). It also runs on
 # push/PR so a leak is flagged at the moment it lands whenever Actions is live.
@@ -44,7 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 0 # full clone — this is a whole-history scan, not a diff
+          # Necessary and NOT sufficient. This decides how much history is on
+          # disk; `base:`/`head:` below decide how much of it is read. The repo
+          # was checked out at full depth for months while the push and PR runs
+          # scanned a diff, so a full clone is no evidence of a full scan.
+          fetch-depth: 0
           persist-credentials: false
       - name: TruffleHog (verified, unknown and unverified results)
         # The ref and the `version:` input below must name the SAME release, and
@@ -58,6 +69,25 @@ jobs:
         uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
         with:
           path: ./
+          # What makes this a history scan. The action's own logic is:
+          #
+          #   if BASE or HEAD is set -> use them
+          #   elif event == push     -> BASE=event.before  HEAD=event.after
+          #   elif event == PR       -> BASE=pr.base.sha   HEAD=pr.head.sha
+          #   elif schedule/dispatch -> BASE=""            HEAD=""
+          #
+          # and then runs `trufflehog git file:///tmp/ --since-commit $BASE
+          # --branch $HEAD`. Setting `head` non-empty takes the first branch, so
+          # the scan is `--since-commit "" --branch HEAD` — every commit
+          # reachable from HEAD — on push, on pull_request and on schedule
+          # alike. `HEAD` rather than a branch name because on a pull_request
+          # the checkout is a detached merge ref; `git rev-parse HEAD` resolves
+          # there and a branch name does not. Verified on a throwaway clone with
+          # a real-shaped AWS key planted in one commit and deleted in the next:
+          # the event-derived diff range exited 0, `--since-commit "" --branch
+          # HEAD` exited 183, in an attached and a detached checkout alike.
+          base: ''
+          head: HEAD
           # Pinning the action by SHA does NOT pin the scanner. The action's
           # `version` input defaults to "latest" and it runs
           # `ghcr.io/trufflesecurity/trufflehog:${VERSION}`, so every run here

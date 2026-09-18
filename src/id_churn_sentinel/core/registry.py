@@ -43,7 +43,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -60,6 +60,7 @@ __all__ = [
     "FETCH_POLICY_UNREVIEWED",
     "GAP_REASONS",
     "JURISDICTIONS",
+    "OVERLAY_ID_KEY",
     "REGISTRY_VERSION",
     "REJECTED",
     "UNVERIFIED",
@@ -74,9 +75,17 @@ __all__ = [
     "default_registry_path",
     "dump_registry_text",
     "load_registry",
+    "parse_registry_document",
+    "read_registry_document",
+    "source_key",
 ]
 
 REGISTRY_VERSION = "1.0"
+
+# The one top-level key that makes a registry-shaped file an OVERLAY rather than the committed
+# registry (#77). `load_registry` refuses a file carrying it and `core/overlay.py` requires it,
+# so neither loader can be handed the other's file by mistake.
+OVERLAY_ID_KEY = "overlay_id"
 
 # The three states a registry entry can be in with respect to *a human having looked*, and a
 # fourth that only a published artifact can be in.
@@ -305,6 +314,21 @@ class Source:
     verification: Verification = field(default_factory=Verification)
     active: bool = True
     fetch_policy: FetchPolicyDecision = field(default_factory=FetchPolicyDecision)
+    #: The namespace this entry was loaded under: ``""`` for the committed registry, and an
+    #: overlay's own id for an entry an organization registered for itself (#77). Written by
+    #: the loader that read the file, never by the file's author and never by hand.
+    overlay_id: str = ""
+
+    @property
+    def key(self) -> str:
+        """The identity the store and every run receipt hold this entry under.
+
+        The bare ``id`` for the committed registry, so every key that existed before overlays
+        is unchanged, and ``<overlay_id>/<id>`` for an overlay entry. The slug grammar has no
+        ``/``, so the two forms cannot collide: a county's ``clerk-name-change`` is not the
+        committed registry's entry of that name, and two counties' are not each other's.
+        """
+        return source_key(self.overlay_id, self.id)
 
     @property
     def host(self) -> str:
@@ -358,6 +382,10 @@ class Registry:
     version: str
     sources: tuple[Source, ...]
     gaps: tuple[Gap, ...] = ()
+    #: ``""`` for the committed registry. An overlay's registry carries its overlay id, so the
+    #: public publisher can refuse one by looking at the registry it was handed rather than by
+    #: trusting every caller to have filtered its sources first.
+    overlay_id: str = ""
 
     def __iter__(self) -> Any:
         return iter(self.sources)
@@ -426,22 +454,58 @@ def default_registry_path() -> Path:
     return Path(__file__).resolve().parents[3] / "sources" / "registry.json"
 
 
+def source_key(overlay_id: str, source_id: str) -> str:
+    """The store identity of one entry: the bare id for the committed registry, and
+    ``<overlay_id>/<id>`` for an overlay entry. See :attr:`Source.key`."""
+    return f"{overlay_id}/{source_id}" if overlay_id else source_id
+
+
 def load_registry(path: Path | None = None) -> Registry:
     """Load and validate the committed registry. Any violation raises; there is no
     "skip the bad entry and carry on" path, because a skipped entry is an unwatched
     source, and an unwatched source is the exact silent failure this tool must not have.
+
+    **And it refuses an overlay.** An overlay is registry-shaped on purpose (#77), which makes
+    `--registry my-overlay.json` the one-flag way to file an organization's own sources under
+    the public registry's namespace — where `publish --out docs/` would put them in the public
+    feed. The `overlay_id` key is what says which kind of file this is, and this loader will
+    not read a file that says it is the other kind.
     """
     registry_path = path or default_registry_path()
+    raw = read_registry_document(registry_path)
+    if OVERLAY_ID_KEY in raw:
+        raise RegistryError(
+            f"{registry_path} declares `{OVERLAY_ID_KEY}`: it is a registry OVERLAY, not the "
+            "committed registry. Loading it here would file an organization's own sources under "
+            "the public registry's namespace. Pass it with `--overlay` instead "
+            "(see docs/CONSUMERS.md)."
+        )
+    return parse_registry_document(raw)
+
+
+def read_registry_document(path: Path, *, kind: str = "registry") -> dict[str, Any]:
+    """Read one registry-shaped JSON document, refusing anything that is not an object."""
     try:
-        raw = json.loads(registry_path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise RegistryError(f"registry not found: {registry_path}") from exc
+        raise RegistryError(f"{kind} not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise RegistryError(f"registry is not valid JSON: {registry_path}: {exc}") from exc
+        raise RegistryError(f"{kind} is not valid JSON: {path}: {exc}") from exc
 
     if not isinstance(raw, dict):
-        raise RegistryError("registry must be a JSON object")
+        raise RegistryError(f"{kind} must be a JSON object")
+    return raw
 
+
+def parse_registry_document(raw: Mapping[str, Any], *, overlay_id: str = "") -> Registry:
+    """Validate a registry-shaped document — the committed registry or an overlay.
+
+    One validator for both, and that is the design rather than a convenience: an overlay entry
+    passes exactly the checks a committed entry does, including the refusal of a
+    ``verified: true`` nobody signed, so there is no second, weaker door into the watcher.
+    ``overlay_id`` stamps the namespace onto every entry *before* the duplicate check runs, so
+    the check sees the identities the store will hold.
+    """
     version = raw.get("registry_version")
     if version != REGISTRY_VERSION:
         raise RegistryError(
@@ -453,13 +517,15 @@ def load_registry(path: Path | None = None) -> Registry:
         raise RegistryError("registry.sources must be a non-empty list")
 
     sources = tuple(_parse_source(entry, index) for index, entry in enumerate(entries))
+    if overlay_id:
+        sources = tuple(replace(source, overlay_id=overlay_id) for source in sources)
     _reject_duplicates(sources)
 
     raw_gaps = raw.get("gaps", [])
     if not isinstance(raw_gaps, list):
         raise RegistryError("registry.gaps must be a list")
     gaps = tuple(_parse_gap(entry, index) for index, entry in enumerate(raw_gaps))
-    return Registry(version=version, sources=sources, gaps=gaps)
+    return Registry(version=version, sources=sources, gaps=gaps, overlay_id=overlay_id)
 
 
 def _parse_source(entry: object, index: int) -> Source:

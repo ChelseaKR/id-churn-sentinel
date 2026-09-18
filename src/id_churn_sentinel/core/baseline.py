@@ -329,7 +329,7 @@ def write_baselines(
     unreachable: list[str] = []
     unmeasurable: list[str] = []
     for source in registry.sources:
-        snapshot = store.latest_snapshot(source.id)
+        snapshot = store.latest_snapshot(source.id, overlay_id=source.overlay_id)
         if snapshot is None:
             unreachable.append(source.id)
             continue

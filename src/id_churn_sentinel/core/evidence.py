@@ -206,7 +206,7 @@ def export_bundle(
 
     change = store.get_change(change_id)
     before, after = _sides_for(store, change)
-    attempts = _attempts_by_raw_hash(store, change.source_id)
+    attempts = _attempts_by_raw_hash(store, change.source_id, change.overlay_id)
     payload = _bundle_payload(
         change,
         before=before,
@@ -232,14 +232,16 @@ def _sides_for(store: SnapshotStore, change: ChangeRecord) -> tuple[Snapshot, Sn
             f"are no `after` bytes to export. Its evidence is the fetch-attempt record, which "
             f"`sentinel diff {change.id}` prints."
         )
-    retained = store.snapshots(change.source_id)
+    # The change's own namespace (#77): an overlay entry may share a bare id with a committed
+    # one, and the bundle must hold the bytes of the page this observation is about.
+    retained = store.snapshots(change.source_id, overlay_id=change.overlay_id)
     before = _snapshot_with_hash(retained, change.previous_hash)
     after = _snapshot_with_hash(retained, change.new_hash)
     if before is None or after is None:
         missing = [name for name, snap in (("before", before), ("after", after)) if snap is None]
         raise BundleError(
             f"change {change.id}: the {' and '.join(missing)} snapshot(s) are no longer in the "
-            f"store — retention keeps the newest {len(retained)} for {change.source_id} and "
+            f"store — retention keeps the newest {len(retained)} for {change.source_key} and "
             f"these were pruned. A bundle carrying one side is not evidence, so nothing was "
             f"written. Export at review time to pin the bytes."
         )
@@ -255,7 +257,9 @@ def _snapshot_with_hash(retained: Iterable[Snapshot], content_sha256: str) -> Sn
     return None
 
 
-def _attempts_by_raw_hash(store: SnapshotStore, source_id: str) -> dict[str, FetchAttempt]:
+def _attempts_by_raw_hash(
+    store: SnapshotStore, source_id: str, overlay_id: str
+) -> dict[str, FetchAttempt]:
     """Fetch receipts for one source, keyed by the raw hash of the body they recorded.
 
     The raw hash is the join: `snapshots` does not carry a run id, and the content type a
@@ -265,7 +269,7 @@ def _attempts_by_raw_hash(store: SnapshotStore, source_id: str) -> dict[str, Fet
 
     return {
         attempt.raw_sha256: attempt
-        for attempt in store.fetch_attempts_for_source(source_id)
+        for attempt in store.fetch_attempts_for_source(source_id, overlay_id=overlay_id)
         if attempt.raw_sha256
     }
 

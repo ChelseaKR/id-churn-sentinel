@@ -115,6 +115,23 @@ Four fields, and all four are read by the predicate that decides whether a sourc
 | `evidence` | A receipt of **what you were shown** — the URL, the fetch time, the HTTP status, the page's own title, the excerpt you read, and the hash of the bytes behind it. Written to `var/evidence/verification/` (untracked, because raw evidence is never automatically public) and cited by the registry entry. | Written for you at the moment you answer. For a source our crawler cannot fetch, the receipt says so and claims no title or text: the evidence is yours, from your browser, and it must not read as a page we saw and found blank. |
 | `expires_at` | When this falls due for a recheck, 180 days out by default (`--expires` to change it). | A verification that cannot go stale can never be re-checked, and government URLs move. |
 
+## Verifying an overlay's sources
+
+An organization's own sources — a registry overlay, described in [CONSUMERS.md](CONSUMERS.md) —
+are held to exactly this discipline, by the same command:
+
+```sh
+sentinel verify --overlay my-sources.json --list
+sentinel verify --overlay my-sources.json --verifier 'Your Name'
+sentinel sources policy --overlay my-sources.json --source-id <id> --outcome allow \
+  --reviewer 'Your Name' --reason '…' --evidence '…'
+```
+
+The question is the same one, the name is required for the same reason, and each decision is
+written into the overlay file — never into `sources/registry.json`, which only a reviewed pull
+request changes. An overlay entry is attempted only once it carries both decisions, like every
+entry in the committed registry.
+
 ## What changes when you finish
 
 - `sentinel coverage` prints the burn-down, derived — nobody types it.

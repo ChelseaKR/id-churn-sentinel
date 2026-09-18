@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ID Churn Sentinel — registered candidates, gaps, and service status</title>
-<meta name="description" content="Technical-alpha registry and human-review pipeline for candidate US government pages about name and gender-marker changes. No account, no tracking.">
+<meta name="description" content="Technical-alpha registry and human-review pipeline for candidate US government pages about name and gender-marker changes. No account; the feeds carry no tracking.">
 <link rel="canonical" href="https://chelseakr.github.io/id-churn-sentinel/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ID Churn Sentinel">
 <meta property="og:title" content="ID Churn Sentinel — registered candidates, gaps, and service status">
-<meta property="og:description" content="Technical-alpha registry and human-review pipeline for candidate US government pages about name and gender-marker changes. No account, no tracking.">
+<meta property="og:description" content="Technical-alpha registry and human-review pipeline for candidate US government pages about name and gender-marker changes. No account; the feeds carry no tracking.">
 <meta property="og:url" content="https://chelseakr.github.io/id-churn-sentinel/">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://chelseakr.github.io/id-churn-sentinel/social-card.png">
@@ -76,14 +76,86 @@ thead th { background: var(--panel); }
 .feeds li { break-inside: avoid; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
          color: var(--muted); }
+/* The analytics opt-out (ADR 0004). A <button>, because it changes a setting; styled as the
+   link it reads as, with the same visible focus ring as every link on the page. */
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit;
+               text-decoration: underline; cursor: pointer; }
+.link-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 </style>
+<script>
+(function () {
+  var w = window, n = navigator, d = document, KEY = "id-churn-sentinel:analytics-opt-out", OFF = "ga-disable-G-98S46JC943";
+  var store = null;
+  try { store = w.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  function optedOut() {
+    try { return !!store && store.getItem(KEY) === "1"; } catch (e) { return false; }
+  }
+  var dnt = n.doNotTrack || w.doNotTrack || n.msDoNotTrack;
+  var signal = n.globalPrivacyControl === true || dnt === "1" || dnt === "yes";
+  d.addEventListener("DOMContentLoaded", function () {
+    var box = d.querySelector("[data-analytics-choice]");
+    if (!box) return;
+    var button = box.querySelector("button"), status = box.querySelector("[role=status]");
+    function render(message) {
+      button.textContent = optedOut() ? "Opt back in" : "Opt out of analytics";
+      button.hidden = signal || !store;
+      status.textContent = message;
+      box.hidden = false;
+    }
+    button.addEventListener("click", function () {
+      try {
+        if (optedOut()) {
+          store.removeItem(KEY);
+          w[OFF] = false;
+          render("Opted back in. Page counts resume from the next page you open.");
+        } else {
+          store.setItem(KEY, "1");
+          w[OFF] = true;
+          render("Opted out. From the next page you open, this site will not load Google Analytics in this browser.");
+        }
+      } catch (e) {
+        store = null;
+        render("This browser is blocking site storage, so an opt-out cannot be remembered here. Global Privacy Control or Do Not Track keeps Google Analytics off.");
+      }
+    });
+    render(signal ? "Google Analytics is off: your browser sends Global Privacy Control or Do Not Track." : !store ? "This browser is blocking site storage, so an opt-out cannot be remembered here. Global Privacy Control or Do Not Track keeps Google Analytics off."
+      : optedOut() ? "You have opted out: this site does not load Google Analytics in this browser." : "");
+  });
+  if (w.location.hostname !== "chelseakr.github.io") return;
+  if (w.location.pathname.indexOf("/id-churn-sentinel/") !== 0) return;
+  if (n.globalPrivacyControl === true) return;
+  if (dnt === "1" || dnt === "yes") return;
+  if (optedOut()) return;
+  var ref = /^(https?:\/\/[^\/?#]+)/.exec(d.referrer || "");
+  w.dataLayer = w.dataLayer || [];
+  function gtag() { w.dataLayer.push(arguments); }
+  gtag("consent", "default", {
+    ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied",
+    analytics_storage: "denied", region: ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO", "GB", "CH"]
+  });
+  gtag("consent", "default", {
+    ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied",
+    analytics_storage: "granted"
+  });
+  gtag("js", new Date());
+  gtag("config", "G-98S46JC943", {
+    allow_google_signals: false, allow_ad_personalization_signals: false,
+    page_location: w.location.origin + w.location.pathname,
+    page_referrer: ref ? ref[1] + "/" : ""
+  });
+  var s = d.createElement("script");
+  s.async = true;
+  s.src = "https://www.googletagmanager.com/gtag/js?id=G-98S46JC943";
+  d.head.appendChild(s);
+})();
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
 <header>
 <h1>ID Churn Sentinel</h1>
 <p class="lede"><strong>Technical alpha:</strong> a candidate-source registry and human-review pipeline for US government pages about name and gender-marker changes on identity documents. When operational, it reports that an eligible source page changed and shows the passage that changed. <strong>It never asserts what the law is.</strong></p>
-<p class="meta">Generated 13 September 2026, 17:44 UTC · No account · No tracking · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
+<p class="meta">Generated 13 September 2026, 17:44 UTC · No account · No tracking in the feeds · This page counts visits: see <a href="privacy.html">Privacy</a> · Every published item reviewed by a named human · Page generation is not watch success; see run health below</p>
 </header>
 <main id="main">
 <nav class="section-nav" aria-label="Page sections">
@@ -170,7 +242,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 </section>
 <section aria-labelledby="endpoints">
 <h2 id="endpoints">Endpoints</h2>
-<p><strong>No account. No API key. No email address. No tracking.</strong> Fetch these with <code>curl</code>, a feed reader, or a cron job. We do not want to know who reads this: a subscriber list for a trans-ID-law feed is a list of trans people, and the only way to keep that list safe is to never create it. Consequently we cannot report readership and never will.</p>
+<p><strong>No account. No API key. No email address. No tracking in any feed or data file.</strong> Fetch these with <code>curl</code>, a feed reader, or a cron job: fetching one runs no script and sends nothing to Google or to this project. We keep no list of who reads them: a subscriber list for a trans-ID-law feed is a list of trans people, and the only way to keep that list safe is to never create it. Consequently we cannot report who reads the feeds, and never will. The two web pages, this one and the privacy page, count visits with Google Analytics 4; <a href="privacy.html">the privacy page</a> says exactly what that sends.</p>
 <ul>
 <li><a href="feed.xml">feed.xml</a> — RSS 2.0, every jurisdiction.</li>
 <li><a href="changes.json">changes.json</a> — the versioned JSON feed. This is the one you integrate against.</li>
@@ -784,6 +856,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
 <footer>
 <p>ID Churn Sentinel is free software (AGPL-3.0-or-later). A published observation reports that a registered source candidate changed; it does not assert what the law is, and it is not legal advice.</p>
 <p><a href="https://github.com/ChelseaKR/id-churn-sentinel">Source code, the registry, and the audit that explains every refusal above</a>.</p>
+<p class="privacy-note">These two web pages count visits with Google Analytics 4. Advertising features are off, and the address it receives never includes anything after a ? or #. Google Analytics does not load when your browser sends Global Privacy Control or Do Not Track. The feeds and data files carry no tracking. <a href="privacy.html">Privacy</a>.
+<span data-analytics-choice hidden><button type="button" class="link-button">Opt out of analytics</button> <span role="status"></span></span></p>
 </footer>
 </body>
 </html>

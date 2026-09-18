@@ -20,7 +20,7 @@ V1.0 includes:
 - human verification of every active source, with verifier and date;
 - polite weekly fetch, stable normalization, retained evidence, passage diffs, and removal escalation;
 - a human review queue and independent second review for high-impact publication;
-- versioned aggregate and per-jurisdiction JSON/RSS feeds plus a no-tracking static site;
+- versioned aggregate and per-jurisdiction JSON/RSS feeds with no tracking, plus a static site whose only third-party request is the Google Analytics 4 page count the owner decided on 2026-09-18 ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md));
 - source-health and last-successful-run status that distinguishes silence from a successful watch;
 - correction, withdrawal, incident, backup, restore, and consumer-notification workflows;
 - English product surfaces and Spanish metadata/navigation where reviewed translation can be maintained.
@@ -34,7 +34,7 @@ All of the following are required:
 1. **Evidence:** 100% of active sources have a named, dated human verification; rejected sources are repaired or become named gaps.
 2. **Safety:** no unreviewed record can publish; `substantive` items require an independent second reviewer; corrections and withdrawals preserve history.
 3. **Operations:** eight consecutive weekly cycles complete, ≥99% of attempt-eligible sources are attempted on each run, review begins within two business days, and backup restoration is demonstrated. Rolling-quarter objectives are instrumented during this bootstrap period and are not claimed as mature until a full 13-week window exists.
-4. **Trust:** the public surface passes WCAG 2.2 AA review, has no third-party requests or first-party analytics, and clearly communicates verification, health, gaps, and limitations.
+4. **Trust:** the public surface passes WCAG 2.2 AA review, has no first-party analytics and no third-party request other than the Google Analytics 4 loader on the two web pages ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md)), carries no tracking in any feed or data file, and clearly communicates verification, health, gaps, and limitations.
 5. **Contract:** schema `1.0` has fixtures, conformance tests, a compatibility policy, and a documented deprecation process.
 6. **Governance:** engineering, operations, community safety, accessibility, security/privacy, and legal-boundary owners provide named domain attestations; the product lead and panel-appointed community-governance reviewer then provide the two required ship/hold signatures. A domain attestation cannot substitute for either release-authority signature, and neither release authority can waive a domain blocker.
 
@@ -67,7 +67,7 @@ A cycle counts toward the eight-cycle gate only after the Oct 16 operational-bas
 
 ## Cut rule
 
-If capacity falls short, retain evidence integrity, PDF/manual comparison for active sources, review, operations, and Spanish V1 metadata; cut P1 UX and expansion first. Never trade away named verification, no-auto-classification, no-tracking, or correction history to protect a date.
+If capacity falls short, retain evidence integrity, PDF/manual comparison for active sources, review, operations, and Spanish V1 metadata; cut P1 UX and expansion first. Never trade away named verification, no-auto-classification, no tracking in the feeds (and no analytics on the pages beyond [ADR 0004](./adr/0004-count-page-visits-with-ga4.md)), or correction history to protect a date.
 
 An **attempt-eligible source** is active, not withdrawn or represented as a gap, has in-date human verification, and has an in-date, dated registry decision permitting the scheduled fetch under the documented robots/terms/fetch policy. The canonical record includes decision maker, checked date, evidence reference, outcome, and reason. One shared predicate controls watcher selection and publisher eligibility; an unverified, recheck-due, policy-ineligible, rejected, withdrawn, or gap source can neither enter the attempt denominator nor support a newly published observation. Prior retrieval failure never removes a source from this denominator; only a dated, reviewed registry decision can change eligibility. The six planning-time active-but-unfetchable sources, including the SS-5 PDF, must be replaced with reachable equally official surfaces or converted to structured gaps before the Oct 16 baseline—none may be silently excluded as an active source.
 

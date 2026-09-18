@@ -18,7 +18,7 @@ V1 targets WCAG 2.2 AA for the public site and any browser-based review bundle. 
 - focus is visible; all controls are keyboard reachable; target size and focus-not-obscured meet WCAG 2.2;
 - contrast passes AA, zoom to 400% retains content/function, and reflow works at 320 CSS pixels;
 - links explain destination; dates include timezone; abbreviations and legal/technical terms are expanded;
-- no automatic motion, timeout, refresh, audio, or third-party asset;
+- no automatic motion, timeout, refresh, audio, or third-party asset (the one third-party request, the Google Analytics 4 loader of [ADR 0004](./adr/0004-count-page-visits-with-ga4.md), renders nothing and is not needed for any content or control);
 - RSS/JSON have accessible human documentation and do not require scripting to reach core content.
 
 ## Diff accessibility

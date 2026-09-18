@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — ID Churn Sentinel</title>
+<meta name="description" content="What reading the ID Churn Sentinel pages and feeds sends, to whom, and how to turn page counting off.">
+<link rel="canonical" href="https://chelseakr.github.io/id-churn-sentinel/privacy.html">
+<style>
+:root { --bg:#fff; --fg:#1a1a1a; --muted:#4a4a4a; --line:#c9c9c9; --accent:#0b5d8a;
+        --panel:#f4f4f5; --focus:#b32d00; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#121316; --fg:#eceef1; --muted:#b8bcc4; --line:#3a3d44; --accent:#7fc2ea;
+          --panel:#1c1e23; --focus:#ffb38a; }
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:0 1rem 4rem; background:var(--bg); color:var(--fg);
+       font:1rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header, main, footer { max-width: 62rem; margin: 0 auto; }
+header { padding: 2.5rem 0 1rem; border-bottom: 2px solid var(--line); }
+h1 { font-size: 2rem; margin: 0 0 .5rem; }
+h2 { font-size: 1.5rem; margin: 2.5rem 0 .75rem; padding-top: 1rem;
+     border-top: 1px solid var(--line); }
+h3 { font-size: 1.15rem; margin: 1.5rem 0 .5rem; }
+h4 { font-size: 1rem; margin: 1rem 0 .35rem; }
+p, li { max-width: 68ch; }
+.lede { font-size: 1.1rem; }
+.meta { color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible, .skip:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+.skip { position:absolute; left:-9999px; }
+.skip:focus { position:static; display:inline-block; padding:.5rem; background:var(--panel); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+       overflow-wrap: anywhere; }
+pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem;
+      overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0 2rem; display: block;
+        overflow-x: auto; }
+caption { text-align: left; font-weight: 700; padding: .5rem 0; }
+th, td { border: 1px solid var(--line); padding: .5rem .6rem; text-align: left;
+         vertical-align: top; font-size: .95rem; }
+thead th { background: var(--panel); }
+.stats { display: flex; flex-wrap: wrap; gap: 1rem; padding: 0; }
+.stats div { border: 1px solid var(--line); padding: .75rem 1rem; min-width: 10rem; }
+.stats dt { color: var(--muted); font-size: .85rem; }
+.stats dd { margin: .25rem 0 0; font-size: 1.5rem; font-weight: 700; }
+/* The unverified-registry notice. It is bordered and panelled so it reads as a caution, but
+   the caution is carried entirely by the WORDS inside it — strip every style from this page
+   and the reader still learns that no human has confirmed these URLs. Colour decorates a
+   distinction the text has already made; it never makes one. */
+.notice { background: var(--panel); border: 2px solid var(--line);
+          border-left: .5rem solid var(--focus); padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }
+.notice h2 { margin-top: 0; padding-top: 0; border-top: 0; }
+.change { border: 1px solid var(--line); padding: 1rem; margin: 1rem 0; }
+.change dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .75rem; }
+.change dl div { display: contents; }
+.change dt { color: var(--muted); }
+.change dd { margin: 0; }
+.empty { background: var(--panel); border: 1px solid var(--line); padding: 1rem; }
+.section-nav { margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--line);
+               background: var(--panel); }
+.section-nav ul { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .5rem 0 0;
+                  padding-left: 1.25rem; }
+.feeds { columns: 14rem; }
+.feeds li { break-inside: avoid; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
+         color: var(--muted); }
+/* The analytics opt-out (ADR 0004). A <button>, because it changes a setting; styled as the
+   link it reads as, with the same visible focus ring as every link on the page. */
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit;
+               text-decoration: underline; cursor: pointer; }
+.link-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+</style>
+<script>
+(function () {
+  var w = window, n = navigator, d = document, KEY = "id-churn-sentinel:analytics-opt-out", OFF = "ga-disable-G-98S46JC943";
+  var store = null;
+  try { store = w.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  function optedOut() {
+    try { return !!store && store.getItem(KEY) === "1"; } catch (e) { return false; }
+  }
+  var dnt = n.doNotTrack || w.doNotTrack || n.msDoNotTrack;
+  var signal = n.globalPrivacyControl === true || dnt === "1" || dnt === "yes";
+  d.addEventListener("DOMContentLoaded", function () {
+    var box = d.querySelector("[data-analytics-choice]");
+    if (!box) return;
+    var button = box.querySelector("button"), status = box.querySelector("[role=status]");
+    function render(message) {
+      button.textContent = optedOut() ? "Opt back in" : "Opt out of analytics";
+      button.hidden = signal || !store;
+      status.textContent = message;
+      box.hidden = false;
+    }
+    button.addEventListener("click", function () {
+      try {
+        if (optedOut()) {
+          store.removeItem(KEY);
+          w[OFF] = false;
+          render("Opted back in. Page counts resume from the next page you open.");
+        } else {
+          store.setItem(KEY, "1");
+          w[OFF] = true;
+          render("Opted out. From the next page you open, this site will not load Google Analytics in this browser.");
+        }
+      } catch (e) {
+        store = null;
+        render("This browser is blocking site storage, so an opt-out cannot be remembered here. Global Privacy Control or Do Not Track keeps Google Analytics off.");
+      }
+    });
+    render(signal ? "Google Analytics is off: your browser sends Global Privacy Control or Do Not Track." : !store ? "This browser is blocking site storage, so an opt-out cannot be remembered here. Global Privacy Control or Do Not Track keeps Google Analytics off."
+      : optedOut() ? "You have opted out: this site does not load Google Analytics in this browser." : "");
+  });
+  if (w.location.hostname !== "chelseakr.github.io") return;
+  if (w.location.pathname.indexOf("/id-churn-sentinel/") !== 0) return;
+  if (n.globalPrivacyControl === true) return;
+  if (dnt === "1" || dnt === "yes") return;
+  if (optedOut()) return;
+  var ref = /^(https?:\/\/[^\/?#]+)/.exec(d.referrer || "");
+  w.dataLayer = w.dataLayer || [];
+  function gtag() { w.dataLayer.push(arguments); }
+  gtag("consent", "default", {
+    ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied",
+    analytics_storage: "denied", region: ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO", "GB", "CH"]
+  });
+  gtag("consent", "default", {
+    ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied",
+    analytics_storage: "granted"
+  });
+  gtag("js", new Date());
+  gtag("config", "G-98S46JC943", {
+    allow_google_signals: false, allow_ad_personalization_signals: false,
+    page_location: w.location.origin + w.location.pathname,
+    page_referrer: ref ? ref[1] + "/" : ""
+  });
+  var s = d.createElement("script");
+  s.async = true;
+  s.src = "https://www.googletagmanager.com/gtag/js?id=G-98S46JC943";
+  d.head.appendChild(s);
+})();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<header>
+<h1>Privacy</h1>
+<p class="lede">What reading these pages and feeds sends, and to whom. Last changed 18 September 2026.</p>
+<p class="meta"><a href="./">Back to the ID Churn Sentinel front page</a></p>
+</header>
+<main id="main">
+<section aria-labelledby="short">
+<h2 id="short">The short version</h2>
+<ul>
+<li><strong>The feeds and data files are not tracked.</strong> <code>feed.xml</code>, <code>changes.json</code>, <code>sources.json</code>, <code>status.json</code> and every per-jurisdiction file are plain files. Fetching one runs no script and sends nothing to Google.</li>
+<li><strong>The two web pages count visits with Google Analytics 4</strong>: the front page and this one. Google Analytics does not load when your browser sends Global Privacy Control or Do Not Track, and you can switch it off in the footer.</li>
+<li><strong>There is no account, no sign-up and no email list.</strong> Nothing on these pages asks you to type anything.</li>
+</ul>
+</section>
+<section aria-labelledby="receives">
+<h2 id="receives">What Google Analytics receives</h2>
+<p>When the front page or this page loads from chelseakr.github.io, a short script in the page loads Google's tag script, gtag.js, from Google's servers. Google Analytics then receives:</p>
+<ul>
+<li>the page's address, cut down to the site and the path. Anything after a <code>?</code> or a <code>#</code> is removed before it is sent;</li>
+<li>the site you came from, cut down to its origin (for example <code>https://www.example.org/</code>), never the page or the search on it;</li>
+<li>the page title, and whether you scrolled to the bottom of the page;</li>
+<li>the address of a link to another website, such as a state agency's page or a PDF, when you follow it from these pages;</li>
+<li>a random identifier kept in a cookie (see below), and your browser type, device type, screen size and language;</li>
+<li>your IP address, which every server you connect to receives. Google uses it to estimate your approximate location (country, region and city) and states that Google Analytics 4 does not log or store it.</li>
+</ul>
+</section>
+<section aria-labelledby="never">
+<h2 id="never">What it never receives</h2>
+<ul>
+<li><strong>Anything you type.</strong> These pages have no form fields.</li>
+<li><strong>The query string or the fragment</strong> of the address.</li>
+<li><strong>Your name, your email address, or any identifier from this project.</strong> There are no user accounts, and the script sends no custom events.</li>
+</ul>
+<p>Google signals and ad personalization are both turned off, and ad storage, ad user data and ad personalization are denied for every visitor. Google keeps event-level data for 14 months and then deletes it; aggregate counts in standard reports are kept longer.</p>
+</section>
+<section aria-labelledby="cookies">
+<h2 id="cookies">Cookies</h2>
+<p>Google Analytics sets two first-party cookies on chelseakr.github.io: <code>_ga</code> and <code>_ga_98S46JC943</code>. They hold a random identifier and expire two years after your last visit. chelseakr.github.io also serves other projects by the same author, and the <code>_ga</code> cookie is shared with them, so the analytics on those sites receives the same identifier.</p>
+<p>In the European Economic Area, the United Kingdom and Switzerland, analytics storage is denied by default. There is no consent banner to change that, so no Google Analytics cookie is set there, and Google receives cookieless pings instead.</p>
+</section>
+<section aria-labelledby="turning-off">
+<h2 id="turning-off">Turning it off</h2>
+<ul>
+<li>Send <strong>Global Privacy Control</strong> or <strong>Do Not Track</strong> from your browser. These pages then do not load Google Analytics at all.</li>
+<li>Use <strong>&ldquo;Opt out of analytics&rdquo;</strong> in the footer. It stores your choice in this browser under <code>id-churn-sentinel:analytics-opt-out</code>, which applies to this site only. <strong>&ldquo;Opt back in&rdquo;</strong> removes it. The control needs JavaScript; without JavaScript, Google Analytics cannot run either.</li>
+<li>Install Google's opt-out browser add-on: <a href="https://tools.google.com/dlpage/gaoptout">tools.google.com/dlpage/gaoptout</a>.</li>
+</ul>
+</section>
+<section aria-labelledby="why">
+<h2 id="why">Why a trans-ID project counts visits at all</h2>
+<p>This project's own risk audit says that a list of people reading about trans identity-document law is a targeting risk, and until 18 September 2026 these pages loaded nothing from any third party for that reason. On that date the project's owner decided to count page visits here, as on her other public sites. <a href="https://github.com/ChelseaKR/id-churn-sentinel/blob/main/docs/adr/0004-count-page-visits-with-ga4.md">The decision record</a> states the risk it accepts and the limits above. If that risk matters to you, send Global Privacy Control or opt out, or use the feeds, which carry none of it.</p>
+</section>
+<section aria-labelledby="hosting">
+<h2 id="hosting">What GitHub sees</h2>
+<p>The pages and feeds are hosted on GitHub Pages, with <code>raw.githubusercontent.com</code> as a mirror. GitHub's access logs record the IP address of every request, including which per-jurisdiction feed was fetched. This project does not receive, control or delete those logs. To leave no trace, fetch the feeds over Tor or a VPN, or mirror them and serve them yourself (AGPL-3.0-or-later allows it).</p>
+</section>
+</main>
+<footer>
+<p>ID Churn Sentinel is free software (AGPL-3.0-or-later). A published observation reports that a registered source candidate changed; it does not assert what the law is, and it is not legal advice.</p>
+<p><a href="https://github.com/ChelseaKR/id-churn-sentinel">Source code, the registry, and the responsible-tech audit</a>.</p>
+<p class="privacy-note">These two web pages count visits with Google Analytics 4. Advertising features are off, and the address it receives never includes anything after a ? or #. Google Analytics does not load when your browser sends Global Privacy Control or Do Not Track. The feeds and data files carry no tracking. <a href="privacy.html">Privacy</a>.
+<span data-analytics-choice hidden><button type="button" class="link-button">Opt out of analytics</button> <span role="status"></span></span></p>
+</footer>
+</body>
+</html>

@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Deduplicate reads without ever cancelling or queueing behind a deploy.
+  # Deduplicate reads without ever canceling or queueing behind a deploy.
   group: live-integrity
   cancel-in-progress: false
 

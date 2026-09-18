@@ -320,7 +320,7 @@ MIN_PROSE_FILES = 100
 
 #: Markdown and YAML wrap prose, and a wrapped claim is invisible to a plain
 #: substring match: the release workflow's header states this fact across a line
-#: break behind `#` comment markers, and only normalising finds it.
+#: break behind `#` comment markers, and only normalizing finds it.
 _LINE_MARKERS = re.compile(r"^\s*(?:[>#*\-]|//)*\s*", re.MULTILINE)
 
 
@@ -417,7 +417,7 @@ def test_the_claim_vocabulary_is_real_and_not_self_matching() -> None:
     """The floor under the two scans below, and the reason this file may read itself.
 
     Four ways they could pass while examining nothing: an empty vocabulary, a
-    scan that has stopped finding the tree, a normalisation that has stopped
+    scan that has stopped finding the tree, a normalization that has stopped
     collapsing wrapped prose, and this module quietly exempting itself from a
     rule it applies to every other file. The two pinned sentences are in the
     vocabulary by construction, and none of the entries appears in any docstring
@@ -428,7 +428,7 @@ def test_the_claim_vocabulary_is_real_and_not_self_matching() -> None:
     for pinned in (README_SAYS_UNTAGGED, SECURITY_SAYS_UNTAGGED):
         assert pinned in CLAIMS_OF_NO_RELEASE, (
             f"the vocabulary does not cover {pinned!r}, one of the two sentences already "
-            "pinned in both directions above, so it generalises nothing"
+            "pinned in both directions above, so it generalizes nothing"
         )
 
     own = _own_docstrings()
@@ -446,7 +446,7 @@ def test_the_claim_vocabulary_is_real_and_not_self_matching() -> None:
         )
 
     assert _claims_in("# so this is wired but dormant\n# until the first tag."), (
-        "a claim wrapped across two commented lines is not found, so the normalisation these "
+        "a claim wrapped across two commented lines is not found, so the normalization these "
         "scans depend on has stopped working and every wrapped sentence is invisible to them"
     )
     assert not _claims_in("while there is no tag yet, this check asserts nothing"), (
@@ -555,7 +555,7 @@ def test_the_scan_names_every_file_a_first_tag_would_make_stale() -> None:
     assert ".github/workflows/release.yml" in files, (
         "the scan does not reach the release workflow's header, which states this fact in a "
         "comment across a line break. That file is the reason the scan reads `git ls-files` "
-        f"and normalises rather than taking a list of document names. Files found: {sorted(files)}"
+        f"and normalizes rather than taking a list of document names. Files found: {sorted(files)}"
     )
     assert len(files) > 2, (
         "the scan finds this fact in fewer files than the tree states it in. Either the "

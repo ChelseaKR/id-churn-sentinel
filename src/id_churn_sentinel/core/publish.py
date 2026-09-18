@@ -58,11 +58,11 @@ sends a trans person to the wrong office.
 
 So the status is not a footnote on the front page; it is a field on the source, in every
 document that carries the source, in words a screen reader can read (`unverified` ·
-`verified` · `rejected` — never a colour). And `registry` is a **required** argument to
+`verified` · `rejected` — never a color). And `registry` is a **required** argument to
 :func:`publish`: there is no way to write an artifact from this module without holding the
 registry that knows each source's verification status, which is what makes "a source cannot
 appear in a published artifact without its status alongside it" a structural fact rather than
-a promise. `tests/test_source_labelling.py` asserts it on the published bytes.
+a promise. `tests/test_source_labeling.py` asserts it on the published bytes.
 """
 
 from __future__ import annotations
@@ -306,7 +306,7 @@ def _walk_correction_chain(record: ChangeRecord, by_id: dict[str, ChangeRecord])
 # Written into the published directory, and it is not a formality. GitHub Pages runs the output
 # through Jekyll unless this file exists, and Jekyll **silently drops** any file or directory
 # whose name begins with an underscore, rewrites what it feels like, and reports none of it. The
-# published surface here is data an organisation acts on; a build step that quietly removes files
+# published surface here is data an organization acts on; a build step that quietly removes files
 # from it is exactly the kind of unwitnessed failure this project exists to refuse. So the file
 # is written by the publisher rather than left to a human to remember once.
 def _write_nojekyll(out_dir: Path) -> None:

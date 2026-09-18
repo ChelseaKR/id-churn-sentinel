@@ -128,10 +128,10 @@ _PUSH_TRIGGERED_WORKFLOWS = ("ci.yml", "trufflehog.yml")
 
 
 def test_push_triggered_workflows_key_concurrency_per_commit_not_per_branch() -> None:
-    """A commit on `main` must keep its own run; a cancelled run is no verdict, not a pass.
+    """A commit on `main` must keep its own run; a canceled run is no verdict, not a pass.
 
     With the group at `${{ github.ref }}` alone, every push to `main` shared one group and
-    `cancel-in-progress: true` cancelled the run still working on the previous commit. Push twice
+    `cancel-in-progress: true` canceled the run still working on the previous commit. Push twice
     inside one run's duration — a merge plus a follow-up, the normal shape here — and the first
     commit is verified by nothing. It never goes red, so nothing looks wrong afterwards: GitHub
     reports the run as `cancelled`, which is no signal at all rather than a failure.
@@ -141,7 +141,7 @@ def test_push_triggered_workflows_key_concurrency_per_commit_not_per_branch() ->
     property lives in the YAML and not in any importable module.
 
     `codeql.yml` is deliberately not in this list: it has no `push:` trigger, so its ref-only key
-    only ever groups pull-request and weekly-schedule runs, where cancelling the stale run is what
+    only ever groups pull-request and weekly-schedule runs, where canceling the stale run is what
     you want.
     """
     for name in _PUSH_TRIGGERED_WORKFLOWS:

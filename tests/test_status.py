@@ -442,7 +442,7 @@ def test_nonpositive_stale_interval_and_naive_generation_time_are_handled(
 # "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and a bad
 # one. A reader skimming the run-health block takes away a tidy row of zeroes, when every one
 # of those zeroes is zero for a reason that has nothing to do with the watched pages being
-# quiet. A sibling repo published "0 of 0" as a real organisation's failing score; the same
+# quiet. A sibling repo published "0 of 0" as a real organization's failing score; the same
 # shape here would read as a clean run.
 
 

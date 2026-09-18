@@ -22,7 +22,7 @@ below, which are the price of it:
 * **No advertising.** Consent Mode v2 defaults deny `ad_storage`, `ad_user_data` and
   `ad_personalization` everywhere, and deny `analytics_storage` in the EEA, the UK and
   Switzerland (via `region`); there is no banner, so nothing ever grants them. Google signals
-  and ad personalisation are off in the `config` call.
+  and ad personalization are off in the `config` call.
 * **The address and nothing else about it.** `page_location` is the origin plus the path:
   the query string and the fragment are never sent. `page_referrer` is the referring site's
   origin only. This site has no form field, sets no `user_id`, and sends no custom event, so

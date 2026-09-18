@@ -61,7 +61,7 @@ The fix is neither of the two obvious ones. **Refusing** the comparison — the 
 corrected registry URL, below — would be wrong here, because it fails *unsafe*: it would
 blind every source with a v1 baseline for a full pass, and a wrong "no change" about a
 government page that may have been scrubbed is the exact failure `docs/RESPONSIBLE-TECH-AUDITS.md`
-§A is written about. **Labelling** the comparison would be wrong too: it emits one flagged
+§A is written about. **Labeling** the comparison would be wrong too: it emits one flagged
 record per affected source, and a caveat attached to a wall of alarms is a caveat that gets
 scrolled past.
 
@@ -94,7 +94,7 @@ time, not once. So a text/HTML fetch that normalizes to zero passages is checked
 its own bucket, `no_text`, before baselining or comparison — win, lose, or draw, that source's
 result this run is "we could not measure this," reported loudly, every run, for as long as it
 persists. (Binary content is exempt: an *opaque* zero-length normalized text is its documented,
-honest behaviour, not a symptom — see :func:`normalize.content_evidence`.)
+honest behavior, not a symptom — see :func:`normalize.content_evidence`.)
 
 **Three consequences of that discipline, each of which was still a live defect after the
 bucket existed**, because a bucket in a report is not the same thing as a refusal to record:
@@ -257,7 +257,7 @@ class WatchReport:
     entirely — no snapshot is recorded, no baseline is written or overwritten, no comparison is
     made, and no drift is claimed either way, for as long as the condition holds. Unlike
     `unrenormalizable`, this is not a one-time transition; a source that keeps serving no text
-    lands here on *every* run, which is the point: the old behaviour let identical "nothing"
+    lands here on *every* run, which is the point: the old behavior let identical "nothing"
     hash-match itself into a permanently silent `unchanged`. A run containing one is `partial`,
     never `quiet`."""
 
@@ -558,7 +558,7 @@ class _ComparableBaseline:
     """A baseline restated under today's representation contract, ready to compare.
 
     `renormalized_from` is `None` when nothing had to be restated — the overwhelmingly
-    common case, and the one that must stay byte-identical to the old behaviour.
+    common case, and the one that must stay byte-identical to the old behavior.
     """
 
     content_sha256: str
@@ -1048,7 +1048,7 @@ def _handle_failure(
     the tool previously could not tell those apart — so it treated every removal as an
     outage, indefinitely, and said nothing. A government page about trans identity
     documents disappearing is itself a signal; failing to surface it is a wrong "no change",
-    which is the safety failure this repo is organised around (RESPONSIBLE-TECH-AUDITS §A).
+    which is the safety failure this repo is organized around (RESPONSIBLE-TECH-AUDITS §A).
 
     So: after `removal_threshold` consecutive failures SPREAD OVER at least
     `min_removal_silence`, we mint a `possibly_removed` record. It is unclassified,

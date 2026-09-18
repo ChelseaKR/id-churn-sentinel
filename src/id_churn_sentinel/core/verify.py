@@ -19,7 +19,7 @@ it actually gets done**, and to record it in a way that names who did it:
   registry itself will not *load* a `verified: true` entry that lacks one (`core/registry.py`);
 * every decision is written to `sources/registry.json` immediately, so the work is resumable
   and a crash at source 90 does not cost the previous 89;
-* prioritisation (`--federal-first`, `--jurisdiction`, `--document-class`) so the passport and
+* prioritization (`--federal-first`, `--jurisdiction`, `--document-class`) so the passport and
   Social Security pages — the highest-traffic, highest-consequence entries — can be done first
   rather than after forty state DMVs.
 
@@ -120,7 +120,7 @@ WRONG_PAGE = "wrong-page"
 # modes it sits between:
 #
 #   Too long, and a verification becomes a permanent claim about a page that can be
-#   reorganised, redirected or retired at any time — which is the thing this whole project
+#   reorganized, redirected or retired at any time — which is the thing this whole project
 #   exists to notice about *content*, and it would be odd to grant the URL itself an exemption.
 #
 #   Too short, and the queue never finishes: a volunteer who spends an afternoon on 152 sources
@@ -260,7 +260,7 @@ def pending(
 ) -> tuple[Source, ...]:
     """The queue: sources no human has ruled on yet, in the order they should be worked.
 
-    Prioritisation is not a nicety. 152 sources is several hours, it will be done in sittings,
+    Prioritization is not a nicety. 152 sources is several hours, it will be done in sittings,
     and *which* sittings happen first decides what is trustworthy at the end of the first one.
     `--federal-first` puts passport and Social Security at the top because they are the
     entries every jurisdiction's readers depend on; `--jurisdiction` lets a volunteer who
@@ -399,7 +399,7 @@ def write_verification_receipt(
     """Write the receipt of what one human was shown, and return the path to reference.
 
     This is the evidence a verification cites. It records the page as our crawler found it at
-    the moment of the decision — not as we would summarise it later — and for a source we could
+    the moment of the decision — not as we would summarize it later — and for a source we could
     not fetch it records *that*, with the literal error and no title and no text. An
     unfetchable source is still verifiable (`ssa.gov` 403s every client we own and its URL is
     correct); what changes is whose eyes the evidence came from, and the receipt has to say so
@@ -791,7 +791,7 @@ def run_verification(
             say(f"  recorded: {recorded.label}")
             continue
 
-        say("  unrecognised answer — skipped. (y = yes, n = no, s = skip, q = quit)")
+        say("  unrecognized answer — skipped. (y = yes, n = no, s = skip, q = quit)")
         skipped += 1
 
     reloaded = load_registry(path)

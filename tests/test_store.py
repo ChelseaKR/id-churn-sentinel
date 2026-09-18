@@ -1146,10 +1146,10 @@ def test_database_rejects_a_failed_attempt_with_fabricated_or_unclassified_evide
         )
 
 
-def test_legacy_attempts_are_labelled_not_backfilled(
+def test_legacy_attempts_are_labeled_not_backfilled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Attempts recorded before the evidence migration are labelled `legacy-unknown`,
+    """Attempts recorded before the evidence migration are labeled `legacy-unknown`,
     mirroring the legacy representation versions: we must not invent a redirect chain or a
     hash for a fetch nobody recorded them for — and no *new* write may claim the label."""
     db = tmp_path / "legacy-attempts.db"
@@ -1186,7 +1186,7 @@ def test_legacy_attempts_are_labelled_not_backfilled(
         # under the representation contract that was current at the time. That is the literal
         # `passage-text-v1`/`none-v1`, not today's NORMALIZER_VERSION/EXTRACTOR_VERSION — the
         # contract registering either may postdate the migration prefix this test rolls back
-        # to, and an old row could not have been labelled with a version that did not yet
+        # to, and an old row could not have been labeled with a version that did not yet
         # exist. (`none-v1` became a literal here when `PDF-01` gave the build a real
         # extractor: a store rolled back to migration 4 has never heard of `pdf-text-v1`.)
         old._conn.execute(
@@ -1272,7 +1272,7 @@ def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_r
     """Migration 9 rebuilds `fetch_attempts`, because SQLite cannot widen a CHECK in place.
 
     A rebuild is a table drop, and a table drop is where evidence gets quietly lost or
-    relabelled. So: write a row under the pre-migration schema, migrate, and assert the row
+    relabeled. So: write a row under the pre-migration schema, migrate, and assert the row
     comes back byte-identical — same outcome, same hashes, same error class. `binary-no-extractor`
     in particular must still say `binary-no-extractor`: it is a statement about a fetch that
     happened when no extractor existed, and rewriting it to `pdf-extraction-refused` would

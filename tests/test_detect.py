@@ -1,6 +1,6 @@
 """Tests for :mod:`id_churn_sentinel.core.detect` — the watch loop.
 
-Three of these tests encode disciplines, not behaviours:
+Three of these tests encode disciplines, not behaviors:
 
 * `test_a_fetch_failure_is_never_drift` — the rule inherited from source-watch.ts.
 * `test_a_first_sighting_is_never_drift` — no baseline means nothing to compare.
@@ -218,7 +218,7 @@ def test_binary_drift_is_reported_honestly_as_undiffable(
 ) -> None:
     """A PDF the extractor would not stand behind changed. We say so, and we say we cannot
     diff it — rather than emitting an empty diff a reviewer might read as 'nothing important
-    changed'. This is the behaviour `PDF-01` leaves exactly where it found it, which is the
+    changed'. This is the behavior `PDF-01` leaves exactly where it found it, which is the
     point: an extractor that refuses costs a reviewer nothing they were not already paying."""
     pdf = StubFetcher({source.url: (b"%PDF-1.7 v1", "application/pdf")})
     watch([source], store, pdf)
@@ -332,7 +332,7 @@ class RotatingFetcher:
 
     `dpbh.nv.gov` renders a rotating "Nevada state symbol" fun fact into its footer and
     re-rolls it on every single fetch, so its normalized hash is different every time it is
-    asked. Modelled here so the false-drift detector is tested against the shape of the
+    asked. Modeled here so the false-drift detector is tested against the shape of the
     thing that actually caught us.
     """
 
@@ -342,7 +342,7 @@ class RotatingFetcher:
 
     def fetch(self, url: str) -> FetchResult:
         self.calls += 1
-        body = f"<p>Apply for a licence.</p><aside>State fish #{self.calls}</aside>".encode()
+        body = f"<p>Apply for a license.</p><aside>State fish #{self.calls}</aside>".encode()
         return FetchResult(
             url=url,
             ok=True,
@@ -449,7 +449,7 @@ def test_an_intermittently_blind_page_is_no_text_rather_than_unstable(source: So
 
         def fetch(self, url: str) -> FetchResult:
             self.calls += 1
-            body = b"<p>Apply for a licence.</p>" if self.calls == 1 else JS_SHELL
+            body = b"<p>Apply for a license.</p>" if self.calls == 1 else JS_SHELL
             return FetchResult(
                 url=url,
                 ok=True,
@@ -707,7 +707,7 @@ def test_real_drift_during_a_version_bump_is_still_reported_and_diffed_like_for_
 ) -> None:
     """The failure mode of the rejected design. Refusing a cross-contract comparison would
     have swallowed this sentence for a whole pass — a wrong 'no change' about a government
-    page, which is the one error this repo is organised around. It is reported, and the diff
+    page, which is the one error this repo is organized around. It is reported, and the diff
     is a diff of *content*: the script body v1 leaked into its baseline text appears on
     neither side, because both sides came out of the same normalizer."""
     record_v1_baseline(store, source, fixture_loose_end_tag)
@@ -895,7 +895,7 @@ def test_binary_content_with_no_normalized_text_is_not_flagged(
     source: Source, store: SnapshotStore
 ) -> None:
     """Opaque bytes normalize to an empty string by design (`extractor_version = "none-v1"`,
-    no PDF extractor). That is documented, honest behaviour — content_hash covers the raw
+    no PDF extractor). That is documented, honest behavior — content_hash covers the raw
     bytes — and must not trip the same guard as a page that promised text and had none."""
     report = watch(
         [source],

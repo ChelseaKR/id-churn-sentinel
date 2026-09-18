@@ -514,7 +514,7 @@ class _Parser:
     """A recursive-descent reader for PDF object syntax.
 
     Only what the page tree and the font dictionaries need: dictionaries, arrays, names,
-    numbers, strings, booleans, null and indirect references. Anything unrecognised refuses,
+    numbers, strings, booleans, null and indirect references. Anything unrecognized refuses,
     because a parser that skips what it does not understand is a parser that can silently
     drop a `/ToUnicode`.
     """
@@ -1077,7 +1077,7 @@ class _TextWalker:
     def _do_xobject(self, value: object) -> None:
         """Draw an XObject — and if it is a *form*, walk into it, because forms hold text.
 
-        This is the recursion the safety rule requires rather than an optimisation. A
+        This is the recursion the safety rule requires rather than an optimization. A
         generator that puts a page's body text inside a Form XObject is common, and a parser
         that ignored `Do` would extract the page furniture, miss the content, and present the
         result as the page.

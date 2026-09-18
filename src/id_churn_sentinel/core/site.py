@@ -21,10 +21,10 @@ asserts it instead of a reviewer remembering it.
 **Four properties, and they are not decoration:**
 
 *Accessible.* WCAG 2.2 AA. Semantic landmarks, one `<h1>`, real heading order, tables with
-`<caption>` and `<th scope>`, a skip link, visible focus. **Status is never signalled by
-colour alone** — "not watched" is the *word* "not watched", not a red dot. A legal-aid
+`<caption>` and `<th scope>`, a skip link, visible focus. **Status is never signaled by
+color alone** — "not watched" is the *word* "not watched", not a red dot. A legal-aid
 worker using a screen reader is exactly who this page is for, and a diff or a coverage table
-that only renders as colour is one they cannot read.
+that only renders as color is one they cannot read.
 
 *Self-contained, with one owner-decided exception.* No external stylesheet, no web font, no
 image, no CDN, and no script except one: the Google Analytics 4 loader in `core/analytics.py`,
@@ -49,7 +49,7 @@ is that it looks authoritative: a table headed *"OH · Birth certificate · Ohio
 Health"* reads as *"this is Ohio's official birth-certificate page"*, and nobody has checked
 that it is. The disclosure is therefore structural — a `verification_status` field on the
 source everywhere it is published, not a footnote — and a merge-blocking gate
-(`tests/test_source_labelling.py`) asserts on the published bytes that no source appears in
+(`tests/test_source_labeling.py`) asserts on the published bytes that no source appears in
 any artifact without it.
 
 *Derived.* Every number comes from `sources/registry.json` via `core/coverage.py`. Nothing
@@ -165,7 +165,7 @@ _CARD_ALT = (
 _CLASS_LABELS = {
     "birth_certificate": "Birth certificate",
     "court_order_name_change": "Court-order name change",
-    "drivers_license": "Driver's licence / state ID",
+    "drivers_license": "Driver's license / state ID",
     "passport": "Passport",
     "selective_service": "Selective Service",
     "social_security": "Social Security",
@@ -174,7 +174,7 @@ _CLASS_LABELS = {
 _REASON_LABELS = {
     "wrong-page": "A human verifier found the URL we had was not the official page, and no "
     "replacement exists",
-    "robots-disallowed": "Their robots.txt forbids us (honoured without appeal)",
+    "robots-disallowed": "Their robots.txt forbids us (honored without appeal)",
     "blocked-403": "Serves a browser, 403s our User-Agent (we do not spoof one)",
     "blocked-404": "Returns 404 to every non-browser client (a WAF wearing a 404's clothes)",
     "blocked-200": "Returns a bot-wall page with HTTP 200 (a WAF wearing a 200's clothes)",
@@ -717,7 +717,7 @@ def _endpoints_section(registry: Registry, *, counted: bool) -> str:
             "generation.</li>",
             "</ul>",
             "<h3>One jurisdiction at a time</h3>",
-            "<p>An organisation that serves one state should not have to consume all 52. "
+            "<p>An organization that serves one state should not have to consume all 52. "
             "Every jurisdiction has its own feed, and it exists whether or not it has items "
             "yet.</p>",
             "<p><strong>An empty feed is not an answer, so each one has a receipt beside "
@@ -799,7 +799,7 @@ def _source_row(source: Source, eligibility: SourceEligibility) -> str:
       decides whether a reader may act on the URL.
 
     A source can be perfectly reachable and completely wrong, which is precisely the case this
-    column exists for. Neither status is signalled by colour: a red dot is invisible to the
+    column exists for. Neither status is signaled by color: a red dot is invisible to the
     screen-reader user this table is most likely to be read by, and "the red ones are the bad
     ones" is not information a screen reader can convey (WCAG 2.2 AA, 1.4.1).
     """
@@ -1069,7 +1069,7 @@ def _privacy_hosting() -> str:
 
 
 # Inline, because a stylesheet on another host is a request that tells that host who is
-# reading about trans ID law. Colour is never load-bearing: it decorates a distinction the
+# reading about trans ID law. Color is never load-bearing: it decorates a distinction the
 # text already makes. Both schemes are specified, and both are checked for AA contrast.
 _CSS = """
 :root { --bg:#fff; --fg:#1a1a1a; --muted:#4a4a4a; --line:#c9c9c9; --accent:#0b5d8a;
@@ -1109,9 +1109,9 @@ thead th { background: var(--panel); }
 .stats div { border: 1px solid var(--line); padding: .75rem 1rem; min-width: 10rem; }
 .stats dt { color: var(--muted); font-size: .85rem; }
 .stats dd { margin: .25rem 0 0; font-size: 1.5rem; font-weight: 700; }
-/* The unverified-registry notice. It is bordered and panelled so it reads as a caution, but
+/* The unverified-registry notice. It is bordered and paneled so it reads as a caution, but
    the caution is carried entirely by the WORDS inside it — strip every style from this page
-   and the reader still learns that no human has confirmed these URLs. Colour decorates a
+   and the reader still learns that no human has confirmed these URLs. Color decorates a
    distinction the text has already made; it never makes one. */
 .notice { background: var(--panel); border: 2px solid var(--line);
           border-left: .5rem solid var(--focus); padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }

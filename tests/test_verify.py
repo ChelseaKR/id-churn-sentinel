@@ -316,7 +316,7 @@ def test_an_unknown_source_id_is_an_error_not_a_silent_no_op(registry_file: Path
 # ---- the queue ------------------------------------------------------------------------------
 
 
-def test_the_queue_can_be_prioritised_and_is_resumable(registry_file: Path) -> None:
+def test_the_queue_can_be_prioritized_and_is_resumable(registry_file: Path) -> None:
     registry = load_registry(registry_file)
 
     assert next(iter(pending(registry, federal_first=True))).id == "us-passport-sex-markers"
@@ -565,7 +565,7 @@ def test_a_rejection_the_tool_refuses_leaves_the_source_in_the_queue(
     assert "REFUSED" in capsys.readouterr().out
 
 
-def test_an_unrecognised_answer_skips_rather_than_guessing(
+def test_an_unrecognized_answer_skips_rather_than_guessing(
     registry_file: Path, fetcher_for: StubFetcher, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The one thing the tool must never do with an ambiguous human is pick an answer."""
@@ -579,7 +579,7 @@ def test_an_unrecognised_answer_skips_rather_than_guessing(
     )
 
     assert load_registry(registry_file).unverified != ()
-    assert "unrecognised answer — skipped" in capsys.readouterr().out
+    assert "unrecognized answer — skipped" in capsys.readouterr().out
 
 
 def test_the_committed_registry_is_still_entirely_unverified(

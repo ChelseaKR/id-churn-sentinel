@@ -53,7 +53,7 @@ README, ROADMAP, CONSUMERS, RESPONSIBLE-TECH-AUDITS, VERIFYING, and the registry
 does not name a single published artifact. The gate that exists to stop a document lying about
 the registry has never read the product.
 
-And every test in `test_source_labelling.py` takes a `published` fixture that publishes into
+And every test in `test_source_labeling.py` takes a `published` fixture that publishes into
 `tmp_path`. They prove the publisher is correct. Nothing proves the commit is.
 
 ### 2. The one test that does read the committed feed asserts nothing

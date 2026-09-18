@@ -477,7 +477,7 @@ def test_a_source_the_run_never_saw_is_not_in_run_rather_than_not_eligible(
 def test_an_ineligible_source_carries_the_runs_own_reasons(
     store: SnapshotStore, registry: Registry, texas: Source
 ) -> None:
-    """The run's judgement and the run's reasons, not today's re-evaluation of the source."""
+    """The run's judgment and the run's reasons, not today's re-evaluation of the source."""
     # `failed`, not `quiet`: the store refuses a terminal success state for a run with no
     # eligible source, which is the shape this repository's real weekly run has been in for
     # four weeks (0 of 156 attempt-eligible, #56).
@@ -636,7 +636,7 @@ def test_no_published_hash_is_attributed_to_a_run() -> None:
 def test_every_source_row_carries_its_verification_status(
     store: SnapshotStore, registry: Registry, texas: Source
 ) -> None:
-    """The labelling discipline, restated here because this is the document most likely to
+    """The labeling discipline, restated here because this is the document most likely to
     be read as an endorsement of the URL."""
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
     _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
@@ -732,7 +732,7 @@ def test_a_malformed_eligibility_reason_does_not_withhold_the_eligibility_answer
 
     A receipt that refused to render because one row's explanation would not parse would
     withhold the answer over the footnote to it — so the reasons degrade to empty and the
-    judgement still publishes.
+    judgment still publishes.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,), eligible=frozenset())
     store.finish_watch_run(run_id, state=RUN_FAILED, observation_count=0, completed_at=NOW)

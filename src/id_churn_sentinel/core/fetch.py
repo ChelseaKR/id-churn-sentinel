@@ -73,7 +73,7 @@ USER_AGENT = (
 #
 # That is not a harmless false alarm. An unreachable source holds its old baseline, so a
 # real edit to that page could sit undetected behind a timeout — a wrong "no change", which
-# is the safety failure this repo is organised around. And with the M3 escalation now in
+# is the safety failure this repo is organized around. And with the M3 escalation now in
 # place, a chronically slow host would eventually escalate to `possibly_removed` on nothing
 # but latency.
 #
@@ -90,7 +90,7 @@ _MAX_ROBOTS_BYTES = 512 * 1024
 # like the denial-of-service pattern the threat model warns against. 2s is generous for a
 # job that runs once a week over a few hundred pages — the whole run gains only seconds —
 # while keeping this tool a well-behaved guest on infrastructure the people it serves pay
-# for. It bounds the *rate*, not the total, so a slow host is never penalised: the gap is
+# for. It bounds the *rate*, not the total, so a slow host is never penalized: the gap is
 # measured from when each request goes out, and a server that took 3s to answer has already
 # satisfied the interval, so the next request to it is not delayed further.
 _MIN_HOST_INTERVAL_SECONDS = 2.0
@@ -242,7 +242,7 @@ class _RedirectRecorder(urllib.request.HTTPRedirectHandler):
       hostile jurisdictions. The promise was true of the first request and of no other.
     * *robots.txt.* The policy consulted was the one belonging to the host in the registry. A
       redirect to a different host, or to a path that host disallows, was fetched without ever
-      reading the policy that governs it. "robots.txt honoured without appeal" has to mean the
+      reading the policy that governs it. "robots.txt honored without appeal" has to mean the
       policy of the server we actually read, or it means nothing.
 
     Refusing here rather than after the fact is the point: by the time `fetch()` sees a
@@ -329,7 +329,7 @@ class HttpFetcher:
         # exactly what this repository's guardrail 4 is about.
         self._oversized_robots: set[str] = set()
         # Per-host crawl spacing. The clock and sleep are injectable so the whole seam stays
-        # offline-testable — a fake clock asserts the spacing maths with no wall-clock wait.
+        # offline-testable — a fake clock asserts the spacing math with no wall-clock wait.
         self._min_host_interval = min_host_interval
         self._sleep = sleep if sleep is not None else time.sleep
         self._monotonic = monotonic if monotonic is not None else time.monotonic
@@ -500,9 +500,9 @@ class HttpFetcher:
         """Our own floor, or the host's declared `Crawl-delay`, whichever is more generous.
 
         `robots.txt` is not only a list of paths. A server that says `Crawl-delay: 10` has
-        stated the rate it wants, and honouring the Disallow lines while ignoring that is
-        honouring half a policy — this tool's own gap list already describes robots as
-        "honoured without appeal", and CLAUDE.md's guardrail #4 says the answer to a server
+        stated the rate it wants, and honoring the Disallow lines while ignoring that is
+        honoring half a policy — this tool's own gap list already describes robots as
+        "honored without appeal", and CLAUDE.md's guardrail #4 says the answer to a server
         that does not want us is to stop, not to route around it. Our 2s floor still applies
         when a host asks for less or asks for nothing: a shorter declared delay is permission
         we do not need, and taking it would only make us a heavier guest on infrastructure the
@@ -524,7 +524,7 @@ class HttpFetcher:
     def _robots_allow(self, url: str) -> bool:
         """Check (and cache) robots.txt per host. A robots.txt we cannot read is treated as
         permissive — the same posture every mainstream crawler takes — but a robots.txt that
-        *does* load and *does* disallow us is honoured without appeal."""
+        *does* load and *does* disallow us is honored without appeal."""
         parsed = urlparse(url)
         host = parsed.netloc
         if host not in self._robots:

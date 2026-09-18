@@ -9,6 +9,36 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Added
 
+- **Google Analytics 4 counts visits to the two web pages, by the owner's decision, and the
+  safety gate now enforces that decision instead of the old rule** (2026-09-18), ADR 0004
+  (`docs/adr/0004-count-page-visits-with-ga4.md`). New `core/analytics.py`, new generated
+  `docs/privacy.html`, linked from both footers.
+
+  The loader runs only on `chelseakr.github.io/id-churn-sentinel/`. It loads nothing under
+  Global Privacy Control, under Do Not Track, or after the footer's "Opt out of analytics"
+  (stored under `id-churn-sentinel:analytics-opt-out`). Consent Mode v2 denies the ad
+  signals everywhere and `analytics_storage` in the EEA, the UK and Switzerland. Google
+  signals and ad personalization are off. For this audience it sends less than the owner's
+  other sites: `page_location` is the origin and path only, with no query string, fragment
+  or campaign tags, `page_referrer` is an origin, and there is no custom event and no
+  `user_id`. The feeds and data files load nothing.
+
+  Gate 6 was changed, not disabled. It used to allow no third-party request on the site. It
+  now allows exactly one script, this loader, matched by its whole text and a SHA-256 pinned
+  in `tests/test_site.py`, once, in the `<head>` of an HTML page. Every check it made before
+  still runs on everything else. Negative controls cover a web font, a second script, an
+  inline beacon, a pixel, an iframe, the loader twice or in the body, another measurement ID,
+  each guard removed, Google signals on, the full address, a custom event, and the loader in
+  a feed or JSON file. Each one fails, and the intact site passes.
+  `tests/test_analytics.py` runs the loader in Node. It shows that each guard stops the load,
+  and that an address and referrer carrying a name, an email address, a date of birth and a
+  search term send none of them. Removing each guard or scrub shows the harness notices.
+
+  The claims that became false were rewritten, not left standing: the page description and
+  the social card drawn from it, the header and endpoints copy, `RESPONSIBLE-TECH-AUDITS.md`
+  §C, the threat model, `CONSUMERS.md`, the README, `CLAUDE.md` guardrail 5, and the V1
+  planning documents. Each now says the pages are counted and the feeds are not.
+
 - **A source read but held against nothing is published as read-and-held-against-nothing,
   not as one that matched** (2026-09-13), issue #99. New migration 12
   (`comparison_outcome` on `run_sources`); four outcome words in

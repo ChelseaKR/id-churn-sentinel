@@ -54,7 +54,7 @@ The release issue must contain one row for each P0 ID: `SRC-01`, `SRC-02`, `DET-
 - [ ] SSRF, redirect, traversal, hostile content, resource-limit, and PII-canary tests pass.
 - [ ] CI/actions/dependencies are pinned and audited; deployment permissions are least privilege.
 - [ ] No secrets in Git, artifacts, logs, fixtures, issue templates, or release bundle.
-- [ ] Published bytes contain no account, analytics, cookie, tracking parameter, or third-party request.
+- [ ] Published feeds and data files contain no account, analytics, cookie, tracking parameter, or third-party request; the two web pages carry no third-party request other than the Google Analytics 4 loader [ADR 0004](./adr/0004-count-page-visits-with-ga4.md) permits.
 - [ ] Hosting-log retention and processor/vendor terms are documented.
 - [ ] Sev-1 tabletop for forged/unreviewed publication and privacy exposure is complete.
 

@@ -13,6 +13,12 @@
 # Stage 6 holds two properties because they are one discipline aimed at two implicit claims:
 # "a machine noticed this, so it must matter" and "this URL is in your list, so it must be the
 # right page". Neither is a claim this tool has earned, and both would be made by omission.
+#
+# Stage 6 also holds the published site's third-party rule. That rule was changed once, on
+# purpose and on the record, not weakened: by the owner's decision of 2026-09-18
+# (docs/adr/0004-count-page-visits-with-ga4.md) the two web pages may carry exactly one
+# script, the Google Analytics 4 loader, matched byte for byte, and nothing else third-party
+# may reach any artifact. A change to that loader needs a new ADR, not a new digest.
 .DEFAULT_GOAL := help
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
         sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
@@ -99,6 +105,11 @@ no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, n
 	@# otherwise make BY OMISSION, once per registered source, to people who cannot afford to
 	@# act on a wrong citation. 0 of 156 sources are human-verified, and every artifact says
 	@# so, on every source, in a machine-readable field and in a word.
+	@#
+	@# `feed_integrity` also carries the third-party rule (ADR 0004): exactly one permitted
+	@# GA4 loader on the two web pages, none in any feed or data file, nothing else from any
+	@# third party anywhere, with negative controls for both halves and the loader executed in
+	@# Node (tests/test_site.py, tests/test_analytics.py).
 	uv run pytest -m "feed_integrity or source_labelling" -q
 
 no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_source_labelling.py)

@@ -32,7 +32,7 @@ Protect evidence integrity and reviewer authority while minimizing the existence
 | Evidence tampering | unreproducible or forged alert | append-only decisions, content hashes, signed release manifest, protected backups | restore/recompute exercise |
 | Reviewer credential misuse | unsafe publication | local least privilege, separate actors, dual review, immutable actor/time, no shared accounts | access review + dual-actor test |
 | CI/deploy compromise | forged public feed | pinned actions, least-privilege token, protected branch/environment, manifest verification | dependency/permission audit |
-| Subscriber surveillance | targeting artifact | no account, analytics, cookies, third-party requests, or subscriber database | scan published bytes and code |
+| Subscriber surveillance | targeting artifact | no account, subscriber database, or tracking in any feed or data file; on the two web pages, only the Google Analytics 4 loader of [ADR 0004](./adr/0004-count-page-visits-with-ga4.md) (production host only, off under GPC/DNT/opt-out, no ad features, no query string or fragment, referrer origin only) | scan published bytes and code; the gate allows exactly that loader and executes it |
 | Raw page contains personal data | accidental exposure | bounded private storage, pre-publication screening, quarantine, redacted excerpts | seeded PII canary tests |
 | SSRF/path injection via registry/content | internal access or overwrite | HTTPS allow policy, block local/private IPs after resolution, redirect revalidation, safe filenames, no content execution | SSRF/path traversal tests |
 | Decompression/large-body bomb | resource exhaustion | byte/time/redirect/decompression limits, temp quotas | fuzz and boundary tests |
@@ -44,6 +44,8 @@ Protect evidence integrity and reviewer authority while minimizing the existence
 ### Prohibited data
 
 Do not collect subscriber IPs at the application layer, email addresses, account profiles, search terms, individual document histories, trans status, location, or referral analytics. Hosting providers may retain access logs; document that residual risk and choose the shortest available retention. Self-hosting must not convert logs into product analytics.
+
+**Owner-accepted exception, 2026-09-18 ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md)).** The two web pages, `index.html` and `privacy.html`, send page-visit data to Google Analytics 4. Google receives the page path, the referring origin, a pseudonymous cookie identifier, browser and device details, and the IP address, from which it derives approximate location; GA4 keeps event-level data for 14 months. It never receives a query string, a fragment, anything typed, or a user identifier, and it does not run under Global Privacy Control, Do Not Track or the footer opt-out. The feeds and data files remain under the rule above without exception.
 
 ### Operator data
 

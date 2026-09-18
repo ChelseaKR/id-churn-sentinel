@@ -18,7 +18,10 @@ quietly start publishing unreviewed drift; it will crash.
 no analytics beacon, no tracking pixel, no cookie. This is not a growth choice, it is a
 safety one: a subscriber list for a trans-ID-law feed is a list of trans people and the
 orgs that serve them, and the safest way to protect that list is to never create it. See
-`docs/RESPONSIBLE-TECH-AUDITS.md` §C.
+`docs/RESPONSIBLE-TECH-AUDITS.md` §C. That holds for every feed and data file this module
+writes. The two HTML pages, `index.html` and `privacy.html`, carry the one Google Analytics 4
+loader ADR 0004 permits (`core/analytics.py`), and the merge-blocking sweep in
+`tests/test_site.py` fails if it, or any other tracker, reaches any other artifact.
 
 **And it is consumable one jurisdiction at a time.** A name-change clinic in Texas should
 not have to parse fifty-one other states to find out that the DPS page moved, and telling
@@ -87,7 +90,7 @@ from id_churn_sentinel.core.registry import (
     Source,
     Verification,
 )
-from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_site
+from id_churn_sentinel.core.site import REPO_URL, feed_slug, render_privacy, render_site
 from id_churn_sentinel.core.staleness import normalize_url
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status, status_json
 from id_churn_sentinel.errors import PublishError, RegistryError
@@ -328,7 +331,8 @@ def publish(
 
     `feed.xml` + `changes.json`; one `feed-us-xx.xml` + `changes-us-xx.json` per jurisdiction;
     `sources.json`, the inventory an integrator maps their own pages against; `index.html`, the
-    accessible front door that says what is watched, what is *not*, and why; and `.nojekyll`,
+    accessible front door that says what is watched, what is *not*, and why; `privacy.html`,
+    which says what reading the pages and feeds sends and to whom (ADR 0004); and `.nojekyll`,
     which is not decoration — see :func:`_write_nojekyll`.
 
     **`registry` is required, and that is the gate.** It used to be optional, defaulting to
@@ -425,6 +429,9 @@ def publish(
         run_status=public_status,
         eligibility_as_of=publication_as_of,
     )
+    # Rendered from the same measurement ID as index.html (the default in both), so the policy
+    # and the page it describes cannot disagree about whether analytics runs.
+    rendered["privacy.html"] = render_privacy()
 
     # Complete every validation/rendering step before touching the public directory. Atomic
     # promotion and signed release manifests remain ENG-06, but a late scoped-render failure

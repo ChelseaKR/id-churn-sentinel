@@ -13,7 +13,7 @@ Tests must demonstrate the safety properties and operating outcome, not merely c
 | Component | fetcher with local server, SQLite migrations, review workflow, publisher | every P0 happy and failure path |
 | Contract | JSON Schema, RSS, stable IDs, compatibility, status/release manifest | old V1 fixtures remain readable; current bytes conform |
 | End-to-end | registry→fetch→diff→review→dual approval→atomic publish→correct | deterministic offline scenario plus staging rehearsal |
-| Security/privacy | SSRF, redirects, size limits, PII canary, secrets, workflow permissions, no tracking | zero critical/high; prohibited-data scans pass |
+| Security/privacy | SSRF, redirects, size limits, PII canary, secrets, workflow permissions, no tracking in feeds, exactly the one permitted GA4 loader on the pages ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md)) | zero critical/high; prohibited-data scans pass |
 | Accessibility | automated plus keyboard, screen reader, zoom/reflow/forced colors | WCAG 2.2 AA; no blocker/critical/serious core-task defect |
 | Operational | lock/retry, partial outage, stale health, backup/restore, rollback, disk full | SLO alerts fire; RPO/RTO demonstrated |
 | Human evaluation | source-verifier calibration, reviewer agreement | thresholds below |
@@ -58,7 +58,7 @@ Golden fixtures are versioned with the normalizer. A normalizer update runs old 
 - Fetch failure cannot update the successful-content baseline.
 - A failed/incomplete run cannot present a fresh “all clear” status.
 - No artifact can omit source verification, gaps, disclaimer, or health context.
-- No public byte contains analytics, cookies, tracking parameters, third-party resources, or seeded personal data.
+- No feed or data file contains analytics, cookies, tracking parameters, third-party resources, or seeded personal data. The two web pages contain none of these except the one Google Analytics 4 loader [ADR 0004](./adr/0004-count-page-visits-with-ga4.md) permits, matched byte for byte, and no public byte contains seeded personal data.
 
 ## Live-source testing
 

@@ -180,10 +180,13 @@ Result = dict[str, Any]
 
 def loader(page: Path) -> str:
     """The inline script in a committed page's `<head>`, exactly as published."""
+    # Plain string search, not a regex: the page is our own generated HTML, and the gate in
+    # tests/test_site.py already fails on any `<script` beyond the one permitted loader.
     head = page.read_text(encoding="utf-8").split("</head>", 1)[0]
-    scripts = re.findall(r"<script>(.*?)</script>", head, re.DOTALL)
-    assert len(scripts) == 1, f"{page.name}: expected one inline script, found {len(scripts)}"
-    return str(scripts[0])
+    count = head.lower().count("<script")
+    assert count == 1, f"{page.name}: expected one inline script, found {count}"
+    start = head.index("<script>") + len("<script>")
+    return head[start : head.index("</script>", start)]
 
 
 def run(script: str, scenarios: list[Scenario], tmp_path: Path) -> dict[str, Result]:

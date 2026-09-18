@@ -61,7 +61,7 @@ The fix is neither of the two obvious ones. **Refusing** the comparison — the 
 corrected registry URL, below — would be wrong here, because it fails *unsafe*: it would
 blind every source with a v1 baseline for a full pass, and a wrong "no change" about a
 government page that may have been scrubbed is the exact failure `docs/RESPONSIBLE-TECH-AUDITS.md`
-§A is written about. **Labelling** the comparison would be wrong too: it emits one flagged
+§A is written about. **Labeling** the comparison would be wrong too: it emits one flagged
 record per affected source, and a caveat attached to a wall of alarms is a caveat that gets
 scrolled past.
 
@@ -94,7 +94,7 @@ time, not once. So a text/HTML fetch that normalizes to zero passages is checked
 its own bucket, `no_text`, before baselining or comparison — win, lose, or draw, that source's
 result this run is "we could not measure this," reported loudly, every run, for as long as it
 persists. (Binary content is exempt: an *opaque* zero-length normalized text is its documented,
-honest behaviour, not a symptom — see :func:`normalize.content_evidence`.)
+honest behavior, not a symptom — see :func:`normalize.content_evidence`.)
 
 **Three consequences of that discipline, each of which was still a live defect after the
 bucket existed**, because a bucket in a report is not the same thing as a refusal to record:
@@ -151,6 +151,10 @@ from id_churn_sentinel.core.normalize import (
 from id_churn_sentinel.core.overlay import Overlay, validate_overlays
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
+    COMPARISON_COMPARED,
+    COMPARISON_REBASELINED,
+    COMPARISON_UNBASELINED,
+    COMPARISON_UNRENORMALIZABLE,
     RUN_COMPLETE,
     RUN_FAILED,
     RUN_PARTIAL,
@@ -254,7 +258,7 @@ class WatchReport:
     entirely — no snapshot is recorded, no baseline is written or overwritten, no comparison is
     made, and no drift is claimed either way, for as long as the condition holds. Unlike
     `unrenormalizable`, this is not a one-time transition; a source that keeps serving no text
-    lands here on *every* run, which is the point: the old behaviour let identical "nothing"
+    lands here on *every* run, which is the point: the old behavior let identical "nothing"
     hash-match itself into a permanently silent `unchanged`. A run containing one is `partial`,
     never `quiet`."""
 
@@ -555,7 +559,7 @@ class _ComparableBaseline:
     """A baseline restated under today's representation contract, ready to compare.
 
     `renormalized_from` is `None` when nothing had to be restated — the overwhelmingly
-    common case, and the one that must stay byte-identical to the old behaviour.
+    common case, and the one that must stay byte-identical to the old behavior.
     """
 
     content_sha256: str
@@ -728,6 +732,23 @@ def _watch_authorized_sources(
     return report
 
 
+def _record_comparison(
+    store: SnapshotStore, run_id: str | None, source: Source, outcome: str
+) -> None:
+    """Persist what this reading was held against, when there is a run to hold it for.
+
+    `run_id` is `None` only in the offline fixture path (`_watch_authorized_sources` called
+    without a run receipt), where there is no `run_sources` row to carry the answer. Silent
+    there and nowhere else: a production run always has one, so a missing comparison outcome
+    on a real row is a bug rather than a configuration.
+    """
+    if run_id is None:
+        return
+    store.record_comparison_outcome(
+        run_id, source_id=source.id, outcome=outcome, overlay_id=source.overlay_id
+    )
+
+
 def _compare_against_baseline(
     source: Source,
     store: SnapshotStore,
@@ -753,6 +774,7 @@ def _compare_against_baseline(
     snapshot store rather than downstream of it (issue #19).
     """
     if previous is None:
+        _record_comparison(store, run_id, source, COMPARISON_UNBASELINED)
         report.new.append(source.key)
         return
 
@@ -767,6 +789,7 @@ def _compare_against_baseline(
         #
         # A first observation of a watch target is a baseline, and a new URL is a new
         # watch target. So: re-baseline, report it loudly, claim no drift.
+        _record_comparison(store, run_id, source, COMPARISON_REBASELINED)
         report.rebaselined.append((source.key, previous.url, source.url))
         return
 
@@ -782,6 +805,7 @@ def _compare_against_baseline(
         # comparable baseline) and we must not say it changed (we have no comparable
         # baseline). So we say exactly that, re-baseline on today's fetch — which the
         # caller already recorded — and claim nothing about drift.
+        _record_comparison(store, run_id, source, COMPARISON_UNRENORMALIZABLE)
         report.unrenormalizable.append(
             (
                 source.key,
@@ -789,6 +813,13 @@ def _compare_against_baseline(
             )
         )
         return
+
+    # Past every refusal above: a comparable baseline exists and the subtraction happened,
+    # whichever way it came out. This is the ONLY line that may record it, and it sits above
+    # the match/no-match split on purpose -- "was it compared" and "did it match" are two
+    # questions, and answering the first only on the reassuring branch would be the defect
+    # again with the operands swapped.
+    _record_comparison(store, run_id, source, COMPARISON_COMPARED)
 
     if baseline.content_sha256 == new_hash:
         if baseline.renormalized_from is None:
@@ -1045,7 +1076,7 @@ def _handle_failure(
     the tool previously could not tell those apart — so it treated every removal as an
     outage, indefinitely, and said nothing. A government page about trans identity
     documents disappearing is itself a signal; failing to surface it is a wrong "no change",
-    which is the safety failure this repo is organised around (RESPONSIBLE-TECH-AUDITS §A).
+    which is the safety failure this repo is organized around (RESPONSIBLE-TECH-AUDITS §A).
 
     So: after `removal_threshold` consecutive failures SPREAD OVER at least
     `min_removal_silence`, we mint a `possibly_removed` record. It is unclassified,

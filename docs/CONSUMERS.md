@@ -45,7 +45,8 @@ Everything below is published to a static URL and consumable with **no account, 
 
 | Artifact | Path | What it is |
 |---|---|---|
-| **The site** | `index.html` | The human front door: registered candidates, exact attempt eligibility, run health, gaps, and the reviewed-change log. No JavaScript and no third-party request of any kind are tested properties; full WCAG 2.2 AA audit and remediation remain a V1 gate, not a current conformance claim. |
+| **The site** | `index.html` | The human front door: registered candidates, exact attempt eligibility, run health, gaps, and the reviewed-change log. Its one script and one third-party request is the Google Analytics 4 loader ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md)); that nothing else is loaded is a tested property. Full WCAG 2.2 AA audit and remediation remain a V1 gate, not a current conformance claim. |
+| **The privacy page** | `privacy.html` | What reading the pages and feeds sends, and to whom: what Google Analytics receives and never receives, the cookies, retention, and how to turn it off. |
 | **The JSON feed** | `changes.json` | The versioned JSON feed. **This is the one you integrate.** Formal schema: [`docs/schema/changes-v2.schema.json`](./schema/changes-v2.schema.json). |
 | **The RSS feed** | `feed.xml` | RSS 2.0. Point any reader, Slack channel, or Zapier at it and a human sees new changes as they land. |
 | **One feed per jurisdiction** | `changes-us-tx.json` · `feed-us-tx.xml` | An org that serves one state is not made to consume all 52. `us-tx` for Texas, `us-dc` for DC, plain `us` for the federal bucket (passport, SSA, Selective Service). |
@@ -53,7 +54,7 @@ Everything below is published to a static URL and consumable with **no account, 
 | **Run health** | `status.json` | Last attempted and last successful watch, exact eligible/attempted/successful/**unmeasured** source-ID sets, completeness, and staleness. `generated_at` is only when this file was rendered. |
 | **The schema** | `schema/changes-v2.schema.json` | JSON Schema 2020-12. Build against this, not against our source code. |
 | **The health schema** | `schema/status-v1.schema.json` | Closed JSON Schema 2020-12 contract for `status.json`. |
-| **One receipt per jurisdiction** | `status-us-tx.json` | What the last watch run that covered Texas did to each Texas source: read and unchanged, read and changed, never answered, answered with no readable text, considered and not eligible, not attempted, or not in that run at all. Published whether or not anything ran. Contract: `schema/jurisdiction-status-v1.schema.json`. |
+| **One receipt per jurisdiction** | `status-us-tx.json` | What the last watch run that covered Texas did to each Texas source: read **and compared** with the committed baseline (unchanged or changed), read and compared with **nothing** (no baseline yet, the registry re-pointed at a different page, a baseline not re-derivable under today's contract), never answered, answered with no readable text, considered and not eligible, not attempted, or not in that run at all. Published whether or not anything ran. Contract: `schema/jurisdiction-status-v1.schema.json`. |
 
 Every item is a machine-observed change **a named human reviewed and confirmed**. Source authority is earned only when its `source_verification.status` is `verified` and the verification is in date. HTML/text items carry the changed passage; PDF and other binary items in the current alpha carry an explicit byte-change notice because extracted-text passage diffs are not implemented. Nothing unreviewed is ever published.
 
@@ -284,7 +285,7 @@ The feed tells you a government page changed. It does not tell you which of your
   "pages": [
     {
       "id": "tx-name-change",
-      "title": "Changing your name on a Texas driver's licence",
+      "title": "Changing your name on a Texas driver's license",
       "url": "https://example.org/guides/tx-name-change",
       "last_reviewed": "2026-06-01",
       "cites": [
@@ -409,7 +410,7 @@ Four things to know before you rely on it.
 
 ### The registry changes, and that history is now derivable
 
-Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's licence" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.
+Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's license" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.
 
 `sentinel registry changelog` derives that history from two committed revisions of `sources/registry.json`:
 
@@ -452,7 +453,7 @@ Every URL gets exactly one of four answers, and the vocabulary is closed so you 
 | `host_only` | a registered source shares the host, but it is a **different page** |
 | `unmatched` | this registry has not considered the URL at all |
 
-**`host_only` is not coverage, and this is the one row to read carefully.** It says we can fetch that host, not that we watch your page. This registry's silence about a `host_only` URL means exactly as much as its silence about an `unmatched` one: nothing. The row names the neighbouring source so you can see *why* the host is known, and the two kinds are kept apart precisely because collapsing them is the reading a consumer wants to be true.
+**`host_only` is not coverage, and this is the one row to read carefully.** It says we can fetch that host, not that we watch your page. This registry's silence about a `host_only` URL means exactly as much as its silence about an `unmatched` one: nothing. The row names the neighboring source so you can see *why* the host is known, and the two kinds are kept apart precisely because collapsing them is the reading a consumer wants to be true.
 
 A URL differing from a registered source only by a trailing slash reports `host_only`, not `source`. `/name-change` and `/name-change/` are the same page on most servers and different pages on some, and a normalizer that guessed would tell you a page was watched when it is not.
 
@@ -543,6 +544,15 @@ person reading the page. Sharing an overlay between organizations is out of scop
 - **The feed will never require a credential.**
 - **Endpoint *paths* are stable.** `changes.json`, `feed.xml`, `sources.json`, `status.json`, their versioned schemas, and `changes-us-xx.json` / `feed-us-xx.xml` for every jurisdiction. A per-jurisdiction feed exists **whether or not it has items yet** — a URL that only appears the day of the emergency is a URL nobody is subscribed to.
 - **An empty jurisdiction feed is not an answer.** `feed-us-tx.xml` with no items is the same bytes whether all four Texas sources were read and unchanged, two never answered, Texas was outside the last run's scope, or nothing has ever run. Read `status-us-tx.json`, which says which. Its `coverage` distinguishes `covered`, `not_in_run` (and names the run that skipped you), `never_covered`, and `store_unavailable` — that last one means the publisher had no evidence store to read and is **not** a report that nothing ran.
+- **A source read is not a source compared.** `status-us-tx.json` 1.1 publishes both numbers in one sentence — *"read N of M registered source(s) … and held C of those readings against the committed baseline"* — and `status.json` publishes `observed_source_count` beside `compared_source_count` per run. They differ by a real population: a page seen for the first time has no baseline to be held against, a registry entry re-pointed at a different page has its comparison **refused** rather than performed, and a committed hash not re-derivable under today's normalization contract has nothing comparable behind it. **Treat only `observed_unchanged` and `observed_changed` as evidence about whether a page moved.** Every other word — including the four beginning `observed_` — means the run read the page and compared it with nothing, so that run is not evidence that nothing changed.
+
+#### Schema change: `jurisdiction-status` 1.0 → 1.1 (issue #99)
+
+**What an existing consumer sees.** Four words are added to `outcome` and one is narrowed. A consumer that switched on the nine words of 1.0 meets `observed_unbaselined`, `observed_rebaselined`, `observed_unrenormalizable` and `observed_comparison_unknown`, and should treat every unknown word the way `outcome_vocabulary` describes it: the sentence for each word ships **inside every document**, so no schema fetch is needed to find out what one means.
+
+**This is a correction, not a widening.** Those four states existed before 1.1 and were published as `observed_unchanged`, *"it matched the committed baseline"*. A consumer switching on 1.0's vocabulary was not missing them; it was being given the wrong answer for them. Code that treats an unrecognized word as "not evidence of no change" is correct under both versions — that is the safe direction and it always was.
+
+`counts` gains the four keys; it has always carried every word including the zeroes, so the object's shape is unchanged. No property is added or removed, and a 1.0 document still validates against the contract.
 - **Run health is a separate fact.** Read `status.json` before interpreting feed silence. Its `generated_at` never means a watch succeeded; use `state`, `last_attempted_run`, and `last_successful_run`. The contract is `schema/status-v1.schema.json`.
 - **A successful retrieval is not the same as an observation.** `unmeasured_source_ids` (schema 1.1) names every source whose fetch succeeded and produced no readable text — a client-rendered shell, an empty 200, a bot-wall. Those pages **yielded nothing to read**, so for them the run is not evidence of no change, and a run holding one is `partial` rather than `quiet`. `observed_source_count` is the number actually **read** — it is deliberately *not* a count of comparisons, because a first sighting, a source whose registry entry has been re-pointed at a different URL, and a source whose committed hash is not re-derivable under today's normalization contract are all read and none of them is held against a baseline (issue #99). Do not compute a watched-page count from `successful_retrieval_count` alone:
 
@@ -626,17 +636,18 @@ Open-source and well-engineered. Namesake already runs a scheduled daily monitor
 ### Journalists and researchers
 The alpha `changes.json` is a reviewed record of when the crawler observed candidate-source content move. Text/HTML records include a passage diff; binary records currently do not. The newest-five snapshot window supports recent checking, but a durable longitudinal primary-source archive and months-later reproduction are V1 gates, not current claims. A journalist should treat a URL as authoritative only when its source verification is `verified` and in date, and should still inspect the source itself.
 
-## No account, no email, no tracking — and this is a *tested* property, not a policy
+## No account, no email, no tracking in the feeds — and this is a *tested* property, not a policy
 
 There is no SDK, no auth, no rate limit, no account, and no signup form. That is not minimalism; it is the mitigation.
 
 **Anyone who subscribes to a feed of trans identity-document law changes is, with high probability, a trans person or someone working directly with trans people. In the current US environment that list is a targeting artifact.** It could be subpoenaed, breached, sold, or handed over, and there is no security control that makes holding it safe. So we do not secure the list. **We never create it.**
 
 - **No user model exists in the codebase.** There is nothing to log in to.
-- **No tracking of any kind** in the published bytes: no analytics, no beacon, no pixel, no cookie, no UTM parameter — and the published *site* additionally makes **no third-party request at all**: no CDN script, no external stylesheet, no web font, no image. Every external request is a request that tells a third party who is reading about trans ID law, and a page that surveils the people it claims to protect would be a disgrace.
-- **This is enforced, not promised.** `test_the_feed_requires_no_account_and_carries_no_tracking` and `test_the_published_site_makes_no_third_party_requests` assert it on the **published bytes** and run in the merge-blocking `feed_integrity` gate. If someone adds a font from Google, the build goes red.
+- **No tracking of any kind in the feeds and data files**: no analytics, no beacon, no pixel, no cookie, no UTM parameter in `feed.xml`, `changes.json`, `sources.json`, `status.json` or any per-jurisdiction file. Fetching one runs no script and sends nothing to anyone but the host.
+- **The two web pages, and only they, count visits with Google Analytics 4** (since 2026-09-18, by the owner's decision: [ADR 0004](./adr/0004-count-page-visits-with-ga4.md)). Every external request is a request that tells a third party who is reading about trans ID law, which is why the site made none before that date and why this one is bounded: it runs only on `chelseakr.github.io/id-churn-sentinel/`; it never loads under Global Privacy Control or Do Not Track, or after the footer's "Opt out of analytics"; advertising features and Google signals are off; the page address is sent without its query string or fragment and the referrer as an origin only; and no custom event or user identifier is sent. [`privacy.html`](https://chelseakr.github.io/id-churn-sentinel/privacy.html) says exactly what Google receives. Nothing else is loaded from anywhere: no CDN script, no external stylesheet, no web font, no image. **If you want no record at Google at all, use the feeds; they carry none of it.**
+- **This is enforced, not promised.** `test_the_feed_requires_no_account_and_carries_no_tracking`, the sweep over every published artifact, and `test_the_published_site_makes_no_third_party_requests_but_the_permitted_loader` assert it on the **published bytes** and run in the merge-blocking `feed_integrity` gate. The gate allows exactly the one GA4 loader, byte for byte, and only in an HTML page. If someone adds a font from Google, a second script, or the loader to a feed, the build goes red.
 - **There is nothing to subscribe *to*.** Both consumption paths are you fetching a static file. No webhook, no mailing list, no push, no registration — and therefore no list of who reads this.
-- **Consequently we cannot report readership.** We do not know who consumes the artifacts or how many readers there are. The artifact does not require or request that a reader identify itself; nothing in the repository observes a reader who does not do so.
+- **Consequently we cannot report feed readership.** We do not know who consumes the feeds or how many readers there are. No feed requires or requests that a reader identify itself, and nothing observes a feed reader. The only readership figure the project has is Google Analytics 4's aggregate count of visits to the two web pages.
 
 **The one honest limit, stated concretely rather than vaguely: the files are hosted on GitHub** (`chelseakr.github.io` canonically and `raw.githubusercontent.com` as a mirror). **GitHub's access logs exist, and they contain the IP address of anyone who fetches a file** — including which per-jurisdiction feed they fetched, which is more revealing than the unscoped one, not less. We do not control those logs, we do not receive them, we cannot delete them, and no amount of care in this repository changes that.
 

@@ -5,7 +5,7 @@ Two properties carry most of this file.
 **Export is all-or-nothing.** A change whose baseline has been pruned out of the store, or a
 removal escalation that never had an `after` side, is refused by name and leaves no directory
 behind. The alternative — a bundle carrying one side — puts the operator's word back at the
-centre of the artifact that exists to remove it.
+center of the artifact that exists to remove it.
 
 **Verify's report is a partition over a closed vocabulary.** Every check in
 `CHECK_NAMES` appears in every result exactly once, with an outcome from `CHECK_OUTCOMES`.
@@ -635,7 +635,7 @@ def test_the_schema_requires_every_key_the_exporter_actually_writes(bundle: Path
 # every failure branch is reachable
 # ---------------------------------------------------------------------------------------
 #
-# The tampering tests above all stop at `file-hashes`, which is correct behaviour and useless
+# The tampering tests above all stop at `file-hashes`, which is correct behavior and useless
 # as coverage: a suite that only ever trips its first gate has proved nothing about the ones
 # behind it, and a check nothing can reach is a check that cannot fail. `_retamper` repairs
 # the manifest as it edits, so each later check has to catch the edit on its own terms.

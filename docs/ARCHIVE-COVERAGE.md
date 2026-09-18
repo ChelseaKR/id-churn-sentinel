@@ -67,7 +67,7 @@ disagrees is noise, and noise a reviewer learns to ignore is worse than no witne
 
 This does not sink #78; it names which part of it is load-bearing. The proposal
 already says captures are *normalized under the same contract version* before
-comparison. That sentence is not an optimisation — it is the feature. The numbers
+comparison. That sentence is not an optimization — it is the feature. The numbers
 above are raw-byte churn, and this repository's normalizer exists precisely to
 strip the session tickers and live dates that produce it (guardrail 7). What is
 **not** measured here is the churn that survives normalization, and that is the

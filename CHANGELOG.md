@@ -12,12 +12,12 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 - **Registry overlays: an organization's own sources, under this repository's discipline**
   (2026-09-11), issue #77. `--overlay FILE` on `watch`, `verify`, `sources validate`,
   `sources check`, `sources policy`, `baseline write`, `baseline check`, `coverage` and `publish`;
-  new `core/overlay.py`; store migration 12.
+  new `core/overlay.py`; store migration 13.
 
   An overlay is a registry-shaped file with an `overlay_id`, parsed by the committed registry's
   own validator and judged by the same eligibility predicate. The five tables the watcher writes
   about a source are now keyed on `(overlay_id, source_id)`, with `''` for the committed
-  registry (the HEAD-only `probes` table is not; `probe` takes no overlay): migration 12 adds the
+  registry (the HEAD-only `probes` table is not; `probe` takes no overlay): migration 13 adds the
   column to `snapshots` and `changes` and rebuilds `source_health`, `run_sources` and
   `fetch_attempts`, copying every existing row under `''`. No existing row changes meaning and no
   existing change id moves.
@@ -27,6 +27,125 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   overlay records; `coverage --check-docs` never opens an overlay file; and a run that carried an
   overlay is excluded from `status.json` and every per-jurisdiction receipt. A URL watched in two
   namespaces is refused naming both ids.
+
+- **Google Analytics 4 counts visits to the two web pages, by the owner's decision, and the
+  safety gate now enforces that decision instead of the old rule** (2026-09-18), ADR 0004
+  (`docs/adr/0004-count-page-visits-with-ga4.md`). New `core/analytics.py`, new generated
+  `docs/privacy.html`, linked from both footers.
+
+  The loader runs only on `chelseakr.github.io/id-churn-sentinel/`. It loads nothing under
+  Global Privacy Control, under Do Not Track, or after the footer's "Opt out of analytics"
+  (stored under `id-churn-sentinel:analytics-opt-out`). Consent Mode v2 denies the ad
+  signals everywhere and `analytics_storage` in the EEA, the UK and Switzerland. Google
+  signals and ad personalization are off. For this audience it sends less than the owner's
+  other sites: `page_location` is the origin and path only, with no query string, fragment
+  or campaign tags, `page_referrer` is an origin, and there is no custom event and no
+  `user_id`. The feeds and data files load nothing.
+
+  Gate 6 was changed, not disabled. It used to allow no third-party request on the site. It
+  now allows exactly one script, this loader, matched by its whole text and a SHA-256 pinned
+  in `tests/test_site.py`, once, in the `<head>` of an HTML page. Every check it made before
+  still runs on everything else. Negative controls cover a web font, a second script, an
+  inline beacon, a pixel, an iframe, the loader twice or in the body, another measurement ID,
+  each guard removed, Google signals on, the full address, a custom event, and the loader in
+  a feed or JSON file. Each one fails, and the intact site passes.
+  `tests/test_analytics.py` runs the loader in Node. It shows that each guard stops the load,
+  and that an address and referrer carrying a name, an email address, a date of birth and a
+  search term send none of them. Removing each guard or scrub shows the harness notices.
+
+  The claims that became false were rewritten, not left standing: the page description and
+  the social card drawn from it, the header and endpoints copy, `RESPONSIBLE-TECH-AUDITS.md`
+  §C, the threat model, `CONSUMERS.md`, the README, `CLAUDE.md` guardrail 5, and the V1
+  planning documents. Each now says the pages are counted and the feeds are not.
+
+- **A source read but held against nothing is published as read-and-held-against-nothing,
+  not as one that matched** (2026-09-13), issue #99. New migration 12
+  (`comparison_outcome` on `run_sources`); four outcome words in
+  `docs/schema/jurisdiction-status-v1.schema.json` (receipt schema 1.1);
+  `compared_source_ids`/`compared_source_count` in `docs/status.json` (status schema 1.3);
+  all 52 committed receipts republished.
+
+  `jurisdiction_status._outcome_for` ended `return "observed_unchanged"`, and the sentence
+  that word publishes is *"it matched the committed baseline"*. `detect.py` produces four
+  non-drift outcomes for a source whose fetch succeeded and yielded text, and only one of
+  them is a comparison: a first sighting has no baseline, a registry entry re-pointed at a
+  different page has its comparison **refused in terms**, and a committed hash not
+  re-derivable under today's normalization contract has nothing comparable behind it. All
+  four persisted identically, because `run_sources` had no column that could tell them
+  apart. The ordinary first run is the case that fires it for every source at once: `var/`
+  is gitignored, so a fresh clone, a hosted runner and the documented `make watch-weekly`
+  on a new machine all begin with an empty store.
+
+  Three of `detect.py`'s own buckets get their own published words rather than one merged
+  one (`observed_unbaselined`, `observed_rebaselined`, `observed_unrenormalizable`),
+  matching the buckets and the markers `baseline check` already emits, because a reader
+  acts differently on each: come back next week, the page you cared about is no longer
+  watched under this entry, and this one needs an operator. A fourth,
+  `observed_comparison_unknown`, is what a row carrying no comparison answer reads as —
+  the migration backfills `legacy-unknown` rather than `compared`, because which of the
+  four happened to a pre-migration row is not recoverable from anything the store kept.
+
+  Two numbers, everywhere the one number used to be. Each receipt's sentence now reads
+  *"read N of M registered source(s) … and held C of those readings against the committed
+  baseline"*; `status.json` carries `compared_source_count` beside `observed_source_count`
+  and the exact id set beside both; `docs/index.html` states both on the run-health line
+  whenever a run attempted anything, rather than only when a retrieval had already failed.
+  Every figure is derived at render time from the outcomes printed beside it.
+
+  Two tests asserted the defect as intended behavior and now assert the correction.
+  `_attempt` in `tests/test_jurisdiction_status.py` defaults to recording **no** comparison,
+  because "every fixture carries the populated case" is the measured root cause of this
+  defect class portfolio-wide; a test that means "read and matched" has to say so.
+  Negative controls: restoring the bare `return "observed_unchanged"` reddens 6 tests, and
+  widening the comparison vocabulary to equal the reading vocabulary reddens 7.
+
+- **A merge gate that reads this repository's tags, so what the documents say about
+  releases is held to what has actually been tagged** (2026-09-09), issue #101. New
+  `tests/test_release_claims.py`; `fetch-depth: 0` and `fetch-tags: true` on both
+  workflows that run `make verify`.
+
+  Nothing here read a tag. Measured with a positive control, because a failed grep and a
+  clean tree look identical: the word appears in 23 test files, and no test, tool or
+  Makefile target ran `git tag`, `--tags`, `refs/tags`, `for-each-ref` or `git describe`.
+  So both directions of one fact were unguarded — a branch could delete every sentence
+  saying no version has been cut and merge green over an empty tag list, and a tag could
+  be pushed with all of those sentences left standing. `release/v0-1-0` is the first of
+  those, sitting on `origin`: it rewrites the README's conformance row and SECURITY.md's
+  supported-versions section and closes the changelog at `0.1.0`, and every one of the
+  seven gate stages passed over it, because not one of them could see a tag.
+
+  Two halves, because a denylist is not a guarantee. The **structural** half compares
+  values against the tag list and needs no vocabulary: `CITATION.cff`'s release date, the
+  declared version against the tags that carry it, and the changelog section a released
+  version must have. The **prose** half is a denylist of five sentences over
+  `git ls-files`, and it says in the file that a denylist finds a phrasing somebody has
+  already written and cannot find one nobody has thought of yet.
+
+  It is a scan rather than a list of three filenames because the fact is stated in a
+  fourth place no such list would have named: the header comment of
+  `.github/workflows/release.yml`, wrapped across a line break behind `#` markers, which
+  is findable only after normalization. Measured on this tree: 131 tracked prose files
+  read of 324 tracked; 5 of 5 vocabulary entries observed somewhere in the tree; 4
+  statements in 3 files that a first tag would make false.
+
+  Four floors keep it from passing over nothing — a non-empty vocabulary, a
+  scanned-file floor, a self-limiting rule that fails until every entry is observed in
+  the tree, and a normalization control. `CHANGELOG.md` is exempt as a *file*, because
+  its sections record what was true on the day of each entry, and stays in the
+  observation universe, because a phrasing recorded there is still one this project
+  wrote. This module is exempt as a file too and its **docstrings** are read instead —
+  all 23 of them, not the module docstring alone, which would have been 1 of 23 and left
+  the other 22 as prose no reader and no check ever opens.
+
+  A checkout that could not have shown a tag is **refused**, not skipped: shallow and
+  `--no-tags` clones both report an empty tag list over a repository that has tags, and
+  reading that as evidence is this project's own defect class one level inside the check
+  written to catch it. A tree that is not a repository at all is skipped, because an
+  unpacked source archive has no tags to be wrong about. `fetch-depth: 0` and
+  `fetch-tags: true` are what stop CI landing in the refusal, and they matter most on the
+  release workflow, which runs at a tagged commit: a checkout that cannot see that tag
+  would send every check here down its untagged branch on the one run that exists to
+  bless the tag.
 
 - **A watch receipt beside every jurisdiction feed, so a silent feed says whether it was
   watched** (2026-09-08), issue #76. New `core/jurisdiction_status.py`, three read-only store
@@ -42,7 +161,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
   Each receipt names, per source, what the last run that *covered* that jurisdiction did to
   it — one of nine words, eight of which mean the page was not compared against its baseline —
-  with the run's own eligibility judgement and reasons, the verification status that travels
+  with the run's own eligibility judgment and reasons, the verification status that travels
   with every source in every artifact here, and the sentence each word stands for, carried in
   the document so an unfamiliar word cannot be read as benign. Counts include every word,
   zeroes included, because an omitted key is one a reader completes for themselves and the
@@ -157,6 +276,13 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Fixed
 
+- **`CITATION.cff` dated a release that was never cut** (2026-09-09), issue #101. The
+  file carried a release date against a repository with no tag in it, so the date named a
+  day rather than a release — and this project's own
+  `docs/standards/DOCUMENTATION-STANDARD.md` already says to omit the release-specific
+  fields before the first tag. The field is gone, with a comment saying what restores it,
+  and the rule is now checked in both directions rather than remembered.
+
 - **A source read but held against nothing was published as one compared against its
   baseline** (2026-09-08), issue #99, in every jurisdiction receipt's `statement`, in
   `WatchRun.observed_count`'s docstring, in the run-health section of `index.html`, and in
@@ -245,7 +371,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   (2026-09-06), in `.github/workflows/ci.yml`, `.github/workflows/trufflehog.yml`
   and `tests/test_public_boundary.py`. Both workflows run on `push: [main]` and
   both keyed `concurrency` on `${{ github.ref }}` alone, so every push to `main`
-  shared a single group. With `cancel-in-progress: true`, a second push cancelled
+  shared a single group. With `cancel-in-progress: true`, a second push canceled
   the run still working on the previous commit.
 
   Push twice inside one run's duration — a merge followed by a follow-up, the
@@ -260,8 +386,8 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   pull requests keep the branch key, so each commit on `main` keeps its own run to
   completion and a superseded pull-request run is still collapsed. `codeql.yml` is
   deliberately unchanged: it has no `push:` trigger, so its ref-only key only ever
-  groups pull-request and weekly-schedule runs, where cancelling the stale run is
-  the wanted behaviour.
+  groups pull-request and weekly-schedule runs, where canceling the stale run is
+  the wanted behavior.
 
   The test asserts the property against the YAML — the established pattern here —
   and also asserts that each workflow it names really does declare a `push:`
@@ -407,7 +533,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   drifted from `description` it fails on their equality. Restored, it passes.
 
 - **A merge-blocking gate that the committed site describes the registry it
-  ships with** (2026-08-28), in `tests/test_source_labelling.py` and therefore
+  ships with** (2026-08-28), in `tests/test_source_labeling.py` and therefore
   in stage 6 of `make verify`. Every other test in that file takes a `published`
   fixture that publishes into a `tmp_path`, which proves the *publisher* is
   correct and says nothing about the *commit* — and the commit is what a
@@ -477,7 +603,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 - Seven-stage merge gate (`make verify`): ruff lint + format, mypy strict,
   pytest with a 90% branch-coverage floor, pip-audit, registry validation +
   coverage-drift check, and the two safety gates — no unreviewed drift in the
-  feed / no unlabelled source, and no automatic `substantive` classification.
+  feed / no unlabeled source, and no automatic `substantive` classification.
 - Standards-conformance sweep (2026-07-16): security workflows (CodeQL,
   TruffleHog), release gate workflow, SECURITY.md, CONTRIBUTING.md,
   CITATION.cff, pre-commit config, ADR log, this changelog, and a README
@@ -528,7 +654,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   `docs/schema/consumer-manifest-v1.schema.json`, and a `docs/CONSUMERS.md` section.
   The feed says a government page changed; it never said which of a clinic's own pages
   depend on it, and turning "Texas DPS changed on 2026-08-30" into "your Texas
-  driver's-licence page, last reviewed 2026-06-01, cites that source" was work every
+  driver's-license page, last reviewed 2026-06-01, cites that source" was work every
   consumer would otherwise script by hand, once each, differently.
 
   `sentinel stale --manifest my-site.json [--changes changes.json] [--json]` reads a
@@ -538,7 +664,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   stays on their machine and the command reads a published artifact they already have a
   copy of, defaulting to the committed `docs/changes.json` so it works from a clean
   clone. That is the same design constraint that rules out email notification here,
-  honoured rather than worked around.
+  honored rather than worked around.
 
   Three properties, each a test. **A citation this registry does not watch is never
   reported as current**: every citation is `matched`, `host_only` or `unwatched`, and the
@@ -961,7 +1087,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   and a page that redirected to another host was read without that host's
   robots.txt ever being fetched. Both are now refused before any body is read,
   with the hops taken beforehand kept as evidence. A host's declared
-  `Crawl-delay` is also honoured now when it exceeds the 2s floor; a shorter one
+  `Crawl-delay` is also honored now when it exceeds the 2s floor; a shorter one
   does not speed us up.
 - **Two published surfaces read as "finished" while the tool watched nothing.**
   `index.html` headlined *All N sources are human-verified* and every RSS
@@ -985,7 +1111,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   never baselined, never folded into `unchanged`, printed loudly by
   `sentinel watch` on every run it recurs, for as long as it recurs. Binary
   content (PDFs) is unaffected: an empty normalized text there is documented,
-  honest behaviour, not this failure. `sentinel sources check` also now
+  honest behavior, not this failure. `sentinel sources check` also now
   prints each reachable text/HTML source's passage count and `<title>`, so
   the same trap is visible before a source is added, without a second
   command or opening the URL by hand.
@@ -1013,7 +1139,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   store, and `load_baselines` refuses to load one.
 - Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
   `</script foo="bar">` are all valid ways to close an element and every
-  browser honours them, but the strip regexes required the tight `</script>`
+  browser honors them, but the strip regexes required the tight `</script>`
   spelling. On a page using any other spelling the element never matched, so
   its *body* — minified JavaScript full of cache-busting build ids, CSRF
   tokens and timestamps that re-roll on every request — was hashed as page

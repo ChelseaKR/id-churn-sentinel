@@ -18,7 +18,10 @@ quietly start publishing unreviewed drift; it will crash.
 no analytics beacon, no tracking pixel, no cookie. This is not a growth choice, it is a
 safety one: a subscriber list for a trans-ID-law feed is a list of trans people and the
 orgs that serve them, and the safest way to protect that list is to never create it. See
-`docs/RESPONSIBLE-TECH-AUDITS.md` §C.
+`docs/RESPONSIBLE-TECH-AUDITS.md` §C. That holds for every feed and data file this module
+writes. The two HTML pages, `index.html` and `privacy.html`, carry the one Google Analytics 4
+loader ADR 0004 permits (`core/analytics.py`), and the merge-blocking sweep in
+`tests/test_site.py` fails if it, or any other tracker, reaches any other artifact.
 
 **And it is consumable one jurisdiction at a time.** A name-change clinic in Texas should
 not have to parse fifty-one other states to find out that the DPS page moved, and telling
@@ -55,11 +58,11 @@ sends a trans person to the wrong office.
 
 So the status is not a footnote on the front page; it is a field on the source, in every
 document that carries the source, in words a screen reader can read (`unverified` ·
-`verified` · `rejected` — never a colour). And `registry` is a **required** argument to
+`verified` · `rejected` — never a color). And `registry` is a **required** argument to
 :func:`publish`: there is no way to write an artifact from this module without holding the
 registry that knows each source's verification status, which is what makes "a source cannot
 appear in a published artifact without its status alongside it" a structural fact rather than
-a promise. `tests/test_source_labelling.py` asserts it on the published bytes.
+a promise. `tests/test_source_labeling.py` asserts it on the published bytes.
 """
 
 from __future__ import annotations
@@ -88,7 +91,13 @@ from id_churn_sentinel.core.registry import (
     Source,
     Verification,
 )
-from id_churn_sentinel.core.site import PAGES_URL, REPO_URL, feed_slug, render_site
+from id_churn_sentinel.core.site import (
+    PAGES_URL,
+    REPO_URL,
+    feed_slug,
+    render_privacy,
+    render_site,
+)
 from id_churn_sentinel.core.staleness import normalize_url
 from id_churn_sentinel.core.status import PublicRunStatus, no_run_status, status_json
 from id_churn_sentinel.errors import PublishError, RegistryError
@@ -338,7 +347,7 @@ def _walk_correction_chain(record: ChangeRecord, by_id: dict[str, ChangeRecord])
 # Written into the published directory, and it is not a formality. GitHub Pages runs the output
 # through Jekyll unless this file exists, and Jekyll **silently drops** any file or directory
 # whose name begins with an underscore, rewrites what it feels like, and reports none of it. The
-# published surface here is data an organisation acts on; a build step that quietly removes files
+# published surface here is data an organization acts on; a build step that quietly removes files
 # from it is exactly the kind of unwitnessed failure this project exists to refuse. So the file
 # is written by the publisher rather than left to a human to remember once.
 def _write_nojekyll(out_dir: Path) -> None:
@@ -363,7 +372,8 @@ def publish(
 
     `feed.xml` + `changes.json`; one `feed-us-xx.xml` + `changes-us-xx.json` per jurisdiction;
     `sources.json`, the inventory an integrator maps their own pages against; `index.html`, the
-    accessible front door that says what is watched, what is *not*, and why; and `.nojekyll`,
+    accessible front door that says what is watched, what is *not*, and why; `privacy.html`,
+    which says what reading the pages and feeds sends and to whom (ADR 0004); and `.nojekyll`,
     which is not decoration — see :func:`_write_nojekyll`.
 
     **`registry` is required, and that is the gate.** It used to be optional, defaulting to
@@ -466,6 +476,9 @@ def publish(
         run_status=public_status,
         eligibility_as_of=publication_as_of,
     )
+    # Rendered from the same measurement ID as index.html (the default in both), so the policy
+    # and the page it describes cannot disagree about whether analytics runs.
+    rendered["privacy.html"] = render_privacy()
 
     # Complete every validation/rendering step before touching the public directory. Atomic
     # promotion and signed release manifests remain ENG-06, but a late scoped-render failure

@@ -4,7 +4,7 @@ Grouped by what the issue asks to be true. First its three "Done when" criteria,
 then the two design notes recorded on the issue before anyone built it — the store key is
 ``(overlay_id, source_id)`` with ``''`` for the committed registry, and ``coverage --check-docs``
 is proved overlay-blind by comparing bytes rather than counts; then the refusals an overlay
-depends on; then migration 12, measured row by row.
+depends on; then migration 13, measured row by row.
 
 Every write-guard test here points the destructive argument at a temporary copy, never at a
 tracked file, so a regression in a guard cannot damage the tree it is being tested in.
@@ -589,6 +589,34 @@ def test_an_overlay_entry_sharing_a_committed_id_shares_no_store_row(
     assert store.failure_streak(COMMITTED.id, overlay_id="county-x") == 1
 
 
+def test_a_comparison_answer_about_an_overlay_source_is_not_one_about_its_committed_namesake(
+    tmp_path: Path, store: SnapshotStore, fixture_before: bytes
+) -> None:
+    """Migration 12's `comparison_outcome` is recorded per `(overlay_id, source_id)`.
+
+    One run, one bare id, two answers: the committed source has a baseline from the run before
+    and is compared; the overlay entry of the same id is read for the first time and has none.
+    """
+    overlay = _overlay(tmp_path, source_id=COMMITTED.id)
+    fetcher = StubFetcher(
+        {COMMITTED.url: (fixture_before, HTML), OVERLAY_URL: (fixture_before, HTML)}
+    )
+    watch_registry(_committed(), store, fetcher, as_of=AS_OF)
+
+    report = watch_registry(_committed(), store, fetcher, as_of=AS_OF, overlays=(overlay,))
+
+    rows = store._conn.execute(
+        "SELECT overlay_id, source_id, comparison_outcome FROM run_sources "
+        "WHERE run_id = ? ORDER BY 1, 2",
+        (report.run_id,),
+    ).fetchall()
+    assert [tuple(row) for row in rows] == [
+        ("", COMMITTED.id, "compared"),
+        ("county-x", COMMITTED.id, "unbaselined"),
+    ]
+    assert store.watch_run(report.run_id).compared_source_ids == (COMMITTED.id,)
+
+
 def test_two_overlays_sharing_a_source_id_and_the_same_bytes_keep_two_observations(
     tmp_path: Path, store: SnapshotStore, fixture_before: bytes, fixture_after: bytes
 ) -> None:
@@ -1002,14 +1030,21 @@ def test_evidence_export_of_an_overlay_change_reads_the_overlays_own_bytes(
 
 
 # ---------------------------------------------------------------------------------------
-# Migration 12, measured
+# Migration 13, measured
 # ---------------------------------------------------------------------------------------
 
 _ORIGINAL_COLUMNS = {
     "snapshots": ("snapshot_id", "source_id", "url", "content_sha256", "raw_bytes"),
     "changes": ("change_id", "source_id", "url", "previous_hash", "new_hash", "kind"),
     "source_health": ("source_id", "consecutive_failures", "last_error", "streak_started_at"),
-    "run_sources": ("run_id", "source_id", "eligible", "attempted", "observation_outcome"),
+    "run_sources": (
+        "run_id",
+        "source_id",
+        "eligible",
+        "attempted",
+        "observation_outcome",
+        "comparison_outcome",
+    ),
     "fetch_attempts": ("run_id", "source_id", "ok", "raw_sha256", "extraction_outcome"),
     "run_observations": ("run_id", "change_id"),
     "review_decisions": ("decision_id", "change_id", "decision", "actor"),
@@ -1026,8 +1061,27 @@ _ORDER = {
 _H1, _H2 = "1" * 64, "2" * 64
 
 
-def _seed_prefix_11(conn: sqlite3.Connection) -> str:
-    """Rows in every table migration 12 touches, written the way a store at prefix 11 held them."""
+def _hold_at_prefix(patched: pytest.MonkeyPatch, last: int) -> None:
+    """Stop the store at migration `last`, and let its open-time column audit stop there too.
+
+    The audit names migration 12's `comparison_outcome`, which a store held before 12 cannot
+    have; requiring it would fail the OPEN rather than the property under test. The same
+    allowance `tests/test_store.py` makes for its own pre-12 prefixes.
+    """
+    patched.setattr(store_module, "_MIGRATIONS", _prefix(last))
+    if last < 12:
+        required = dict(store_module._V1_REQUIRED_COLUMNS)
+        required["run_sources"] = frozenset(required["run_sources"] - {"comparison_outcome"})
+        patched.setattr(store_module, "_V1_REQUIRED_COLUMNS", required)
+
+
+def _seed_prefix(conn: sqlite3.Connection, *, last: int) -> str:
+    """Rows in every table migration 13 touches, written the way a store at prefix `last` held them.
+
+    At prefix 12 the measured row carries a non-default comparison answer, `compared`, so a
+    rebuild that dropped the column (and let every row fall back to its `''` default) would
+    change a value this seed wrote, not merely a default.
+    """
     stamp = "2026-09-01T12:00:00+00:00"
     conn.execute(
         "INSERT INTO watch_runs (run_id, started_at, completed_at, as_of, registry_version, "
@@ -1045,6 +1099,11 @@ def _seed_prefix_11(conn: sqlite3.Connection) -> str:
         "('run-1', 'ineligible', 'TX', 'birth_certificate', 'https://ex.gov/i', 'A', 0, "
         "'[\"unverified\"]', 0, NULL, '', '')"
     )
+    if last >= 12:
+        conn.execute(
+            "UPDATE run_sources SET comparison_outcome = 'compared' "
+            "WHERE run_id = 'run-1' AND source_id = 'eligible'"
+        )
     conn.execute(
         "INSERT INTO fetch_attempts (run_id, source_id, url, attempted_at, completed_at, ok, "
         "http_status, content_type, normalizer_version, extractor_version, final_url, "
@@ -1092,28 +1151,32 @@ def _prefix(last: int) -> tuple[tuple[int, str, str], ...]:
     return tuple(migration for migration in store_module._MIGRATIONS if migration[0] <= last)
 
 
-def _dump(conn: sqlite3.Connection) -> dict[str, list[tuple[object, ...]]]:
+def _dump(
+    conn: sqlite3.Connection, *, without: frozenset[str] = frozenset()
+) -> dict[str, list[tuple[object, ...]]]:
     return {
         table: [
             tuple(row)
             for row in conn.execute(
-                f"SELECT {', '.join(columns)} FROM {table} ORDER BY {_ORDER[table]}"  # noqa: S608 — module literals
+                f"SELECT {', '.join(c for c in columns if c not in without)} "  # noqa: S608 — module literals
+                f"FROM {table} ORDER BY {_ORDER[table]}"
             )
         ]
         for table, columns in _ORIGINAL_COLUMNS.items()
     }
 
 
-def test_migration_12_keeps_every_row_and_files_it_under_the_committed_namespace(
+def test_migration_13_keeps_every_row_and_files_it_under_the_committed_namespace(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    db = tmp_path / "prefix-11.db"
+    db = tmp_path / "prefix-12.db"
     with monkeypatch.context() as patched:
-        patched.setattr(store_module, "_MIGRATIONS", _prefix(11))
+        _hold_at_prefix(patched, 12)
         with SnapshotStore(db) as old:
-            cid = _seed_prefix_11(old._conn)
+            cid = _seed_prefix(old._conn, last=12)
             before = _dump(old._conn)
     assert all(before[table] for table in before), "every table the migration touches has a row"
+    assert ("run-1", "eligible", 1, 1, "measured", "compared") in before["run_sources"]
 
     with SnapshotStore(db) as migrated:
         after = _dump(migrated._conn)
@@ -1153,7 +1216,39 @@ def test_migration_12_keeps_every_row_and_files_it_under_the_committed_namespace
     assert (change.id, change.overlay_id) == (cid, "")
     assert (run.eligible_source_ids, run.observation_count) == (("eligible",), 1)
     assert streak == 3
-    assert max(ledger) == 12
+    assert max(ledger) == 13
+
+
+def test_a_store_at_prefix_11_takes_migrations_12_and_13_in_one_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The path a store written before either migration takes: both, in one transaction.
+
+    Migration 12 backfills `legacy-unknown` onto the measured row, and migration 13's rebuild
+    has to carry that answer across rather than reset it to `''`, which would publish an old
+    reading as one that was never measured at all.
+    """
+    db = tmp_path / "prefix-11.db"
+    with monkeypatch.context() as patched:
+        _hold_at_prefix(patched, 11)
+        with SnapshotStore(db) as old:
+            cid = _seed_prefix(old._conn, last=11)
+            before = _dump(old._conn, without=frozenset({"comparison_outcome"}))
+
+    with SnapshotStore(db) as migrated:
+        after = _dump(migrated._conn, without=frozenset({"comparison_outcome"}))
+        comparisons = dict(
+            migrated._conn.execute(
+                "SELECT source_id, comparison_outcome FROM run_sources WHERE run_id = 'run-1'"
+            ).fetchall()
+        )
+        ledger = [row[0] for row in migrated._conn.execute("SELECT version FROM schema_migrations")]
+        change = migrated.get_change(cid)
+
+    assert after == before
+    assert comparisons == {"eligible": "legacy-unknown", "ineligible": ""}
+    assert sorted(ledger)[-2:] == [12, 13]
+    assert (change.id, change.overlay_id) == (cid, "")
 
 
 def _triggers(db: Path) -> dict[str, tuple[str, str]]:
@@ -1166,12 +1261,12 @@ def _triggers(db: Path) -> dict[str, tuple[str, str]]:
         }
 
 
-def test_migration_12_changes_exactly_the_triggers_it_names_and_recreates_the_rest_verbatim(
+def test_migration_13_changes_exactly_the_triggers_it_names_and_recreates_the_rest_verbatim(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     old_db, new_db = tmp_path / "old.db", tmp_path / "new.db"
     with monkeypatch.context() as patched:
-        patched.setattr(store_module, "_MIGRATIONS", _prefix(11))
+        _hold_at_prefix(patched, 12)
         SnapshotStore(old_db).close()
     SnapshotStore(new_db).close()
     before, after = _triggers(old_db), _triggers(new_db)
@@ -1194,12 +1289,14 @@ def test_migration_12_changes_exactly_the_triggers_it_names_and_recreates_the_re
     assert len(rebuilt) == 6, "the six attempt triggers came back, each byte-identical"
 
 
-def test_migration_12_refuses_and_rolls_back_rather_than_orphan_a_copied_row(
+def test_migration_13_refuses_and_rolls_back_rather_than_orphan_a_copied_row(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Held at prefix 11, as a store written before either migration is: the refusal in 13
+    takes migration 12 down with it, because both run inside the one migration transaction."""
     db = tmp_path / "orphaned.db"
     with monkeypatch.context() as patched:
-        patched.setattr(store_module, "_MIGRATIONS", _prefix(11))
+        _hold_at_prefix(patched, 11)
         with SnapshotStore(db) as old:
             old._conn.execute("PRAGMA foreign_keys = OFF")
             old._conn.execute(
@@ -1208,15 +1305,17 @@ def test_migration_12_refuses_and_rolls_back_rather_than_orphan_a_copied_row(
             )
             old._conn.commit()
 
-    with pytest.raises(StoreError, match="migration 12"):
+    with pytest.raises(StoreError, match="migration 13"):
         SnapshotStore(db)
 
     with sqlite3.connect(db) as conn:
         assert max(row[0] for row in conn.execute("SELECT version FROM schema_migrations")) == 11
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         columns = {row[1] for row in conn.execute("PRAGMA table_info(fetch_attempts)")}
+        run_source_columns = {row[1] for row in conn.execute("PRAGMA table_info(run_sources)")}
     assert "run_sources_pre_overlay" not in tables and "run_overlays" not in tables
     assert "overlay_id" not in columns
+    assert "comparison_outcome" not in run_source_columns
 
 
 # ---------------------------------------------------------------------------------------

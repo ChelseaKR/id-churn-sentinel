@@ -12,7 +12,7 @@ run under this account's spending limit). The consequence is that **the committe
 the product**, and every guarantee this repository makes about them has to be checked on the
 bytes in the commit rather than on freshly generated ones.
 
-`tests/test_feed_integrity.py` and `tests/test_source_labelling.py` already do that for the
+`tests/test_feed_integrity.py` and `tests/test_source_labeling.py` already do that for the
 two safety properties: no unreviewed record is served, no source is served without its
 verification status. Both hold on the committed bytes today. Neither one can notice that the
 committed bytes are simply **stale** — that a source was added to `sources/registry.json`, or

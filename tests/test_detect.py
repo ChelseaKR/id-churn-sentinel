@@ -1,6 +1,6 @@
 """Tests for :mod:`id_churn_sentinel.core.detect` — the watch loop.
 
-Three of these tests encode disciplines, not behaviours:
+Three of these tests encode disciplines, not behaviors:
 
 * `test_a_fetch_failure_is_never_drift` — the rule inherited from source-watch.ts.
 * `test_a_first_sighting_is_never_drift` — no baseline means nothing to compare.
@@ -12,8 +12,9 @@ And one encodes the differentiator: `test_drift_produces_the_passage_that_change
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from id_churn_sentinel.core.changes import ReviewStatus, Significance
@@ -217,7 +218,7 @@ def test_binary_drift_is_reported_honestly_as_undiffable(
 ) -> None:
     """A PDF the extractor would not stand behind changed. We say so, and we say we cannot
     diff it — rather than emitting an empty diff a reviewer might read as 'nothing important
-    changed'. This is the behaviour `PDF-01` leaves exactly where it found it, which is the
+    changed'. This is the behavior `PDF-01` leaves exactly where it found it, which is the
     point: an extractor that refuses costs a reviewer nothing they were not already paying."""
     pdf = StubFetcher({source.url: (b"%PDF-1.7 v1", "application/pdf")})
     watch([source], store, pdf)
@@ -331,7 +332,7 @@ class RotatingFetcher:
 
     `dpbh.nv.gov` renders a rotating "Nevada state symbol" fun fact into its footer and
     re-rolls it on every single fetch, so its normalized hash is different every time it is
-    asked. Modelled here so the false-drift detector is tested against the shape of the
+    asked. Modeled here so the false-drift detector is tested against the shape of the
     thing that actually caught us.
     """
 
@@ -341,7 +342,7 @@ class RotatingFetcher:
 
     def fetch(self, url: str) -> FetchResult:
         self.calls += 1
-        body = f"<p>Apply for a licence.</p><aside>State fish #{self.calls}</aside>".encode()
+        body = f"<p>Apply for a license.</p><aside>State fish #{self.calls}</aside>".encode()
         return FetchResult(
             url=url,
             ok=True,
@@ -448,7 +449,7 @@ def test_an_intermittently_blind_page_is_no_text_rather_than_unstable(source: So
 
         def fetch(self, url: str) -> FetchResult:
             self.calls += 1
-            body = b"<p>Apply for a licence.</p>" if self.calls == 1 else JS_SHELL
+            body = b"<p>Apply for a license.</p>" if self.calls == 1 else JS_SHELL
             return FetchResult(
                 url=url,
                 ok=True,
@@ -706,7 +707,7 @@ def test_real_drift_during_a_version_bump_is_still_reported_and_diffed_like_for_
 ) -> None:
     """The failure mode of the rejected design. Refusing a cross-contract comparison would
     have swallowed this sentence for a whole pass — a wrong 'no change' about a government
-    page, which is the one error this repo is organised around. It is reported, and the diff
+    page, which is the one error this repo is organized around. It is reported, and the diff
     is a diff of *content*: the script body v1 leaked into its baseline text appears on
     neither side, because both sides came out of the same normalizer."""
     record_v1_baseline(store, source, fixture_loose_end_tag)
@@ -894,7 +895,7 @@ def test_binary_content_with_no_normalized_text_is_not_flagged(
     source: Source, store: SnapshotStore
 ) -> None:
     """Opaque bytes normalize to an empty string by design (`extractor_version = "none-v1"`,
-    no PDF extractor). That is documented, honest behaviour — content_hash covers the raw
+    no PDF extractor). That is documented, honest behavior — content_hash covers the raw
     bytes — and must not trip the same guard as a page that promised text and had none."""
     report = watch(
         [source],
@@ -1025,3 +1026,88 @@ def test_a_no_text_fetch_does_not_clear_the_failure_streak(
 
     assert report.no_text == [(source.id, source.url)]
     assert store.failure_streak(source.id) == 1
+
+
+def test_the_first_run_over_an_empty_store_publishes_a_receipt_that_compared_nothing(
+    tmp_path: Path, source: Source, fixture_before: bytes, fixture_after: bytes
+) -> None:
+    """Issue #99, end to end through the production watcher and out to the published receipt.
+
+    This is the case the defect fired on for EVERY source at once. `var/` is gitignored (it
+    holds megabytes of retained government HTML), so a fresh clone, a hosted runner and the
+    documented `make watch-weekly` on a new machine all begin with an empty store; every
+    source is then a first sighting, `detect.py` records the fetch as the baseline and
+    concludes nothing, and the receipt used to report all of them as read *and matched*.
+
+    Both runs are asserted, and the second one is not decoration: "the receipt does not say
+    `observed_unchanged`" is satisfied by a build that can no longer produce the word at all,
+    which would be a different bug wearing this fix's clothes.
+    """
+    from datetime import date
+
+    from id_churn_sentinel.core.detect import watch_registry
+    from id_churn_sentinel.core.jurisdiction_status import (
+        build_jurisdiction_status,
+        jurisdiction_status_json,
+    )
+    from id_churn_sentinel.core.registry import Registry
+
+    from .conftest import eligible_source
+
+    registry = Registry(version="1.0", sources=(eligible_source(source),))
+    now = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+
+    def receipt(store: SnapshotStore) -> dict[str, object]:
+        document: dict[str, object] = json.loads(
+            jurisdiction_status_json(
+                build_jurisdiction_status(store, source.jurisdiction, registry=registry),
+                generated_at=now,
+            )
+        )
+        return document
+
+    with SnapshotStore(tmp_path / "first-run.db") as store:
+        first = watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_before, "text/html")}),
+            as_of=date(2026, 7, 13),
+            started_at=now,
+            completed_at=now,
+        )
+        assert first.new == [source.id]
+        assert store.watch_run(first.run_id).compared_count == 0
+
+        opening = receipt(store)
+        rows = opening["sources"]
+        assert isinstance(rows, list)
+        assert [row["outcome"] for row in rows] == ["observed_unbaselined"]
+        counts = opening["counts"]
+        assert isinstance(counts, dict)
+        assert counts["observed_unchanged"] == 0
+        statement = opening["statement"]
+        assert isinstance(statement, str)
+        assert "read 1 of 1 registered source(s)" in statement, statement
+        assert "held 0 of those readings against the committed baseline" in statement, statement
+
+        # The same store, one week later, with a real baseline behind it: now there is a
+        # comparison, and the receipt is allowed to say so.
+        later = now + timedelta(days=7)
+        second = watch_registry(
+            registry,
+            store,
+            StubFetcher({source.url: (fixture_after, "text/html")}),
+            as_of=date(2026, 7, 20),
+            started_at=later,
+            completed_at=later,
+        )
+        assert [change.source_id for change in second.changed] == [source.id]
+        assert store.watch_run(second.run_id).compared_count == 1
+
+        closing = receipt(store)
+        rows = closing["sources"]
+        assert isinstance(rows, list)
+        assert [row["outcome"] for row in rows] == ["observed_changed"]
+        statement = closing["statement"]
+        assert isinstance(statement, str)
+        assert "held 1 of those readings against the committed baseline" in statement, statement

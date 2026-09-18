@@ -774,7 +774,7 @@ def test_a_named_encoding_we_do_not_carry_is_refused_by_its_own_name() -> None:
     assert extract_pdf_text(body).refusal == "unsupported-encoding/PDFDocEncoding"
 
 
-def test_a_base_encoding_inside_an_encoding_dictionary_is_honoured() -> None:
+def test_a_base_encoding_inside_an_encoding_dictionary_is_honored() -> None:
     font = (
         b"<< /Type /Font /Subtype /Type1 /BaseFont /X"
         b" /Encoding << /BaseEncoding /WinAnsiEncoding >> >>"

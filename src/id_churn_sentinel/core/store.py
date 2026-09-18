@@ -531,7 +531,7 @@ END;
         # DATA-04: the attempt row becomes the complete, restorable record of what the
         # network actually did — redirect chain, final URL, distinct raw/normalized hashes,
         # byte bound and truncation, MIME (already present as content_type), extraction
-        # outcome, and a stable error class. Pre-migration attempts are labelled
+        # outcome, and a stable error class. Pre-migration attempts are labeled
         # 'legacy-unknown' rather than back-filled with invented values, mirroring the
         # 'legacy-unknown' representation versions of migration 4: an old receipt keeps its
         # evidentiary value precisely because we refuse to pretend it recorded things it
@@ -966,8 +966,8 @@ CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
         # deliberately no view that would make one convenient.
         #
         # `change_id` is a foreign key with ON DELETE RESTRICT for the same reason the review
-        # tables are: the observation a judgement was made against must outlive the judgement,
-        # or the judgement is about nothing.
+        # tables are: the observation a judgment was made against must outlive the judgment,
+        # or the judgment is about nothing.
         #
         # `candidate` reuses `canonical_actor` and the non-empty CHECK from `review_decisions`
         # so a blank name is refused at the same layer that refuses a blank review — the third
@@ -975,7 +975,7 @@ CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
         # alone. `UNIQUE (session_id, change_id)` makes a session's answer to one change
         # single and final: the append-only triggers below mean a candidate cannot revise an
         # answer after seeing the recorded decision, which would turn agreement into a number
-        # about persistence rather than judgement.
+        # about persistence rather than judgment.
         """
 CREATE TABLE IF NOT EXISTS calibration_decisions (
     calibration_id  TEXT PRIMARY KEY,
@@ -1026,6 +1026,48 @@ END;
     ),
     (
         12,
+        "v1-record-whether-a-reading-was-compared",
+        # Issue #99. `observation_outcome` says whether bytes arrived and yielded text. It
+        # does NOT say whether that text was ever held against a committed baseline, and
+        # three of `detect.py`'s non-drift buckets are readings that were held against
+        # nothing:
+        #
+        #   `new`              no baseline existed; this fetch BECAME the baseline
+        #   `rebaselined`      the registry now points this id at a different page, so
+        #                      `detect.py` REFUSES the comparison in terms
+        #   `unrenormalizable` the committed hash is not re-derivable under today's
+        #                      normalization contract, so there is nothing comparable
+        #
+        # All three persisted identically to a real match, and the per-jurisdiction receipt
+        # read them back as `observed_unchanged` -- "this page matched the committed
+        # baseline" -- about a page nothing was subtracted from. On the ordinary first run
+        # over an empty `var/` (gitignored, so every fresh clone and hosted runner starts
+        # there) that is EVERY source at once.
+        #
+        # A separate column rather than five more `observation_outcome` members, because the
+        # two answer different questions about the same attempt: a source is `measured`
+        # under every one of the comparison answers below. Folding them is the conflation
+        # this migration exists to undo, one layer down.
+        #
+        # The backfill is deliberately `legacy-unknown` and not `compared`. A row written
+        # before this column existed was measured, and which of the four things then
+        # happened to it is not recoverable from anything the store kept. Writing `compared`
+        # would manufacture the exact claim this migration exists to stop manufacturing --
+        # so `jurisdiction_status` gives `legacy-unknown` its own published word rather than
+        # letting it fall through to the reassuring one.
+        """
+ALTER TABLE run_sources
+    ADD COLUMN comparison_outcome TEXT NOT NULL DEFAULT ''
+        CHECK (comparison_outcome IN
+               ('', 'compared', 'unbaselined', 'rebaselined', 'unrenormalizable',
+                'legacy-unknown'));
+
+UPDATE run_sources SET comparison_outcome = 'legacy-unknown'
+    WHERE observation_outcome = 'measured';
+""",
+    ),
+    (
+        13,
         "v1-overlay-namespaced-source-rows",
         # Registry overlays (#77). An organization may now watch its own sources under this
         # repository's discipline, and every row the watcher writes about a source says WHOSE source
@@ -1047,7 +1089,8 @@ END;
         #
         # `snapshots` and `changes` gain the column in place. `source_health`, `run_sources`
         # and `fetch_attempts` are rebuilt, because SQLite cannot alter a primary key: every
-        # row is copied column for column under `''`. The rebuilt tables' triggers are
+        # row is copied column for column under `''`, migration 12's `comparison_outcome`
+        # included, so a rebuilt row keeps its comparison answer. The rebuilt tables' triggers are
         # recreated only AFTER the pre-migration tables are dropped, and in that order for a
         # reason worth a sentence: a renamed table keeps its triggers, so a
         # `CREATE TRIGGER IF NOT EXISTS` issued while it still exists finds the name taken and
@@ -1201,16 +1244,22 @@ CREATE TABLE run_sources (
     observation_outcome  TEXT NOT NULL DEFAULT ''
         CHECK (observation_outcome IN
                ('', 'measured', 'no-text', 'not-retrieved', 'legacy-unknown')),
+    comparison_outcome   TEXT NOT NULL DEFAULT ''
+        CHECK (comparison_outcome IN
+               ('', 'compared', 'unbaselined', 'rebaselined', 'unrenormalizable',
+                'legacy-unknown')),
     PRIMARY KEY (run_id, overlay_id, source_id)
 );
 
 INSERT INTO run_sources (
     run_id, overlay_id, source_id, jurisdiction, document_class, url, authority, eligible,
-    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome
+    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome,
+    comparison_outcome
 )
 SELECT
     run_id, '', source_id, jurisdiction, document_class, url, authority, eligible,
-    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome
+    eligibility_reasons, attempted, retrieval_success, outcome, error, observation_outcome,
+    comparison_outcome
 FROM run_sources_pre_overlay;
 
 CREATE TABLE fetch_attempts (
@@ -1423,6 +1472,30 @@ OBSERVATION_MEASURED = "measured"
 OBSERVATION_NO_TEXT = "no-text"
 OBSERVATION_NOT_RETRIEVED = "not-retrieved"
 
+# What one READ source's text was actually held against, as a closed vocabulary (issue #99).
+# A second axis rather than more members of the one above: "bytes arrived and yielded text"
+# and "that text was compared against a committed baseline" are two facts, and a receipt
+# that folds them reports agreement it never tested. See migration 12.
+COMPARISON_NONE = ""
+COMPARISON_COMPARED = "compared"
+COMPARISON_UNBASELINED = "unbaselined"
+COMPARISON_REBASELINED = "rebaselined"
+COMPARISON_UNRENORMALIZABLE = "unrenormalizable"
+COMPARISON_LEGACY_UNKNOWN = "legacy-unknown"
+
+#: Every value `comparison_outcome` may hold, mirroring migration 12's CHECK constraint in
+#: Python so a caller cannot invent a sixth and so the two lists cannot drift in silence.
+COMPARISON_OUTCOMES: frozenset[str] = frozenset(
+    {
+        COMPARISON_NONE,
+        COMPARISON_COMPARED,
+        COMPARISON_UNBASELINED,
+        COMPARISON_REBASELINED,
+        COMPARISON_UNRENORMALIZABLE,
+        COMPARISON_LEGACY_UNKNOWN,
+    }
+)
+
 _V1_REQUIRED_COLUMNS = {
     "watch_runs": frozenset(
         {
@@ -1455,6 +1528,7 @@ _V1_REQUIRED_COLUMNS = {
             "attempted",
             "retrieval_success",
             "observation_outcome",
+            "comparison_outcome",
             "outcome",
             "error",
         }
@@ -1534,7 +1608,7 @@ _V1_REQUIRED_COLUMNS = {
 # `calibration_decisions` (migration 11) is deliberately NOT audited here, for the same reason
 # `probes` (migration 10) is not: this constant is the **V1 core** contract, and a store rolled
 # back to an earlier migration prefix must not be required to carry a table that postdates it
-# (`tests/test_store.py::test_legacy_attempts_are_labelled_not_backfilled` does exactly that
+# (`tests/test_store.py::test_legacy_attempts_are_labeled_not_backfilled` does exactly that
 # rollback). The calibration table's shape is held instead by
 # `tests/test_calibrate.py::test_the_calibration_table_has_no_publishable_shaped_column`, which
 # asserts its exact column set — and asserts the *absence* of `public_copy`, `stage`,
@@ -1586,7 +1660,7 @@ class RunSourceInput:
     authority: str
     eligible: bool
     eligibility_reasons: tuple[str, ...]
-    #: ``""`` for a committed-registry source; the overlay's id otherwise (migration 12).
+    #: ``""`` for a committed-registry source; the overlay's id otherwise (migration 13).
     overlay_id: str = ""
 
 
@@ -1594,7 +1668,7 @@ class RunSourceInput:
 class RunSourceOutcome:
     """What one run recorded about one source, read back from `run_sources`.
 
-    Every field is the run's own judgement at the time, never today's. `retrieval_success`
+    Every field is the run's own judgment at the time, never today's. `retrieval_success`
     is tri-state on purpose: `None` means the run has not recorded an answer for this source
     (it is in flight, or it ended without doing so), which is a different fact from `False`.
 
@@ -1609,6 +1683,11 @@ class RunSourceOutcome:
     attempted: bool
     retrieval_success: bool | None
     observation_outcome: str
+    #: What the run held this source's text against, when it read any (issue #99). `''` for a
+    #: source that was never read, `'legacy-unknown'` for a row written before the column
+    #: existed. NEVER inferred from `observation_outcome`: a measured reading is exactly the
+    #: case where all five answers are possible, which is why the column exists.
+    comparison_outcome: str
 
 
 def _decode_reasons(raw: object) -> tuple[str, ...]:
@@ -1657,7 +1736,7 @@ class FetchAttempt:
 
     ``ok`` and ``truncated`` are ``None`` for an attempt that never completed (the process
     died mid-fetch); evidence fields read ``'legacy-unknown'`` for attempts recorded before
-    the evidence migration, which is a labelled uncertainty and never a value a new write
+    the evidence migration, which is a labeled uncertainty and never a value a new write
     may claim.
     """
 
@@ -1710,6 +1789,15 @@ class WatchRun:
     #: subtracted out of the successful one, because "we fetched it" and "we observed it" are
     #: separate facts and a reader is entitled to both.
     unmeasured_source_ids: tuple[str, ...]
+    #: Sources this run READ **and held against a committed baseline** (issue #99). A subset
+    #: of the read set, and deliberately not equal to it: a first sighting, a source the
+    #: registry has re-pointed at a different URL, and one whose committed hash is not
+    #: re-derivable under today's normalization contract are each read, each measured, and
+    #: each compared against nothing. There is no redundant counter column beside this one,
+    #: unlike the four above, because nothing writes a summary of it -- it is derived from
+    #: the exact `run_sources.comparison_outcome` set and from nowhere else, so there is no
+    #: second number it could disagree with.
+    compared_source_ids: tuple[str, ...]
     observation_count: int
     error: str
 
@@ -1728,6 +1816,18 @@ class WatchRun:
     @property
     def unmeasured_count(self) -> int:
         return len(self.unmeasured_source_ids)
+
+    @property
+    def compared_count(self) -> int:
+        """Sources this run read AND held against a committed baseline (issue #99).
+
+        The companion `observed_count` must be published beside it and never instead of it:
+        `observed_count` is the reading number, this is the comparison number, and the gap
+        between them is exactly the population a reader would otherwise take as "checked and
+        fine". A run over an empty store reads every source and compares none, and only this
+        property can say so.
+        """
+        return len(self.compared_source_ids)
 
     @property
     def observed_count(self) -> int:
@@ -1936,7 +2036,7 @@ class SnapshotStore:
         if retention < 2:
             # Retention of 1 means the previous snapshot is evicted by the one that
             # replaces it, and the diff that justified a change record becomes
-            # irreproducible the moment it is written. That is not a store, it's a rumour.
+            # irreproducible the moment it is written. That is not a store, it's a rumor.
             raise StoreError("retention must be >= 2 so a diff is always reproducible")
         self._path = path
         self._retention = retention
@@ -1958,7 +2058,7 @@ class SnapshotStore:
             self._conn.create_function(
                 "private_text_is_safe", 1, private_text_is_safe, deterministic=True
             )
-            # Both arities: migration 12's insert trigger passes the namespace, and a store still
+            # Both arities: migration 13's insert trigger passes the namespace, and a store still
             # at an earlier migration prefix calls the seven-argument form it was built with.
             for arity in (7, 8):
                 self._conn.create_function(
@@ -2397,6 +2497,49 @@ class SnapshotStore:
             raise StoreError(f"could not finish fetch attempt: {exc}") from exc
         self._conn.commit()
 
+    def record_comparison_outcome(
+        self, run_id: str, *, source_id: str, outcome: str, overlay_id: str = ""
+    ) -> None:
+        """Record what one READ source's text was actually held against (issue #99).
+
+        A separate call from :meth:`finish_fetch_attempt` because the two facts are learned
+        at different moments and by different code: the attempt is terminal as soon as the
+        bytes are in, and whether a baseline existed to compare them with is settled later,
+        inside `detect._compare_against_baseline`. Writing a placeholder at attempt time and
+        correcting it afterwards would leave a window in which the store says `compared`
+        about a comparison that has not happened -- the shape this method exists to close.
+
+        Refused for a source the run did not read. `comparison_outcome` is an answer about a
+        reading, so a row with no reading behind it has no answer to give, and letting one be
+        written would create exactly the unfounded `compared` this is here to prevent.
+
+        Keyed on `(overlay_id, source_id)` like every other `run_sources` write (#77): a
+        committed source and an overlay source may share a bare id inside one run, and an
+        answer about one of them is not an answer about the other.
+        """
+        if outcome not in COMPARISON_OUTCOMES:
+            raise StoreError(f"unknown comparison outcome {outcome!r}")
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                "UPDATE run_sources SET comparison_outcome = ? "
+                "WHERE run_id = ? AND overlay_id = ? AND source_id = ? "
+                "AND retrieval_success = 1 AND observation_outcome = ? "
+                "AND EXISTS (SELECT 1 FROM watch_runs "
+                "            WHERE run_id = ? AND state = 'running')",
+                (outcome, run_id, overlay_id, source_id, OBSERVATION_MEASURED, run_id),
+            )
+            if cursor.rowcount != 1:
+                self._conn.rollback()
+                raise StoreError(
+                    "comparison outcome refused for a source this run did not read, or for a "
+                    f"terminal run: {run_id}/{source_key(overlay_id, source_id)}"
+                )
+        except sqlite3.DatabaseError as exc:
+            self._conn.rollback()
+            raise StoreError(f"could not record comparison outcome: {exc}") from exc
+        self._conn.commit()
+
     def fetch_attempts(self, run_id: str) -> tuple[FetchAttempt, ...]:
         """Every persisted attempt of one run, with its complete evidence, ordered by
         source id. This is the read side of the `DATA-04` contract: what `watch` recorded
@@ -2516,7 +2659,7 @@ class SnapshotStore:
         Every argument this method accepts is availability evidence. There is deliberately no
         parameter through which a body, a hash or an observation could arrive, so "a probe run
         never writes a snapshot" is a property of the signature rather than of the caller's
-        good behaviour.
+        good behavior.
         """
         self._conn.executemany(
             "INSERT OR REPLACE INTO probes (run_id, source_id, url, probed_at, as_of, outcome,"
@@ -2591,7 +2734,8 @@ class SnapshotStore:
     def _row_to_watch_run(self, row: sqlite3.Row) -> WatchRun:
         source_rows = self._conn.execute(
             "SELECT overlay_id, source_id, eligible, attempted, retrieval_success, "
-            "observation_outcome FROM run_sources WHERE run_id = ? ORDER BY overlay_id, source_id",
+            "observation_outcome, comparison_outcome FROM run_sources WHERE run_id = ? "
+            "ORDER BY overlay_id, source_id",
             (row["run_id"],),
         ).fetchall()
         eligible = tuple(_row_key(source) for source in source_rows if source["eligible"])
@@ -2603,6 +2747,11 @@ class SnapshotStore:
             _row_key(source)
             for source in source_rows
             if source["observation_outcome"] == OBSERVATION_NO_TEXT
+        )
+        compared = tuple(
+            _row_key(source)
+            for source in source_rows
+            if source["comparison_outcome"] == COMPARISON_COMPARED
         )
         persisted_observation_count = int(
             self._conn.execute(
@@ -2644,6 +2793,7 @@ class SnapshotStore:
             attempted_source_ids=attempted,
             successful_source_ids=successful,
             unmeasured_source_ids=unmeasured,
+            compared_source_ids=compared,
             observation_count=int(row["observation_count"]),
             error=str(row["error"]),
         )
@@ -2664,8 +2814,8 @@ class SnapshotStore:
         """
         rows = self._conn.execute(
             "SELECT overlay_id, source_id, jurisdiction, eligible, eligibility_reasons, attempted, "
-            "retrieval_success, observation_outcome FROM run_sources WHERE run_id = ? "
-            "ORDER BY overlay_id, source_id",
+            "retrieval_success, observation_outcome, comparison_outcome FROM run_sources "
+            "WHERE run_id = ? ORDER BY overlay_id, source_id",
             (run_id,),
         ).fetchall()
         return tuple(
@@ -2679,6 +2829,7 @@ class SnapshotStore:
                     None if row["retrieval_success"] is None else bool(row["retrieval_success"])
                 ),
                 observation_outcome=str(row["observation_outcome"]),
+                comparison_outcome=str(row["comparison_outcome"]),
             )
             for row in rows
         )

@@ -10,7 +10,7 @@ Keep the product a small, inspectable batch system: Python CLI, committed regist
 |---|---|
 | Safety | unreviewed and insufficiently reviewed records are structurally unpublishable |
 | Reproducibility | a published observation can be recomputed from retained evidence and versioned normalization |
-| Privacy | no consumer identity or behavioral analytics stored |
+| Privacy | no consumer identity or behavioral analytics stored by the project; the two web pages send page-visit counts to Google Analytics 4 ([ADR 0004](./adr/0004-count-page-visits-with-ga4.md)), and the feeds send nothing |
 | Availability | each weekly run attempts ≥99% of attempt-eligible sources; successful retrieval is reported separately and never inferred from attempt; public static feed target 99.9% monthly |
 | Recoverability | evidence store RPO ≤24h after a run; RTO ≤4h; restore drill before release |
 | Compatibility | schema-major breaking changes only; old fixtures remain readable |

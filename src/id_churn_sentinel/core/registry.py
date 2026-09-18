@@ -157,7 +157,7 @@ CORE_STATE_DOCUMENT_CLASSES: frozenset[str] = frozenset(
 # population under surveillance. See docs/RESPONSIBLE-TECH-AUDITS.md §D.
 GAP_REASONS: frozenset[str] = frozenset(
     {
-        "robots-disallowed",  # their robots.txt forbids us, and we honour it without appeal
+        "robots-disallowed",  # their robots.txt forbids us, and we honor it without appeal
         "blocked-403",  # serves a browser, 403s our descriptive UA. We do not spoof one.
         "blocked-404",  # a WAF wearing a 404's clothes (odh.ohio.gov 404s its own site root)
         "blocked-200",  # a WAF wearing a 200's clothes — the nastiest, see below
@@ -187,7 +187,7 @@ class Verification:
     and the gap between those two sentences is a person driving to the wrong office.
 
     `status` is the machine-readable field that travels with every published copy of the
-    source. `label` and `statement` are the words a reader sees — a **word**, never a colour
+    source. `label` and `statement` are the words a reader sees — a **word**, never a color
     or an icon (WCAG 2.2 AA), because the reader most likely to be harmed by a wrong entry is
     the one least likely to see a red dot.
     """
@@ -361,7 +361,7 @@ class Source:
 class Gap:
     """A (jurisdiction, document class) pair we do **not** watch, and why.
 
-    A gap is a *commitment*: it says "the feed's silence about Vermont driver's licences
+    A gap is a *commitment*: it says "the feed's silence about Vermont driver's licenses
     means nothing at all, and here is the host that refused us." It is data rather than
     prose because prose does not get checked, and an unnamed hole is indistinguishable from
     coverage — which is the one thing this registry must never claim by accident.
@@ -786,7 +786,7 @@ def _validate_official_url(url: str, where: str) -> None:
         raise RegistryError(f"{where}.url must not embed credentials")
     if parsed.fragment:
         raise RegistryError(
-            f"{where}.url must not carry a #fragment — the fetch cannot honour it, so the "
+            f"{where}.url must not carry a #fragment — the fetch cannot honor it, so the "
             f"watch would not be scoped the way the entry claims"
         )
 

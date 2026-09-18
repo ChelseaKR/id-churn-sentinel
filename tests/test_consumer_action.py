@@ -579,11 +579,11 @@ def test_the_issue_body_reproduces_the_record_and_asserts_nothing_about_the_law(
 def test_configured_labels_are_applied_and_no_label_is_invented(
     tmp_path: Path, document: dict[str, Any]
 ) -> None:
-    labelled = _write(
+    labeled = _write(
         tmp_path / "map.json",
         {"schema_version": "1.0", "jurisdictions": ["TX"], "labels": ["sentinel", "policy"]},
     )
-    _, client, _ = _run(tmp_path, labelled, document)
+    _, client, _ = _run(tmp_path, labeled, document)
     assert client.opened[0]["labels"] == ["sentinel", "policy"]
     assert all("labels" not in url for _, url, _ in client.calls)
 

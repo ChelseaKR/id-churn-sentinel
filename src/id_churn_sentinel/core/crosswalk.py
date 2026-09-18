@@ -282,7 +282,7 @@ def crosswalk_report(
     by_url: dict[str, Source] = {normalize_url(entry.url): entry for entry in sources}
     # `setdefault`, so a host serving several registered sources reports the first in
     # registry order rather than an arbitrary one -- a `host_only` row has to name SOME
-    # neighbour, and which one it names must not depend on dict insertion luck.
+    # neighbor, and which one it names must not depend on dict insertion luck.
     by_host: dict[str, Source] = {}
     for entry in sources:
         by_host.setdefault(_host(entry.url), entry)
@@ -324,18 +324,18 @@ def crosswalk_report(
                 )
             )
             continue
-        neighbour = by_host.get(host)
-        if neighbour is not None:
+        neighbor = by_host.get(host)
+        if neighbor is not None:
             rows.append(
                 CrosswalkRow(
                     url=url,
                     normalized_url=normalized,
                     host=host,
                     match=MATCH_HOST_ONLY,
-                    source_id=neighbour.id,
-                    jurisdiction=neighbour.jurisdiction,
-                    document_class=neighbour.document_class,
-                    verification_status=neighbour.verification_status,
+                    source_id=neighbor.id,
+                    jurisdiction=neighbor.jurisdiction,
+                    document_class=neighbor.document_class,
+                    verification_status=neighbor.verification_status,
                 )
             )
             continue

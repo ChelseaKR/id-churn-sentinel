@@ -17,7 +17,7 @@ keeps finding elsewhere:
 
 1. **Export fails closed, and writes nothing when it fails.** A bundle whose baseline has
    been pruned is half an argument; exporting it would put the operator's word back at the
-   centre of the thing that exists to remove it. Every read happens before the first byte is
+   center of the thing that exists to remove it. Every read happens before the first byte is
    written, so a refusal leaves no directory behind.
 
 2. **A check that could not run reports `skipped`, and `skipped` is never a pass.** The

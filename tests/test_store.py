@@ -388,7 +388,7 @@ def _start_run(store: SnapshotStore, *, sources: tuple[RunSourceInput, ...] | No
 def _seed_legacy_attempt(store: SnapshotStore) -> str:
     """A running run, its one eligible source and a begun attempt — written with SQL.
 
-    For the rollback tests only. A store held at a migration prefix before 12 has no
+    For the rollback tests only. A store held at a migration prefix before 13 has no
     `overlay_id` column, and today's writers name it, so the rows such a store held are written
     the way it held them: the same values `_start_run` and `begin_fetch_attempt` would write for
     the `eligible` source, and nothing the prefix did not have.
@@ -1177,10 +1177,10 @@ def test_database_rejects_a_failed_attempt_with_fabricated_or_unclassified_evide
         )
 
 
-def test_legacy_attempts_are_labelled_not_backfilled(
+def test_legacy_attempts_are_labeled_not_backfilled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Attempts recorded before the evidence migration are labelled `legacy-unknown`,
+    """Attempts recorded before the evidence migration are labeled `legacy-unknown`,
     mirroring the legacy representation versions: we must not invent a redirect chain or a
     hash for a fetch nobody recorded them for — and no *new* write may claim the label."""
     db = tmp_path / "legacy-attempts.db"
@@ -1203,7 +1203,7 @@ def test_legacy_attempts_are_labelled_not_backfilled(
     # Migration 7's columns did not exist at migration 4 either, so a store rolled back to
     # that point must not be required to have them.
     pre_evidence_required["run_sources"] = frozenset(
-        pre_evidence_required["run_sources"] - {"observation_outcome"}
+        pre_evidence_required["run_sources"] - {"observation_outcome", "comparison_outcome"}
     )
     pre_evidence_required["watch_runs"] = frozenset(
         pre_evidence_required["watch_runs"] - {"unmeasured_count"}
@@ -1216,7 +1216,7 @@ def test_legacy_attempts_are_labelled_not_backfilled(
         # under the representation contract that was current at the time. That is the literal
         # `passage-text-v1`/`none-v1`, not today's NORMALIZER_VERSION/EXTRACTOR_VERSION — the
         # contract registering either may postdate the migration prefix this test rolls back
-        # to, and an old row could not have been labelled with a version that did not yet
+        # to, and an old row could not have been labeled with a version that did not yet
         # exist. (`none-v1` became a literal here when `PDF-01` gave the build a real
         # extractor: a store rolled back to migration 4 has never heard of `pdf-text-v1`.)
         old._conn.execute(
@@ -1302,7 +1302,7 @@ def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_r
     """Migration 9 rebuilds `fetch_attempts`, because SQLite cannot widen a CHECK in place.
 
     A rebuild is a table drop, and a table drop is where evidence gets quietly lost or
-    relabelled. So: write a row under the pre-migration schema, migrate, and assert the row
+    relabeled. So: write a row under the pre-migration schema, migrate, and assert the row
     comes back byte-identical — same outcome, same hashes, same error class. `binary-no-extractor`
     in particular must still say `binary-no-extractor`: it is a statement about a fetch that
     happened when no extractor existed, and rewriting it to `pdf-extraction-refused` would
@@ -1310,7 +1310,15 @@ def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_r
     """
     db = tmp_path / "pre-pdf.db"
     pre_pdf = tuple(migration for migration in store_module._MIGRATIONS if migration[0] <= 8)
+    # The column audit has to roll back with the ledger: migration 12's `comparison_outcome`
+    # cannot exist in a store that stops at 8, and requiring it here would fail the OPEN
+    # rather than the property under test.
+    pre_pdf_required = dict(store_module._V1_REQUIRED_COLUMNS)
+    pre_pdf_required["run_sources"] = frozenset(
+        pre_pdf_required["run_sources"] - {"comparison_outcome"}
+    )
     monkeypatch.setattr(store_module, "_MIGRATIONS", pre_pdf)
+    monkeypatch.setattr(store_module, "_V1_REQUIRED_COLUMNS", pre_pdf_required)
     with SnapshotStore(db) as old:
         run_id = _seed_legacy_attempt(old)
         # Terminalized with the values `finish_fetch_attempt` would have written for a PDF read
@@ -1344,3 +1352,82 @@ def test_the_pdf_migration_rebuilds_the_attempt_table_without_reinterpreting_a_r
     assert attempt.normalized_sha256 == ""
     assert attempt.raw_sha256 == "a" * 64
     assert attempt.ok is True
+
+
+def test_a_comparison_outcome_is_refused_for_a_source_the_run_did_not_read(
+    tmp_path: Path,
+) -> None:
+    """Issue #99. `comparison_outcome` is an answer ABOUT a reading, so a row with no reading
+    behind it has none to give.
+
+    Without this the column would accept `compared` for a source that failed to fetch, and
+    the receipt would publish "read and matched" about a page no bytes ever arrived from —
+    the same substitution one layer up from where it was found. Asserted for the two shapes
+    that actually occur: a failed retrieval, and a retrieval that produced no text.
+    """
+    with SnapshotStore(tmp_path / "comparison.db") as store:
+        failed = _start_run(store)
+        store.begin_fetch_attempt(failed, source_id="eligible", url="https://example.gov/eligible")
+        store.finish_fetch_attempt(
+            failed,
+            source_id="eligible",
+            ok=False,
+            http_status=503,
+            content_type="",
+            normalizer_version="",
+            extractor_version="",
+            error="synthetic outage",
+            evidence=_failed_evidence(),
+            completed_at=NOW,
+        )
+        with pytest.raises(StoreError, match="this run did not read"):
+            store.record_comparison_outcome(
+                failed, source_id="eligible", outcome=store_module.COMPARISON_COMPARED
+            )
+        assert store.run_source_outcomes(failed)[0].comparison_outcome == ""
+
+        unreadable = _start_run(store)
+        store.begin_fetch_attempt(
+            unreadable, source_id="eligible", url="https://example.gov/eligible"
+        )
+        store.finish_fetch_attempt(
+            unreadable,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="text/html",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
+            error="",
+            evidence=_ok_evidence(),
+            measured=False,
+            completed_at=NOW,
+        )
+        with pytest.raises(StoreError, match="this run did not read"):
+            store.record_comparison_outcome(
+                unreadable, source_id="eligible", outcome=store_module.COMPARISON_COMPARED
+            )
+
+        # And a value the CHECK constraint would reject is refused in Python first, with a
+        # message that names the value rather than an sqlite3 traceback.
+        read = _start_run(store)
+        store.begin_fetch_attempt(read, source_id="eligible", url="https://example.gov/eligible")
+        store.finish_fetch_attempt(
+            read,
+            source_id="eligible",
+            ok=True,
+            http_status=200,
+            content_type="text/html",
+            normalizer_version=NORMALIZER_VERSION,
+            extractor_version=EXTRACTOR_VERSION,
+            error="",
+            evidence=_ok_evidence(),
+            completed_at=NOW,
+        )
+        with pytest.raises(StoreError, match="unknown comparison outcome"):
+            store.record_comparison_outcome(read, source_id="eligible", outcome="probably-fine")
+        store.record_comparison_outcome(
+            read, source_id="eligible", outcome=store_module.COMPARISON_UNBASELINED
+        )
+        assert store.run_source_outcomes(read)[0].comparison_outcome == "unbaselined"
+        assert store.watch_run(read).compared_count == 0

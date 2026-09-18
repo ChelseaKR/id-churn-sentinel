@@ -125,7 +125,7 @@ def test_a_manifest_yields_the_expected_stale_rows_and_an_unwatched_row(tmp_path
         [
             {
                 "id": "tx-name-change",
-                "title": "Changing your name on a Texas licence",
+                "title": "Changing your name on a Texas license",
                 "last_reviewed": "2026-06-01",
                 "cites": [WATCHED, ELSEWHERE],
             }

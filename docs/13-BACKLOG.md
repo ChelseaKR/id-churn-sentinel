@@ -24,7 +24,7 @@ This ledger records landed software scope without marking external evidence comp
   per-hop redirect chain, distinct raw-byte/normalized-text hashes, byte count, byte bound
   and truncation, MIME, extraction outcome, and a stable error class — with insert/update
   triggers that make incomplete or fabricated evidence unstorable, `legacy-unknown`
-  labelling (never invented values) for pre-migration rows, and a restore-boundary test
+  labeling (never invented values) for pre-migration rows, and a restore-boundary test
   that reads the evidence back from a copied database file. A distinct TLS-failure error
   class is not implemented (TLS failures record as `unreachable` with the literal error
   string), and the production encrypted backup/restore rehearsal remains `OPS-02`.

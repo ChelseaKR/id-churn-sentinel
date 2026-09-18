@@ -13,9 +13,15 @@
 # Stage 6 holds two properties because they are one discipline aimed at two implicit claims:
 # "a machine noticed this, so it must matter" and "this URL is in your list, so it must be the
 # right page". Neither is a claim this tool has earned, and both would be made by omission.
+#
+# Stage 6 also holds the published site's third-party rule. That rule was changed once, on
+# purpose and on the record, not weakened: by the owner's decision of 2026-09-18
+# (docs/adr/0004-count-page-visits-with-ga4.md) the two web pages may carry exactly one
+# script, the Google Analytics 4 loader, matched byte for byte, and nothing else third-party
+# may reach any artifact. A change to that loader needs a new ADR, not a new digest.
 .DEFAULT_GOAL := help
 .PHONY: help install dev fmt lint type test cov security sources-validate sources-check \
-        sources-stability coverage no-unreviewed-in-feed no-unlabelled-source \
+        sources-stability coverage no-unreviewed-in-feed no-unlabeled-source no-unlabelled-source \
         no-auto-classification verify verify-sources watch probe-daily probe-report \
         watch-weekly baseline-write baseline-check publish serve clean \
         archive-coverage archive-coverage-report
@@ -92,17 +98,25 @@ sources-validate: ## [5/7] Registry gate: valid entries, no dupes, AND no doc ly
 	@# cross-checked against each other instead. See the module docstring.
 	uv run pytest tests/test_published_site_drift.py -q
 
-no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, no unlabelled source in ANY artifact
+no-unreviewed-in-feed: ## [6/7] SAFETY GATES: no unreviewed drift in the feed, no unlabeled source in ANY artifact
 	@# Two properties, one stage, because they are one discipline. The feed gate stops the
-	@# claim "a machine noticed this, so it must matter". The labelling gate stops the claim
+	@# claim "a machine noticed this, so it must matter". The labeling gate stops the claim
 	@# "this URL is in your list, so it must be the right page" — which the product would
 	@# otherwise make BY OMISSION, once per registered source, to people who cannot afford to
 	@# act on a wrong citation. 0 of 156 sources are human-verified, and every artifact says
 	@# so, on every source, in a machine-readable field and in a word.
-	uv run pytest -m "feed_integrity or source_labelling" -q
+	@#
+	@# `feed_integrity` also carries the third-party rule (ADR 0004): exactly one permitted
+	@# GA4 loader on the two web pages, none in any feed or data file, nothing else from any
+	@# third party anywhere, with negative controls for both halves and the loader executed in
+	@# Node (tests/test_site.py, tests/test_analytics.py).
+	uv run pytest -m "feed_integrity or source_labeling" -q
 
-no-unlabelled-source: ## The labelling half of stage 6, on its own (tests/test_source_labelling.py)
-	uv run pytest -m source_labelling -q
+no-unlabeled-source: ## The labeling half of stage 6, on its own (tests/test_source_labeling.py)
+	uv run pytest -m source_labeling -q
+
+# Deprecated alias: the target's former British spelling, kept so existing muscle memory and scripts still work.
+no-unlabelled-source: no-unlabeled-source
 
 no-auto-classification: ## [7/7] SAFETY GATE: the tool never classifies a change without a human
 	uv run pytest -m no_auto_classification -q
@@ -113,7 +127,7 @@ verify: install ## The full merge gate — locked install plus all seven stages,
 	@echo "== [3/7] tests + coverage (>=90) =="; $(MAKE) --no-print-directory cov
 	@echo "== [4/7] security (pip-audit) ==";   $(MAKE) --no-print-directory security
 	@echo "== [5/7] sources-validate + coverage-drift =="; $(MAKE) --no-print-directory sources-validate
-	@echo "== [6/7] no-unreviewed-in-feed + no-unlabelled-source =="; $(MAKE) --no-print-directory no-unreviewed-in-feed
+	@echo "== [6/7] no-unreviewed-in-feed + no-unlabeled-source =="; $(MAKE) --no-print-directory no-unreviewed-in-feed
 	@echo "== [7/7] no-auto-classification =="; $(MAKE) --no-print-directory no-auto-classification
 	@echo ""
 	@echo "id-churn-sentinel: full gate green (7/7)"

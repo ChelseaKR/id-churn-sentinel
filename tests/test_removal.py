@@ -1,7 +1,7 @@
 """Tests for the outage-vs-removal distinction (docs/ROADMAP.md M3).
 
 The gap this closes: a fetch failure correctly carries the previous hash forward, and a
-page that has been **taken down** produced *exactly the same behaviour as a brief outage,
+page that has been **taken down** produced *exactly the same behavior as a brief outage,
 forever*. The tool held a dead page's baseline indefinitely and said nothing. That is a
 wrong "no change", which `docs/RESPONSIBLE-TECH-AUDITS.md` §A names as the primary safety
 failure of this repo: a government page about trans identity documents disappearing is
@@ -73,7 +73,7 @@ def weekly_failures(
 ) -> WatchReport:
     """`runs` failing passes, one week apart, as the scheduled job would produce them.
 
-    Every test that wants an escalation now has to say how much time it is modelling,
+    Every test that wants an escalation now has to say how much time it is modeling,
     because an escalation is a claim about a duration as well as a count. Looping `watch()`
     without moving the clock models N failures in one afternoon — which is precisely the
     case that must NOT escalate, and which silently did before `MIN_REMOVAL_SILENCE`. That
@@ -183,7 +183,7 @@ def test_the_streak_survives_a_restart(
         assert reopened.failure_streak(source.id) == 2
 
 
-# -- the rules that must survive the new behaviour --------------------------------
+# -- the rules that must survive the new behavior --------------------------------
 
 
 def test_an_escalation_is_never_a_content_change(

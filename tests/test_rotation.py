@@ -8,7 +8,7 @@ ids and its reviewers.
 
 The second says what it must never do. It must not suppress the source it names, it must not
 touch the normalizer, and it must not classify anything — because each of those is a way to
-turn a noise-reduction feature into the wrong "no change" the whole repository is organised
+turn a noise-reduction feature into the wrong "no change" the whole repository is organized
 around. `test_a_flagged_source_is_still_watched_and_still_produces_change_records` is the
 load-bearing one: if it ever fails, this module has started hiding pages.
 """

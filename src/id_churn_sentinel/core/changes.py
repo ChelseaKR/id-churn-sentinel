@@ -740,7 +740,7 @@ def observation_fields_are_valid(
 ) -> bool:
     """Shared Python/SQLite validator for the append-only observation row.
 
-    Registered with SQLite at both arities: the eight-argument form is what migration 12's
+    Registered with SQLite at both arities: the eight-argument form is what migration 13's
     insert trigger calls, and the seven-argument form is what a store at an earlier migration
     prefix still calls — those rows are committed-namespace by construction, so its default
     `""` is the value that store would have written, not a guess about it.

@@ -1,4 +1,4 @@
-"""The published site — an accessible, static, tracker-free index of registered candidates.
+"""The published site — an accessible, static index of registered candidates, and its privacy page.
 
 **Why a site at all, when the product is a feed.** `docs/CONSUMERS.md` argues that the
 customers are the incumbents — A4TE, Trans Lifeline, Namesake, legal-aid clinics — and that
@@ -21,17 +21,23 @@ asserts it instead of a reviewer remembering it.
 **Four properties, and they are not decoration:**
 
 *Accessible.* WCAG 2.2 AA. Semantic landmarks, one `<h1>`, real heading order, tables with
-`<caption>` and `<th scope>`, a skip link, visible focus. **Status is never signalled by
-colour alone** — "not watched" is the *word* "not watched", not a red dot. A legal-aid
+`<caption>` and `<th scope>`, a skip link, visible focus. **Status is never signaled by
+color alone** — "not watched" is the *word* "not watched", not a red dot. A legal-aid
 worker using a screen reader is exactly who this page is for, and a diff or a coverage table
-that only renders as colour is one they cannot read.
+that only renders as color is one they cannot read.
 
-*Self-contained.* No JavaScript, no external stylesheet, no web font, no image, no CDN. Not
-minimalism for its own sake: **every third-party request is a request that tells a third
-party who is reading about trans ID law.** A page that surveils the people it claims to
-protect would be a disgrace, and the only way to be sure it does not is to have nothing on
-it to surveil with. `test_the_published_site_makes_no_third_party_requests` asserts this on
-the published bytes, in the merge-blocking gate.
+*Self-contained, with one owner-decided exception.* No external stylesheet, no web font, no
+image, no CDN, and no script except one: the Google Analytics 4 loader in `core/analytics.py`,
+on this page and `privacy.html` only. Every third-party request is a request that tells a
+third party who is reading about trans ID law, which is why this page loaded nothing from
+anyone until 2026-09-18. On that date the owner decided to count page visits here as on her
+other public sites; `docs/adr/0004-count-page-visits-with-ga4.md` records the
+decision, the risk it accepts, and the limits that come with it (production host only, never
+under Global Privacy Control or Do Not Track or after the footer opt-out, no advertising
+features, and a page address sent without its query string or fragment). The merge-blocking
+gate in `tests/test_site.py` allows exactly that loader, byte for byte, and still fails on
+any other script, stylesheet, font, image, frame or tracker, and on any tracker at all in a
+feed or data file.
 
 *Honest.* The gaps are on the page, in the same table as the coverage, with the host that
 refused us and the reason. Coverage transparency that hides the holes is marketing.
@@ -43,7 +49,7 @@ is that it looks authoritative: a table headed *"OH · Birth certificate · Ohio
 Health"* reads as *"this is Ohio's official birth-certificate page"*, and nobody has checked
 that it is. The disclosure is therefore structural — a `verification_status` field on the
 source everywhere it is published, not a footnote — and a merge-blocking gate
-(`tests/test_source_labelling.py`) asserts on the published bytes that no source appears in
+(`tests/test_source_labeling.py`) asserts on the published bytes that no source appears in
 any artifact without it.
 
 *Derived.* Every number comes from `sources/registry.json` via `core/coverage.py`. Nothing
@@ -56,6 +62,15 @@ import html
 from collections.abc import Sequence
 from datetime import date, datetime
 
+from id_churn_sentinel.core.analytics import (
+    DECISION_RECORD,
+    GA4_DATA_RETENTION,
+    GA4_MEASUREMENT_ID,
+    GA4_OPT_OUT_KEY,
+    footer_note,
+    head_snippet,
+    measurement_id,
+)
 from id_churn_sentinel.core.changes import ChangeRecord
 from id_churn_sentinel.core.coverage import CoverageReport, coverage
 from id_churn_sentinel.core.eligibility import (
@@ -69,11 +84,13 @@ from id_churn_sentinel.errors import PublishError
 
 __all__ = [
     "PAGES_URL",
+    "PRIVACY_URL",
     "RAW_BASE_URL",
     "REPO_URL",
     "SITE_DESCRIPTION",
     "SITE_TITLE",
     "feed_slug",
+    "render_privacy",
     "render_site",
 ]
 
@@ -92,6 +109,7 @@ __all__ = [
 REPO_URL = "https://github.com/ChelseaKR/id-churn-sentinel"
 RAW_BASE_URL = "https://raw.githubusercontent.com/ChelseaKR/id-churn-sentinel/main/docs"
 PAGES_URL = "https://chelseakr.github.io/id-churn-sentinel/"
+PRIVACY_URL = f"{PAGES_URL}privacy.html"
 
 # Every published surface says this, and the site says it first — above the coverage numbers,
 # above the feed, above everything except the title. The numbers are the part a reader wants;
@@ -111,9 +129,12 @@ _PAGE_TITLE = f"{SITE_TITLE} — registered candidates, gaps, and service status
 # `sentinel coverage --check-docs`, and a number on a preview card is exactly the number nobody
 # rechecks. It promises no legal meaning, per guardrail 6.
 #
+# It used to end "No account, no tracking." That stopped being true of the web pages on
+# 2026-09-18 (ADR 0004: they count visits with Google Analytics 4), so it now says only what
+# is still true of everything: no account, and no tracking in the feeds.
 SITE_DESCRIPTION = (
     "Technical-alpha registry and human-review pipeline for candidate US government pages "
-    "about name and gender-marker changes. No account, no tracking."
+    "about name and gender-marker changes. No account; the feeds carry no tracking."
 )
 
 # The link-preview card: 1200x630, committed at `docs/social-card.png`, drawn by
@@ -144,7 +165,7 @@ _CARD_ALT = (
 _CLASS_LABELS = {
     "birth_certificate": "Birth certificate",
     "court_order_name_change": "Court-order name change",
-    "drivers_license": "Driver's licence / state ID",
+    "drivers_license": "Driver's license / state ID",
     "passport": "Passport",
     "selective_service": "Selective Service",
     "social_security": "Social Security",
@@ -153,7 +174,7 @@ _CLASS_LABELS = {
 _REASON_LABELS = {
     "wrong-page": "A human verifier found the URL we had was not the official page, and no "
     "replacement exists",
-    "robots-disallowed": "Their robots.txt forbids us (honoured without appeal)",
+    "robots-disallowed": "Their robots.txt forbids us (honored without appeal)",
     "blocked-403": "Serves a browser, 403s our User-Agent (we do not spoof one)",
     "blocked-404": "Returns 404 to every non-browser client (a WAF wearing a 404's clothes)",
     "blocked-200": "Returns a bot-wall page with HTTP 200 (a WAF wearing a 200's clothes)",
@@ -188,12 +209,19 @@ def render_site(
     generated_at: datetime,
     run_status: PublicRunStatus | None = None,
     eligibility_as_of: date | None = None,
+    ga4_id: str | None = GA4_MEASUREMENT_ID,
 ) -> str:
-    """The whole page. One string, no template engine, no runtime dependency."""
+    """The whole page. One string, no template engine, no runtime dependency.
+
+    `ga4_id` is the Google Analytics 4 measurement ID (ADR 0004). The default is the committed
+    one; "" or None renders the page with no script at all and copy that says so.
+    """
     # Local import avoids the module-import cycle while keeping this exported serializer
     # behind the exact same publication gate as JSON and RSS.
     from id_churn_sentinel.core.publish import _guard
 
+    loader = head_snippet(ga4_id)
+    counted = measurement_id(ga4_id) is not None
     eligibility_date = eligibility_as_of or generated_at.date()
     eligibility = eligibility_report(registry, as_of=eligibility_date)
     records = _guard(
@@ -239,10 +267,14 @@ def render_site(
             '<link rel="alternate" type="application/rss+xml" '
             'title="ID Churn Sentinel — reviewed changes" href="feed.xml">',
             f"<style>{_CSS}</style>",
+            # The one script this site carries, and only when a measurement ID is set. See
+            # `core/analytics.py` and ADR 0004; the gate in tests/test_site.py allows exactly
+            # this text and nothing else.
+            *([loader] if loader else []),
             "</head>",
             "<body>",
             '<a class="skip" href="#main">Skip to main content</a>',
-            _header(generated_at),
+            _header(generated_at, counted=counted),
             '<main id="main">',
             _section_nav(),
             _verification_notice(report, eligibility),
@@ -250,11 +282,11 @@ def render_site(
             _what_this_is(),
             _coverage_section(report, eligibility),
             _changes_section(records, registry),
-            _endpoints_section(registry),
+            _endpoints_section(registry, counted=counted),
             _sources_section(registry, eligibility),
             _gaps_section(report),
             "</main>",
-            _footer(),
+            _footer(ga4_id),
             "</body>",
             "</html>",
             "",
@@ -262,8 +294,13 @@ def render_site(
     )
 
 
-def _header(generated_at: datetime) -> str:
+def _header(generated_at: datetime, *, counted: bool) -> str:
     stamp = generated_at.strftime("%d %B %Y, %H:%M UTC")
+    tracking = (
+        'No tracking in the feeds · This page counts visits: see <a href="privacy.html">Privacy</a>'
+        if counted
+        else "No tracking"
+    )
     return "\n".join(
         [
             "<header>",
@@ -273,7 +310,7 @@ def _header(generated_at: datetime) -> str:
             "changes on identity documents. When operational, it reports that an eligible "
             "source page changed and shows the passage that changed. "
             "<strong>It never asserts what the law is.</strong></p>",
-            f'<p class="meta">Generated {_esc(stamp)} · No account · No tracking · '
+            f'<p class="meta">Generated {_esc(stamp)} · No account · {tracking} · '
             "Every published item reviewed by a named human · "
             "Page generation is not watch success; see run health below</p>",
             "</header>",
@@ -312,16 +349,28 @@ def _run_status_section(status: PublicRunStatus) -> str:
         # inferred from the gap between two counters (issue #19). "N successful retrievals"
         # alone reads as "N pages watched", and for a JS shell or a bot-wall that is the one
         # thing it does not mean.
-        # `observed_count` is a READING count, not a comparison count (issue #99): a first
-        # sighting, a re-pointed URL and an unrenormalizable baseline are all read and none
-        # is held against anything. "Actually compared" overstated it by exactly those three
-        # cases, so this says what the number measures.
         unmeasured_text = (
             f" <strong>{attempted.unmeasured_count} of those retrievals returned no "
             f"extractable text and were not compared against a baseline</strong>, so this run "
-            f"is not evidence of no change for them; {attempted.observed_count} source(s) were "
-            f"actually read."
+            f"is not evidence of no change for them."
             if attempted.unmeasured_count
+            else ""
+        )
+        # TWO numbers, always, whenever anything was attempted (issue #99). `observed_count`
+        # is a READING count and `compared_count` is a comparison count, and the gap between
+        # them is a real population: a first sighting, a re-pointed registry URL and a
+        # baseline not re-derivable under today's contract are each read and each held
+        # against nothing. Publishing only the first — which this line did, and only when
+        # some retrieval had already failed — leaves a reader to fill the second in with the
+        # reassuring default. The unreadable clause above stays because it names a different
+        # shortfall: those retrievals produced no text to read at all.
+        reading_text = (
+            f" <strong>{attempted.observed_count} of those {attempted.attempted_count} "
+            f"attempt(s) produced readable text, and {attempted.compared_count} of those "
+            f"reading(s) were held against a committed baseline</strong>; for the other "
+            f"{attempted.attempted_count - attempted.compared_count}, this run is not "
+            f"evidence that nothing changed."
+            if attempted.attempted_count
             else ""
         )
         # "attempted 0 of 0 eligible sources; 0 successful retrievals" is a true sentence and
@@ -344,7 +393,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<strong>{_esc(attempted.state.upper())}</strong>; scope "
             f"<strong>{_esc(attempted.jurisdiction or 'all jurisdictions')}</strong>; started "
             f"{_esc(attempted.started_at.isoformat())}; completed {_esc(completed)}; "
-            f"{coverage_text}.{unmeasured_text}"
+            f"{coverage_text}.{reading_text}{unmeasured_text}"
         )
     if successful is None or successful.completed_at is None:
         successful_text = "No successful watch run receipt exists."
@@ -368,7 +417,7 @@ def _run_status_section(status: PublicRunStatus) -> str:
             f"<p>{attempted_text}</p>",
             f"<p>{successful_text}</p>",
             '<p><a href="status.json">status.json</a> carries the exact eligible, attempted, '
-            "successful, and unmeasured source ID sets.</p>",
+            "successful, unmeasured, and compared source ID sets.</p>",
             "</section>",
         ]
     )
@@ -624,7 +673,7 @@ def _change_article(record: ChangeRecord, registry: Registry) -> str:
     )
 
 
-def _endpoints_section(registry: Registry) -> str:
+def _endpoints_section(registry: Registry, *, counted: bool) -> str:
     per_jurisdiction = "\n".join(
         f'<li><a href="feed-{feed_slug(j)}.xml">feed-{feed_slug(j)}.xml</a> · '
         f'<a href="changes-{feed_slug(j)}.json">changes-{feed_slug(j)}.json</a> · '
@@ -632,15 +681,30 @@ def _endpoints_section(registry: Registry) -> str:
         f"<span>({_esc(j)})</span></li>"
         for j in sorted(registry.jurisdictions)
     )
+    # With GA4 on (ADR 0004) the promise narrows to what is still true: the FEEDS carry no
+    # tracking and nobody keeps a list of who fetches them. The web pages count visits, and
+    # the sentence says so rather than leaving "no tracking" to be read as covering them.
+    promise = (
+        "<p><strong>No account. No API key. No email address. No tracking in any feed or "
+        "data file.</strong> Fetch these with <code>curl</code>, a feed reader, or a cron "
+        "job: fetching one runs no script and sends nothing to Google or to this project. We "
+        "keep no list of who reads them: a subscriber list for a trans-ID-law feed is a list "
+        "of trans people, and the only way to keep that list safe is to never create it. "
+        "Consequently we cannot report who reads the feeds, and never will. The two web "
+        "pages, this one and the privacy page, count visits with Google Analytics 4; "
+        '<a href="privacy.html">the privacy page</a> says exactly what that sends.</p>'
+        if counted
+        else "<p><strong>No account. No API key. No email address. No tracking.</strong> "
+        "Fetch these with <code>curl</code>, a feed reader, or a cron job. We do not want "
+        "to know who reads this: a subscriber list for a trans-ID-law feed is a list of "
+        "trans people, and the only way to keep that list safe is to never create it. "
+        "Consequently we cannot report readership and never will.</p>"
+    )
     return "\n".join(
         [
             '<section aria-labelledby="endpoints">',
             '<h2 id="endpoints">Endpoints</h2>',
-            "<p><strong>No account. No API key. No email address. No tracking.</strong> "
-            "Fetch these with <code>curl</code>, a feed reader, or a cron job. We do not want "
-            "to know who reads this: a subscriber list for a trans-ID-law feed is a list of "
-            "trans people, and the only way to keep that list safe is to never create it. "
-            "Consequently we cannot report readership and never will.</p>",
+            promise,
             "<ul>",
             '<li><a href="feed.xml">feed.xml</a> — RSS 2.0, every jurisdiction.</li>',
             '<li><a href="changes.json">changes.json</a> — the versioned JSON feed. This is '
@@ -653,7 +717,7 @@ def _endpoints_section(registry: Registry) -> str:
             "generation.</li>",
             "</ul>",
             "<h3>One jurisdiction at a time</h3>",
-            "<p>An organisation that serves one state should not have to consume all 52. "
+            "<p>An organization that serves one state should not have to consume all 52. "
             "Every jurisdiction has its own feed, and it exists whether or not it has items "
             "yet.</p>",
             "<p><strong>An empty feed is not an answer, so each one has a receipt beside "
@@ -735,7 +799,7 @@ def _source_row(source: Source, eligibility: SourceEligibility) -> str:
       decides whether a reader may act on the URL.
 
     A source can be perfectly reachable and completely wrong, which is precisely the case this
-    column exists for. Neither status is signalled by colour: a red dot is invisible to the
+    column exists for. Neither status is signaled by color: a red dot is invisible to the
     screen-reader user this table is most likely to be read by, and "the red ones are the bad
     ones" is not information a screen reader can convey (WCAG 2.2 AA, 1.4.1).
     """
@@ -809,22 +873,203 @@ def _gaps_section(report: CoverageReport) -> str:
     )
 
 
-def _footer() -> str:
+def _footer(ga4_id: str | None, *, source_link: str | None = None) -> str:
+    link = (
+        source_link or "Source code, the registry, and the audit that explains every refusal above"
+    )
     return "\n".join(
         [
             "<footer>",
             "<p>ID Churn Sentinel is free software (AGPL-3.0-or-later). A published observation reports that "
             "a registered source candidate changed; it does not assert what the law is, and it "
             "is not legal advice.</p>",
-            f'<p><a href="{_esc(REPO_URL)}">Source code, the '
-            "registry, and the audit that explains every refusal above</a>.</p>",
+            f'<p><a href="{_esc(REPO_URL)}">{_esc(link)}</a>.</p>',
+            footer_note(ga4_id),
             "</footer>",
         ]
     )
 
 
+# ---- the privacy page (ADR 0004) ----------------------------------------------------------
+
+#: When the privacy page's substance last changed. A date typed here rather than the publish
+#: time, so republishing the feed does not make the policy look newly revised.
+PRIVACY_UPDATED = "18 September 2026"
+
+_PRIVACY_TITLE = f"Privacy — {SITE_TITLE}"
+_PRIVACY_DESCRIPTION = (
+    "What reading the ID Churn Sentinel pages and feeds sends, to whom, and how to turn "
+    "page counting off."
+)
+
+
+def render_privacy(*, ga4_id: str | None = GA4_MEASUREMENT_ID) -> str:
+    """`privacy.html`: what reading these pages and feeds sends, and to whom.
+
+    Rendered from the same `ga4_id` as the front page, so the two cannot disagree: with no
+    measurement ID it says the site runs no analytics, and it carries no script. Its words are
+    the plain version of ADR 0004 and are held to what the loader does by
+    `tests/test_analytics.py`. Like every other link here, every link on it is relative or an
+    absolute https URL (`test_every_link_on_the_page_is_subpath_safe`).
+    """
+    mid = measurement_id(ga4_id)
+    loader = head_snippet(ga4_id)
+    return "\n".join(
+        [
+            "<!doctype html>",
+            '<html lang="en">',
+            "<head>",
+            '<meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"<title>{_esc(_PRIVACY_TITLE)}</title>",
+            f'<meta name="description" content="{_esc(_PRIVACY_DESCRIPTION)}">',
+            f'<link rel="canonical" href="{_esc(PRIVACY_URL)}">',
+            f"<style>{_CSS}</style>",
+            *([loader] if loader else []),
+            "</head>",
+            "<body>",
+            '<a class="skip" href="#main">Skip to main content</a>',
+            "<header>",
+            "<h1>Privacy</h1>",
+            '<p class="lede">What reading these pages and feeds sends, and to whom. '
+            f"Last changed {_esc(PRIVACY_UPDATED)}.</p>",
+            '<p class="meta"><a href="./">Back to the ID Churn Sentinel front page</a></p>',
+            "</header>",
+            '<main id="main">',
+            *(_privacy_with_analytics(mid) if mid else _privacy_without_analytics()),
+            _privacy_hosting(),
+            "</main>",
+            _footer(
+                ga4_id, source_link="Source code, the registry, and the responsible-tech audit"
+            ),
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
+
+
+def _privacy_without_analytics() -> list[str]:
+    return [
+        '<section aria-labelledby="short">',
+        '<h2 id="short">The short version</h2>',
+        "<p><strong>This site runs no analytics and loads nothing from any third party.</strong> "
+        "There is no account, no sign-up and no email list, and nothing on these pages asks you "
+        "to type anything. The feeds and data files are plain files: fetching one runs no "
+        "script.</p>",
+        "</section>",
+    ]
+
+
+def _privacy_with_analytics(mid: str) -> list[str]:
+    decision = f"{REPO_URL}/blob/main/{DECISION_RECORD}"
+    return [
+        '<section aria-labelledby="short">',
+        '<h2 id="short">The short version</h2>',
+        "<ul>",
+        "<li><strong>The feeds and data files are not tracked.</strong> "
+        "<code>feed.xml</code>, <code>changes.json</code>, <code>sources.json</code>, "
+        "<code>status.json</code> and every per-jurisdiction file are plain files. Fetching "
+        "one runs no script and sends nothing to Google.</li>",
+        "<li><strong>The two web pages count visits with Google Analytics 4</strong>: the "
+        "front page and this one. Google Analytics does not load when your browser sends "
+        "Global Privacy Control or Do Not Track, and you can switch it off in the footer.</li>",
+        "<li><strong>There is no account, no sign-up and no email list.</strong> Nothing on "
+        "these pages asks you to type anything.</li>",
+        "</ul>",
+        "</section>",
+        '<section aria-labelledby="receives">',
+        '<h2 id="receives">What Google Analytics receives</h2>',
+        "<p>When the front page or this page loads from chelseakr.github.io, a short script "
+        "in the page loads Google's tag script, gtag.js, from Google's servers. Google "
+        "Analytics then receives:</p>",
+        "<ul>",
+        "<li>the page's address, cut down to the site and the path. Anything after a "
+        "<code>?</code> or a <code>#</code> is removed before it is sent;</li>",
+        "<li>the site you came from, cut down to its origin (for example "
+        "<code>https://www.example.org/</code>), never the page or the search on it;</li>",
+        "<li>the page title, and whether you scrolled to the bottom of the page;</li>",
+        "<li>the address of a link to another website, such as a state agency's page or a "
+        "PDF, when you follow it from these pages;</li>",
+        "<li>a random identifier kept in a cookie (see below), and your browser type, device "
+        "type, screen size and language;</li>",
+        "<li>your IP address, which every server you connect to receives. Google uses it to "
+        "estimate your approximate location (country, region and city) and states that "
+        "Google Analytics 4 does not log or store it.</li>",
+        "</ul>",
+        "</section>",
+        '<section aria-labelledby="never">',
+        '<h2 id="never">What it never receives</h2>',
+        "<ul>",
+        "<li><strong>Anything you type.</strong> These pages have no form fields.</li>",
+        "<li><strong>The query string or the fragment</strong> of the address.</li>",
+        "<li><strong>Your name, your email address, or any identifier from this "
+        "project.</strong> There are no user accounts, and the script sends no custom "
+        "events.</li>",
+        "</ul>",
+        "<p>Google signals and ad personalization are both turned off, and ad storage, ad "
+        "user data and ad personalization are denied for every visitor. Google keeps "
+        f"event-level data for {_esc(GA4_DATA_RETENTION)} and then deletes it; aggregate "
+        "counts in standard reports are kept longer.</p>",
+        "</section>",
+        '<section aria-labelledby="cookies">',
+        '<h2 id="cookies">Cookies</h2>',
+        "<p>Google Analytics sets two first-party cookies on chelseakr.github.io: "
+        f"<code>_ga</code> and <code>_ga_{_esc(mid.removeprefix('G-'))}</code>. They hold a "
+        "random identifier and expire two years after your last visit. chelseakr.github.io "
+        "also serves other "
+        "projects by the same author, and the <code>_ga</code> cookie is shared with them, so "
+        "the analytics on those sites receives the same identifier.</p>",
+        "<p>In the European Economic Area, the United Kingdom and Switzerland, analytics "
+        "storage is denied by default. There is no consent banner to change that, so no Google "
+        "Analytics cookie is set there, and Google receives cookieless pings instead.</p>",
+        "</section>",
+        '<section aria-labelledby="turning-off">',
+        '<h2 id="turning-off">Turning it off</h2>',
+        "<ul>",
+        "<li>Send <strong>Global Privacy Control</strong> or <strong>Do Not Track</strong> "
+        "from your browser. These pages then do not load Google Analytics at all.</li>",
+        "<li>Use <strong>&ldquo;Opt out of analytics&rdquo;</strong> in the footer. It stores "
+        f"your choice in this browser under <code>{_esc(GA4_OPT_OUT_KEY)}</code>, which "
+        "applies to this site only. <strong>&ldquo;Opt back in&rdquo;</strong> removes it. "
+        "The control needs JavaScript; without JavaScript, Google Analytics cannot run "
+        "either.</li>",
+        "<li>Install Google's opt-out browser add-on: "
+        '<a href="https://tools.google.com/dlpage/gaoptout">'
+        "tools.google.com/dlpage/gaoptout</a>.</li>",
+        "</ul>",
+        "</section>",
+        '<section aria-labelledby="why">',
+        '<h2 id="why">Why a trans-ID project counts visits at all</h2>',
+        "<p>This project's own risk audit says that a list of people reading about trans "
+        "identity-document law is a targeting risk, and until 18 September 2026 these pages "
+        "loaded nothing from any third party for that reason. On that date the project's "
+        "owner decided to count page visits here, as on her other public sites. "
+        f'<a href="{_esc(decision)}">The decision record</a> states the risk it accepts and '
+        "the limits above. If that risk matters to you, send Global Privacy Control or opt "
+        "out, or use the feeds, which carry none of it.</p>",
+        "</section>",
+    ]
+
+
+def _privacy_hosting() -> str:
+    return "\n".join(
+        [
+            '<section aria-labelledby="hosting">',
+            '<h2 id="hosting">What GitHub sees</h2>',
+            "<p>The pages and feeds are hosted on GitHub Pages, with "
+            "<code>raw.githubusercontent.com</code> as a mirror. GitHub's access logs record "
+            "the IP address of every request, including which per-jurisdiction feed was "
+            "fetched. This project does not receive, control or delete those logs. To leave no "
+            "trace, fetch the feeds over Tor or a VPN, or mirror them and serve them yourself "
+            "(AGPL-3.0-or-later allows it).</p>",
+            "</section>",
+        ]
+    )
+
+
 # Inline, because a stylesheet on another host is a request that tells that host who is
-# reading about trans ID law. Colour is never load-bearing: it decorates a distinction the
+# reading about trans ID law. Color is never load-bearing: it decorates a distinction the
 # text already makes. Both schemes are specified, and both are checked for AA contrast.
 _CSS = """
 :root { --bg:#fff; --fg:#1a1a1a; --muted:#4a4a4a; --line:#c9c9c9; --accent:#0b5d8a;
@@ -864,9 +1109,9 @@ thead th { background: var(--panel); }
 .stats div { border: 1px solid var(--line); padding: .75rem 1rem; min-width: 10rem; }
 .stats dt { color: var(--muted); font-size: .85rem; }
 .stats dd { margin: .25rem 0 0; font-size: 1.5rem; font-weight: 700; }
-/* The unverified-registry notice. It is bordered and panelled so it reads as a caution, but
+/* The unverified-registry notice. It is bordered and paneled so it reads as a caution, but
    the caution is carried entirely by the WORDS inside it — strip every style from this page
-   and the reader still learns that no human has confirmed these URLs. Colour decorates a
+   and the reader still learns that no human has confirmed these URLs. Color decorates a
    distinction the text has already made; it never makes one. */
 .notice { background: var(--panel); border: 2px solid var(--line);
           border-left: .5rem solid var(--focus); padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }
@@ -885,4 +1130,9 @@ thead th { background: var(--panel); }
 .feeds li { break-inside: avoid; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 2px solid var(--line);
          color: var(--muted); }
+/* The analytics opt-out (ADR 0004). A <button>, because it changes a setting; styled as the
+   link it reads as, with the same visible focus ring as every link on the page. */
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit;
+               text-decoration: underline; cursor: pointer; }
+.link-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 """

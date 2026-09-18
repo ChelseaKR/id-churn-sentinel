@@ -35,10 +35,10 @@ concurrency:
   # Keyed by COMMIT for push and schedule, and by branch only for pull requests.
   #
   # With the key at `${{ github.ref }}` alone, every push to `main` shared one group named
-  # `ci-refs/heads/main`, and `cancel-in-progress: true` then cancelled the run still working on
+  # `ci-refs/heads/main`, and `cancel-in-progress: true` then canceled the run still working on
   # the previous commit. Push twice in the time one run takes — a merge followed by a follow-up,
   # which is the normal shape here — and the first commit is never verified by anything. It does
-  # not go red; it gets no verdict at all, and a cancelled run reads as "no signal", not as a
+  # not go red; it gets no verdict at all, and a canceled run reads as "no signal", not as a
   # failure, so nothing about the repository looks wrong afterwards.
   #
   # `github.sha` is per-commit, so on `main` each commit now keeps its own run to completion. On a
@@ -58,6 +58,13 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          # The gate reads this repository's tags (tests/test_release_claims.py) to hold
+          # what the documents say about releases against what has actually been tagged.
+          # `actions/checkout` fetches one commit and no tags by default, and an empty tag
+          # list out of a checkout that could never have shown one is not evidence — so
+          # that check refuses rather than skips, and this is what stops it refusing here.
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
@@ -67,7 +74,7 @@ jobs:
           enable-cache: true
 
       # The full merge gate: lint · typecheck · tests+coverage(>=90) · pip-audit ·
-      # sources-validate · no-unreviewed-in-feed + no-unlabelled-source · no-auto-classification.
+      # sources-validate · no-unreviewed-in-feed + no-unlabeled-source · no-auto-classification.
       #
       # The suite makes NO network calls: the fetcher is injected and the tests pass it
       # fixtures — and so is the prompt, which is why the interactive `sentinel verify` loop

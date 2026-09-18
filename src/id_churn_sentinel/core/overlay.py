@@ -17,7 +17,7 @@ safe is how little is new:
   itself eligibility: it still needs a named verifier, dated evidence, an expiry, and a dated
   fetch-policy decision.
 * **Its own namespace.** Every entry is stamped with the overlay's id, and the store keys every row
-  the watcher writes about a source on ``(overlay_id, source_id)`` with ``''`` meaning the committed registry (migration 12).
+  the watcher writes about a source on ``(overlay_id, source_id)`` with ``''`` meaning the committed registry (migration 13).
   Two counties both calling a page ``clerk-name-change`` share no row, and neither shares one
   with a committed entry of that name.
 

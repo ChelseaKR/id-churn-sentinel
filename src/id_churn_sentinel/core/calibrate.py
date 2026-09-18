@@ -2,7 +2,7 @@
 
 **The problem this exists to solve (issue #79).** The human gate is the product, and it has a
 bus factor of one (#64). Adding a second reviewer is not a matter of handing someone the
-command: `significance` is a judgement, `substantive` is the classification that travels
+command: `significance` is a judgment, `substantive` is the classification that travels
 outward into legal-aid guidance, and a new reviewer's first decisions are *live* decisions.
 There has been no way to find out whether a candidate reviewer classifies the way the
 maintainer does short of letting them classify something real.
@@ -144,7 +144,7 @@ class CalibrationDecision:
         if not self.candidate.strip():
             raise CalibrationError(
                 "a calibration decision requires a named human candidate — this records a "
-                "person's judgement, and an anonymous one measures nothing"
+                "person's judgment, and an anonymous one measures nothing"
             )
         if not canonical_actor(self.candidate):
             raise CalibrationError("calibration candidate is not a valid bounded name")

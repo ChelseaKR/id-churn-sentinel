@@ -1,7 +1,7 @@
 """Tests for :mod:`id_churn_sentinel.core.changes` — the record and the review transition.
 
 The classification-gate tests live in `test_no_auto_classification.py` (the merge gate).
-This file covers the rest of the type's behaviour.
+This file covers the rest of the type's behavior.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def test_only_a_confirmed_and_classified_record_is_publishable(
     assert not observed_change.publishable
 
 
-def test_explicit_reviewed_at_is_honoured(observed_change: ChangeRecord) -> None:
+def test_explicit_reviewed_at_is_honored(observed_change: ChangeRecord) -> None:
     when = observed_change.observed_at + timedelta(seconds=1)
     reviewed = observed_change.reviewed_by(
         reviewer="A Human",

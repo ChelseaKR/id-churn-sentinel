@@ -33,6 +33,10 @@ from id_churn_sentinel.core.normalize import EXTRACTOR_VERSION, NORMALIZER_VERSI
 from id_churn_sentinel.core.publish import publish
 from id_churn_sentinel.core.registry import Registry, Source
 from id_churn_sentinel.core.store import (
+    COMPARISON_COMPARED,
+    COMPARISON_REBASELINED,
+    COMPARISON_UNBASELINED,
+    COMPARISON_UNRENORMALIZABLE,
     RUN_COMPLETE,
     RUN_FAILED,
     RUN_PARTIAL,
@@ -50,7 +54,7 @@ AS_OF = date(2026, 7, 13)
 #: The schema this document is published against, pinned as a LITERAL. Reading it back from
 #: `JURISDICTION_STATUS_SCHEMA_VERSION` would make the assertion move with the constant and
 #: assert nothing about the contract a consumer pinned to.
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "docs" / "schema" / "jurisdiction-status-v1.schema.json"
@@ -111,8 +115,18 @@ def _attempt(
     *,
     ok: bool,
     measured: bool = True,
+    compared: str | None = None,
     at: datetime = NOW,
 ) -> None:
+    """One attempt, and — separately — what the run held its text against (issue #99).
+
+    `compared` defaults to **None**, meaning the run recorded no comparison, because that is
+    what this helper actually does: it never runs `detect._compare_against_baseline`, so
+    nothing here was ever held against a baseline. Defaulting it to `COMPARISON_COMPARED`
+    would make every fixture in this file carry the populated case, which is the measured
+    root cause of this whole defect class — every one of the twelve instances in the
+    2026-08-19 sweep shared it. A test that means "read and matched" has to say so.
+    """
     store.begin_fetch_attempt(run_id, source_id=source.id, url=source.url)
     store.finish_fetch_attempt(
         run_id,
@@ -127,6 +141,8 @@ def _attempt(
         measured=measured,
         completed_at=at,
     )
+    if compared is not None:
+        store.record_comparison_outcome(run_id, source_id=source.id, outcome=compared)
 
 
 def _start(
@@ -188,12 +204,12 @@ def test_a_run_covering_two_jurisdictions_leaves_the_third_saying_not_in_run(
     """
     aggregate = _start(store, registry, jurisdiction=None)
     for source in registry.sources:
-        _attempt(store, aggregate, source, ok=True)
+        _attempt(store, aggregate, source, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(aggregate, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     later = NOW + timedelta(days=7)
     scoped = _start(store, registry, jurisdiction="TX", started_at=later, sources=(texas,))
-    _attempt(store, scoped, texas, ok=True, at=later)
+    _attempt(store, scoped, texas, ok=True, compared=COMPARISON_COMPARED, at=later)
     store.finish_watch_run(scoped, state=RUN_QUIET, observation_count=0, completed_at=later)
 
     tx = build_jurisdiction_status(store, "TX", registry=registry)
@@ -258,25 +274,82 @@ def test_publishing_with_no_run_at_all_says_not_attempted_and_a_null_run(
         assert "not evidence of no change" in document["statement"]
 
 
-def test_the_statement_counts_readings_and_never_claims_a_comparison(
-    store: SnapshotStore, registry: Registry, texas: Source
+def test_the_statement_publishes_the_reading_count_and_the_comparison_count(
+    store: SnapshotStore, registry: Registry, texas: Source, arizona: Source
 ) -> None:
-    """Issue #99, the half that needs no vocabulary decision.
+    """Issue #99. Two facts, two numbers, and neither published under the other's sentence.
 
-    The numerator has always been a count of `observed_unchanged` + `observed_changed`, and
-    the sentence built from it used to read *"compared N of M ... against the committed
-    baseline"*. `observed_unchanged` is also what a **first sighting** persists as, and what
-    a source whose registry entry has been re-pointed persists as, and what an
-    unrenormalizable committed hash persists as -- `detect.py` refuses the comparison in the
-    last two cases *in terms*. So on the ordinary first run, over an empty store, the
-    sentence claimed 156 comparisons against baselines that did not exist.
+    The statement used to read *"compared N of M ... against the committed baseline"* over a
+    count of READINGS, and `observed_unchanged` was what a first sighting, a re-pointed
+    registry URL and an unrenormalizable committed hash all persisted as -- `detect.py`
+    refuses the comparison in the last two *in terms*. So on the ordinary first run over an
+    empty store the sentence claimed a comparison against every baseline in the registry, and
+    none of them existed.
 
-    Both halves are asserted. The presence assertion is not decoration: "the word `compared`
-    is absent" is satisfied by a fixture that produces no sentence at all, and the fixture
-    here is one attempt in one jurisdiction, which is exactly where a mistake would hide.
+    The fixture is deliberately mixed: one source read and compared, one read and held
+    against nothing. A fixture where both numbers coincide cannot tell a receipt that
+    publishes two numbers from one that publishes the same number twice.
+    """
+    run_id = _start(store, registry, jurisdiction=None, sources=(texas, arizona))
+    _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
+    _attempt(store, run_id, arizona, ok=True, compared=COMPARISON_UNBASELINED)
+    store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
+
+    tx = _payload(
+        jurisdiction_status_json(
+            build_jurisdiction_status(store, "TX", registry=registry), generated_at=NOW
+        )
+    )
+    az = _payload(
+        jurisdiction_status_json(
+            build_jurisdiction_status(store, "AZ", registry=registry), generated_at=NOW
+        )
+    )
+
+    assert _outcomes(tx)[texas.id] == "observed_unchanged"
+    assert "read 1 of 1 registered source(s)" in tx["statement"], tx["statement"]
+    assert "held 1 of those readings against the committed baseline" in tx["statement"], tx[
+        "statement"
+    ]
+    assert "For the other 0" in tx["statement"], tx["statement"]
+
+    # Read, and held against nothing: the reading number is the same and the comparison
+    # number is not. This is the pair the old sentence collapsed.
+    assert _outcomes(az)[arizona.id] == "observed_unbaselined"
+    assert "read 1 of 1 registered source(s)" in az["statement"], az["statement"]
+    assert "held 0 of those readings against the committed baseline" in az["statement"], az[
+        "statement"
+    ]
+    assert "For the other 1, this run is not evidence that nothing changed" in az["statement"]
+    assert run_id in az["statement"]
+
+
+@pytest.mark.parametrize(
+    ("stored", "word"),
+    [
+        (COMPARISON_UNBASELINED, "observed_unbaselined"),
+        (COMPARISON_REBASELINED, "observed_rebaselined"),
+        (COMPARISON_UNRENORMALIZABLE, "observed_unrenormalizable"),
+        (None, "observed_comparison_unknown"),
+    ],
+)
+def test_a_source_read_and_held_against_nothing_never_reads_as_one_that_matched(
+    store: SnapshotStore, registry: Registry, texas: Source, stored: str | None, word: str
+) -> None:
+    """Issue #99, one row per way a reading can have been compared with nothing.
+
+    All four used to be `observed_unchanged`, whose published sentence is *"it matched the
+    committed baseline"*. `rebaselined` is the sharpest: `detect.py` refuses the comparison
+    **because the registry now points at a different page**, and the receipt then reported
+    that different page as unchanged. `None` is the row that recorded no answer at all --
+    every row written before migration 12, plus any row a future writer forgets -- and it
+    reads as unknown rather than falling through to the reassuring word.
+
+    Each is asserted against the receipt's OWN published sentence for the word, so a word
+    can never be renamed into meaning something softer without this failing.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
-    _attempt(store, run_id, texas, ok=True)
+    _attempt(store, run_id, texas, ok=True, compared=stored)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     document = _payload(
@@ -284,14 +357,55 @@ def test_the_statement_counts_readings_and_never_claims_a_comparison(
             build_jurisdiction_status(store, "TX", registry=registry), generated_at=NOW
         )
     )
-    statement = document["statement"]
 
-    # No snapshot was ever recorded for this source, so nothing was held against anything.
-    assert _outcomes(document)[texas.id] == "observed_unchanged"
-    assert "read 1 of 1 registered source(s)" in statement, statement
-    assert run_id in statement
-    assert "compared" not in statement, statement
-    assert "against the committed baseline" not in statement, statement
+    assert _outcomes(document)[texas.id] == word
+    assert document["counts"]["observed_unchanged"] == 0
+    assert document["counts"][word] == 1
+    row = next(entry for entry in document["sources"] if entry["source_id"] == texas.id)
+    assert row["outcome_statement"] == OUTCOMES[word]
+    assert "matched the committed baseline" not in row["outcome_statement"]
+    # It was READ, so it counts in the reading number and not in the comparison one.
+    assert "read 1 of 1 registered source(s)" in document["statement"]
+    assert "held 0 of those readings against the committed baseline" in document["statement"]
+
+
+def test_the_reading_set_strictly_contains_the_comparison_set() -> None:
+    """Comparing is the stronger claim, so its vocabulary can only ever be smaller.
+
+    Asserted as a property rather than as two literal lists: a word added to the comparison
+    set without being a reading would be counted in a numerator whose denominator excludes
+    it, and the two sets being EQUAL would mean the receipt publishes one fact twice and the
+    gap this issue is about became invisible again.
+    """
+    from id_churn_sentinel.core.jurisdiction_status import (
+        _COMPARED_OUTCOMES,
+        _READING_OUTCOMES,
+    )
+
+    assert _COMPARED_OUTCOMES < _READING_OUTCOMES
+    assert set(OUTCOMES) >= _READING_OUTCOMES
+
+
+def test_every_comparison_value_the_store_accepts_has_a_published_word() -> None:
+    """The store's CHECK constraint and the receipt's vocabulary, held to each other.
+
+    A sixth value added to `COMPARISON_OUTCOMES` with no entry here would be read back by
+    `_outcome_for`'s fallback and published as `observed_comparison_unknown` -- which is the
+    safe direction, but silently, and the point of this issue is that a silently safe default
+    is how the wrong word survived. This fails instead.
+    """
+    from id_churn_sentinel.core.jurisdiction_status import _COMPARISON_WORDS
+    from id_churn_sentinel.core.store import (
+        COMPARISON_LEGACY_UNKNOWN,
+        COMPARISON_NONE,
+        COMPARISON_OUTCOMES,
+    )
+
+    # The two values that deliberately have no word of their own: both mean "this run
+    # recorded no comparison answer", which is what `observed_comparison_unknown` says.
+    unmapped = COMPARISON_OUTCOMES - set(_COMPARISON_WORDS)
+    assert unmapped == {COMPARISON_NONE, COMPARISON_LEGACY_UNKNOWN}
+    assert set(_COMPARISON_WORDS.values()) <= set(OUTCOMES)
 
 
 def test_every_reading_outcome_word_is_one_the_receipt_publishes(
@@ -346,7 +460,7 @@ def test_a_source_the_run_never_saw_is_not_in_run_rather_than_not_eligible(
     run's rows instead of its id sets. Collapsing them would publish a decision nobody made.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(arizona,))
-    _attempt(store, run_id, arizona, ok=True)
+    _attempt(store, run_id, arizona, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     document = _payload(
@@ -363,7 +477,7 @@ def test_a_source_the_run_never_saw_is_not_in_run_rather_than_not_eligible(
 def test_an_ineligible_source_carries_the_runs_own_reasons(
     store: SnapshotStore, registry: Registry, texas: Source
 ) -> None:
-    """The run's judgement and the run's reasons, not today's re-evaluation of the source."""
+    """The run's judgment and the run's reasons, not today's re-evaluation of the source."""
     # `failed`, not `quiet`: the store refuses a terminal success state for a run with no
     # eligible source, which is the shape this repository's real weekly run has been in for
     # four weeks (0 of 156 attempt-eligible, #56).
@@ -402,7 +516,7 @@ def test_a_source_that_moved_reads_observed_changed(
 ) -> None:
     """`observed_changed` comes from the run's own observation binding, not from a date range."""
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
-    _attempt(store, run_id, texas, ok=True)
+    _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
     store.record_change(
         ChangeRecord.observed(
             source_id=texas.id,
@@ -448,7 +562,7 @@ def test_a_jurisdiction_no_run_has_ever_covered_still_names_the_run_that_happene
 ) -> None:
     """`never_covered` is not "nothing happened"; it is "nothing happened *here*"."""
     run_id = _start(store, registry, jurisdiction="AZ", sources=(arizona,))
-    _attempt(store, run_id, arizona, ok=True)
+    _attempt(store, run_id, arizona, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     status = build_jurisdiction_status(store, "TX", registry=registry)
@@ -482,7 +596,7 @@ def test_the_counts_block_names_every_outcome_including_the_zeroes(
 ) -> None:
     """Omitting a zero makes a reader reconstruct the key, and they reconstruct it kindly."""
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
-    _attempt(store, run_id, texas, ok=True)
+    _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     document = _payload(
@@ -522,10 +636,10 @@ def test_no_published_hash_is_attributed_to_a_run() -> None:
 def test_every_source_row_carries_its_verification_status(
     store: SnapshotStore, registry: Registry, texas: Source
 ) -> None:
-    """The labelling discipline, restated here because this is the document most likely to
+    """The labeling discipline, restated here because this is the document most likely to
     be read as an endorsement of the URL."""
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
-    _attempt(store, run_id, texas, ok=True)
+    _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
 
     document = _payload(
@@ -558,7 +672,7 @@ def test_an_eligible_source_the_run_did_not_reach_reads_not_attempted(
     smaller than its eligible set — which is exactly the shape being tested.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(texas, arizona))
-    _attempt(store, run_id, arizona, ok=True)
+    _attempt(store, run_id, arizona, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_FAILED, observation_count=0, completed_at=NOW)
 
     document = _payload(
@@ -581,7 +695,7 @@ def test_a_row_with_no_recorded_observation_outcome_is_unknown_not_unchanged(
     retrieval with no recorded observation is not a page that had not changed.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,))
-    _attempt(store, run_id, texas, ok=True)
+    _attempt(store, run_id, texas, ok=True, compared=COMPARISON_COMPARED)
     store.finish_watch_run(run_id, state=RUN_QUIET, observation_count=0, completed_at=NOW)
     store._conn.execute(
         "UPDATE run_sources SET observation_outcome = 'legacy-unknown' WHERE run_id = ?",
@@ -618,7 +732,7 @@ def test_a_malformed_eligibility_reason_does_not_withhold_the_eligibility_answer
 
     A receipt that refused to render because one row's explanation would not parse would
     withhold the answer over the footnote to it — so the reasons degrade to empty and the
-    judgement still publishes.
+    judgment still publishes.
     """
     run_id = _start(store, registry, jurisdiction=None, sources=(texas,), eligible=frozenset())
     store.finish_watch_run(run_id, state=RUN_FAILED, observation_count=0, completed_at=NOW)

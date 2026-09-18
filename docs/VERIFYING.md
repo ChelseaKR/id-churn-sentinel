@@ -43,7 +43,7 @@ This matters more than the question does, because the temptation to answer a big
 
 ## What "official" means here
 
-- **The right authority.** The agency that actually issues or administers the document — a state's vital records office for a birth certificate, its DMV for a licence, its courts for a name change. A county page is not a statewide page. An advocacy group's summary, however good, is never a source.
+- **The right authority.** The agency that actually issues or administers the document — a state's vital records office for a birth certificate, its DMV for a license, its courts for a name change. A county page is not a statewide page. An advocacy group's summary, however good, is never a source.
 - **A statute or administrative-code page is legitimate, and it claims less than an agency page.** Sixteen jurisdictions are watched via their statutes or admin code because the agency's own host blocks our crawler and **we do not spoof a User-Agent to get around that**. A statute page is *the law an agency administers*, not the agency's own process page — and the entry's `notes` say so. When you verify one of these, the question is still the same: **is this the right statute/rule for this document class in this jurisdiction?**
 - **A landing page can be the deepest honest target.** Several states publish no statewide page for a document class at all (Texas's name-change process is county-level). Where the office page is all there is, the office page is what we watch, and the entry says so. That is a *yes*, not a *no* — the alternative is an invented deep link that 404s.
 

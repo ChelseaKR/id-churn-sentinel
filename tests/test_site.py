@@ -27,7 +27,7 @@ The tests that carry the `feed_integrity` marker run in the merge-blocking
 
 The rest is WCAG 2.2 AA structure. It is tested rather than asserted because a legal-aid
 caseworker using a screen reader is precisely who this page exists for, and because "status
-is signalled by colour alone" is the single easiest accessibility failure to ship by accident
+is signaled by color alone" is the single easiest accessibility failure to ship by accident
 and the one that would make the coverage table useless to them.
 """
 
@@ -632,7 +632,7 @@ def test_the_preview_card_names_an_image_that_is_actually_published(
 def test_the_published_directory_turns_jekyll_off(tmp_path: Path, site_registry: Registry) -> None:
     """`.nojekyll` or GitHub Pages runs the output through Jekyll, which **silently drops**
     files and directories whose names begin with an underscore and tells nobody. The published
-    surface is data an organisation acts on; a deploy step that quietly removes files from it is
+    surface is data an organization acts on; a deploy step that quietly removes files from it is
     exactly the unwitnessed failure this project exists to refuse. The publisher writes the file
     so that no human has to remember it once.
     """
@@ -715,7 +715,7 @@ def test_stale_health_label_is_not_repeated(site_registry: Registry) -> None:
 
 
 def test_every_table_has_a_caption_and_scoped_headers(site_registry: Registry) -> None:
-    """A table with no `<caption>` and no `<th scope>` is an unlabelled grid of strings to a
+    """A table with no `<caption>` and no `<th scope>` is an unlabeled grid of strings to a
     screen reader — which is what the coverage table would become, for exactly the caseworker
     who needs to know whether we watch their state."""
     page = render(site_registry)
@@ -728,7 +728,7 @@ def test_every_table_has_a_caption_and_scoped_headers(site_registry: Registry) -
         assert 'scope="row"' in table
 
 
-def test_status_is_never_signalled_by_colour_alone(site_registry: Registry) -> None:
+def test_status_is_never_signaled_by_color_alone(site_registry: Registry) -> None:
     """The one accessibility failure this page could most easily ship: a red dot for "we
     cannot fetch this". The status has to be a WORD, and the word has to say what it means.
     """
@@ -739,11 +739,11 @@ def test_status_is_never_signalled_by_colour_alone(site_registry: Registry) -> N
     # And the fact is stated in prose too, not only in a table cell.
     assert "registered candidates could not be fetched" in page
 
-    # No CSS class in this page encodes a status by colour name, which is how the red dot
+    # No CSS class in this page encodes a status by color name, which is how the red dot
     # gets in: someone adds `.status-red` and the information stops existing for a screen
     # reader while still "looking right" to the person who added it.
-    for colour_class in (".status-red", ".status-green", ".ok {", ".bad {", ".error {"):
-        assert colour_class not in page
+    for color_class in (".status-red", ".status-green", ".ok {", ".bad {", ".error {"):
+        assert color_class not in page
 
 
 def test_long_inline_code_can_wrap_without_forcing_horizontal_page_scroll(
@@ -790,7 +790,7 @@ def test_the_page_says_what_is_not_watched_and_who_refused_us(site_registry: Reg
 def test_the_page_refuses_the_jobs_this_tool_does_not_do(site_registry: Registry) -> None:
     """The site is the most-read surface this project has, so the refusal has to be on it —
     in a heading, not in a footnote. A reader who takes a change record as a statement of law
-    is the harm this whole repo is organised around."""
+    is the harm this whole repo is organized around."""
     page = render(site_registry)
 
     assert "It will never tell you" in page

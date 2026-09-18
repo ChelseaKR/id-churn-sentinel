@@ -229,7 +229,7 @@ def test_the_agreement_report_states_a_denominator_and_never_grades(
 
     # No verdict token. The words `score`/`threshold` DO appear — in the sentence that says
     # this is not one — so the check is for a verdict rendered *about the candidate*, not for
-    # the vocabulary. A colon or a standalone capitalised verdict is what a grader emits.
+    # the vocabulary. A colon or a standalone capitalized verdict is what a grader emits.
     assert re.search(r"\b(PASS|FAIL|PASSED|FAILED|QUALIFIED)\b", report) is None
     assert re.search(r"(?i)\b(pass|fail)(ed|es)?\s*[:=]", report) is None
     assert "not a score and not a" in report
@@ -466,7 +466,7 @@ def test_an_answer_about_a_no_longer_replayable_change_is_not_counted_as_agreeme
     Answers are keyed by `--session-id` and the store keeps only the newest snapshots per
     source. So a session resumed after a `watch` run holds answers about changes whose bytes
     have since been pruned: the decision exists, the evidence does not, and the tempting
-    behaviour is to score it anyway because the answer is right there.
+    behavior is to score it anyway because the answer is right there.
 
     Scoring it would compare the candidate against a review neither of them can now open,
     which is an agreement figure with an unmeasurable term in it. It is excluded from the
@@ -695,7 +695,7 @@ def test_a_second_answer_for_the_same_change_in_one_session_is_refused(
     tmp_path: Path, source: Source
 ) -> None:
     """Append-only, so a candidate cannot revise after seeing the recorded decision — which
-    would make agreement a measure of persistence rather than judgement."""
+    would make agreement a measure of persistence rather than judgment."""
 
     change = _reviewed(
         _observed(1, source),
@@ -1137,14 +1137,14 @@ def test_cli_refuses_an_unreadable_calibration_set(
 # --------------------------------------------------------------------------------------
 
 
-def test_an_unrecognised_answer_is_skipped_rather_than_interpreted(
+def test_an_unrecognized_answer_is_skipped_rather_than_interpreted(
     tmp_path: Path, source: Source, registry: Registry
 ) -> None:
-    """The one place a calibration tool could invent a judgement.
+    """The one place a calibration tool could invent a judgment.
 
     A candidate who types `y` (the verb `sentinel verify` uses) or fat-fingers `x` has not
     said confirm and has not said dismiss. Mapping either onto a decision would put a
-    classification nobody made into a table whose entire purpose is measuring judgement.
+    classification nobody made into a table whose entire purpose is measuring judgment.
     """
 
     changes = _six(source)

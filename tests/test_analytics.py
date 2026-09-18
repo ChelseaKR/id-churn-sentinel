@@ -14,7 +14,7 @@ the privacy page, and no feed or data file carries any of it.
 against a stubbed `window`, `navigator`, `document` and `localStorage`. Off the production host
 or outside this project's path, under Global Privacy Control, under any Do Not Track spelling,
 or after the footer opt-out, it creates no `dataLayer` and requests nothing. Otherwise it sets
-both Consent Mode defaults before `config`, turns Google signals and ad personalisation off,
+both Consent Mode defaults before `config`, turns Google signals and ad personalization off,
 and appends gtag.js once.
 
 **Nothing a reader typed, and nothing that identifies them.** A page address carrying a name,

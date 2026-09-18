@@ -3,12 +3,12 @@
 The feed tells an organization that a government page changed. It does not tell them which of
 *their* pages depend on it. A legal-aid clinic or a guidance site maintains a set of pages,
 each citing government sources and each carrying a last-reviewed date, and turning "Texas DPS
-changed on 2026-08-30" into "your Texas driver's-licence page, last reviewed 2026-06-01, cites
+changed on 2026-08-30" into "your Texas driver's-license page, last reviewed 2026-06-01, cites
 that source" is work every consumer would otherwise script by hand, once each, differently.
 
 **No account, no subscriber list, no network.** The manifest stays on the consumer's machine;
 this command reads a public artifact they already have a copy of. That is the same constraint
-that rules out email notification here, honoured rather than worked around.
+that rules out email notification here, honored rather than worked around.
 
 Three properties this module holds, each a test.
 

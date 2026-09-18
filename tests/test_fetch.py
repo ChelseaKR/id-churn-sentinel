@@ -133,7 +133,7 @@ def route(
 @pytest.fixture(autouse=True)
 def _never_really_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     """Per-host crawl spacing calls `time.sleep`. No test should burn wall-clock on it: the
-    spacing maths is asserted separately with an injected fake clock, and every other test
+    spacing math is asserted separately with an injected fake clock, and every other test
     treats the sleep as instantaneous."""
     monkeypatch.setattr(time, "sleep", lambda _seconds: None)
 
@@ -332,8 +332,8 @@ def test_an_oversized_body_records_its_truncation_evidence(
     assert result.body == b""  # evidence of the refusal, never the refused bytes
 
 
-def test_robots_disallow_is_honoured(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A robots.txt that loads and disallows us is honoured without appeal — parsed by the
+def test_robots_disallow_is_honored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A robots.txt that loads and disallows us is honored without appeal — parsed by the
     real stdlib parser from real robots.txt bytes. These are government servers funded by
     the people this tool serves."""
     requested = route(
@@ -483,7 +483,7 @@ def test_requests_to_different_hosts_are_not_spaced(
     monkeypatch: pytest.MonkeyPatch, no_robots: None
 ) -> None:
     """Spacing is per host: hitting a different server does not wait, so the run is not
-    serialised into one slow queue across unrelated hosts."""
+    serialized into one slow queue across unrelated hosts."""
     serve_page(monkeypatch, b"ok")
     clock = FakeClock()
     fetcher = HttpFetcher(min_host_interval=2.0, sleep=clock.sleep, monotonic=clock.monotonic)
@@ -510,7 +510,7 @@ def test_spacing_waits_only_the_remaining_gap(
     assert clock.slept == [1.5]
 
 
-def test_a_slow_host_is_not_penalised_by_spacing(
+def test_a_slow_host_is_not_penalized_by_spacing(
     monkeypatch: pytest.MonkeyPatch, no_robots: None
 ) -> None:
     """The interval bounds the *rate*, not the host's answer time: a server that already
@@ -547,7 +547,7 @@ def test_a_refused_request_never_sleeps(monkeypatch: pytest.MonkeyPatch, no_robo
 
 def test_spacing_can_be_disabled(monkeypatch: pytest.MonkeyPatch, no_robots: None) -> None:
     """A zero interval turns spacing off — for a self-hosted target or a test that wants the
-    old back-to-back behaviour."""
+    old back-to-back behavior."""
     serve_page(monkeypatch, b"ok")
     clock = FakeClock()
     fetcher = HttpFetcher(min_host_interval=0, sleep=clock.sleep, monotonic=clock.monotonic)
@@ -614,7 +614,7 @@ def test_a_redirect_to_a_robots_disallowed_target_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The policy that governs a page is the policy of the server that serves it. Consulting
-    the registry host's robots.txt and then reading a different host's page honours nothing."""
+    the registry host's robots.txt and then reading a different host's page honors nothing."""
     disallowing = b"User-agent: *\nDisallow: /private\n"
 
     def robots_opener(request: urllib.request.Request, **_: object) -> FakeResponse:
@@ -673,11 +673,11 @@ def test_a_refused_redirect_keeps_the_hops_taken_before_it(
 # -- the other half of a robots policy ---------------------------------------------
 #
 # robots.txt is not only a list of paths. A server that says `Crawl-delay: 10` has stated the
-# rate it wants, and honouring its Disallow lines while ignoring that is honouring half a
-# policy — from a tool whose own gap list describes robots as "honoured without appeal".
+# rate it wants, and honoring its Disallow lines while ignoring that is honoring half a
+# policy — from a tool whose own gap list describes robots as "honored without appeal".
 
 
-def test_a_declared_crawl_delay_is_honoured_when_it_exceeds_our_floor(
+def test_a_declared_crawl_delay_is_honored_when_it_exceeds_our_floor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     route(monkeypatch, robots=b"User-agent: *\nCrawl-delay: 10\nAllow: /\n", page=b"ok")
@@ -796,7 +796,7 @@ class TestASeveredRobotsTxtIsNotAPolicy:
         route(monkeypatch, robots=body)
         fetcher = HttpFetcher()
         assert fetcher._robots_allow("https://example.gov/blocked") is False, (
-            "a complete robots.txt exactly at the cap must still be honoured"
+            "a complete robots.txt exactly at the cap must still be honored"
         )
         assert fetcher.oversized_robots == frozenset()
 

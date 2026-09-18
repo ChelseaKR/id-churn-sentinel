@@ -23,7 +23,7 @@ fixes land on `main` and, once one exists, the latest tagged release.
 
 Use GitHub's private vulnerability reporting ("Report a vulnerability" under
 the *Security* tab), or **email ckellyreif@gmail.com** with
-`id-churn-sentinel security` in the subject. Expect an acknowledgement within
+`id-churn-sentinel security` in the subject. Expect an acknowledgment within
 a few days; this is a volunteer project, so please be patient and do not
 disclose publicly until a fix is available.
 

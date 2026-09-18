@@ -89,7 +89,7 @@ uncensored observations is not an estimate; there is no quantity there to estima
 
 ---
 
-## 2. Can the failure modes be characterised separately?
+## 2. Can the failure modes be characterized separately?
 
 Not from this. But the composition of what we have is itself informative, and it argues
 against a single global number for a different reason than expected.
@@ -151,7 +151,7 @@ No threshold was re-derived, because no threshold could honestly be re-derived. 
 changed is that the rule now measures the thing it always claimed to measure, and the
 repository stops claiming a measurement it does not have.
 
-1. **`REMOVAL_THRESHOLD` stays 3, and stays labelled a guess.** Its comment now records
+1. **`REMOVAL_THRESHOLD` stays 3, and stays labeled a guess.** Its comment now records
    that the re-derivation was attempted and why it failed, and points here.
 2. **`MIN_REMOVAL_SILENCE` (14 days) is a new, additional condition.** An escalation now
    requires `removal_threshold` consecutive failures **and** at least that much elapsed
@@ -216,7 +216,7 @@ So there are two honest options, and they should be chosen between deliberately:
   thresholds.
 
 Until one of those happens, `REMOVAL_THRESHOLD = 3` remains what it has always been: a
-reasonable guess, labelled as a guess, now at least guarding the quantity it names.
+reasonable guess, labeled as a guess, now at least guarding the quantity it names.
 
 ### Addendum, 2026-09-06: the second option now exists (#74)
 

@@ -113,7 +113,7 @@ def test_no_committed_entry_renders_a_failed_fetch_as_a_reachable_one() -> None:
     `Source.reachable` defaults to True when a `checked` block is absent — deliberately,
     because an unchecked entry is not evidence of unreachability. But once a block IS
     present, it records what a socket actually saw, and a block that pairs an error status
-    with `reachable: true` is the failure mode this whole project is organised against:
+    with `reachable: true` is the failure mode this whole project is organized against:
     absence rendered as a value, a blocked fetch published as a healthy one.
 
     A missing `status` (None) is a fetch that never got an HTTP response at all — a TLS

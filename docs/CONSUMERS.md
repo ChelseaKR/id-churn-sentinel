@@ -285,7 +285,7 @@ The feed tells you a government page changed. It does not tell you which of your
   "pages": [
     {
       "id": "tx-name-change",
-      "title": "Changing your name on a Texas driver's licence",
+      "title": "Changing your name on a Texas driver's license",
       "url": "https://example.org/guides/tx-name-change",
       "last_reviewed": "2026-06-01",
       "cites": [
@@ -410,7 +410,7 @@ Four things to know before you rely on it.
 
 ### The registry changes, and that history is now derivable
 
-Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's licence" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.
+Your subscription names a jurisdiction and a document class. It does not name a URL. So when the page behind "AZ · driver's license" is swapped for a deeper one, or Michigan's SCAO form moves from a watched source to a named gap, nothing in the feed you read has changed — and your mental model of what our silence covers is now wrong.
 
 `sentinel registry changelog` derives that history from two committed revisions of `sources/registry.json`:
 
@@ -453,7 +453,7 @@ Every URL gets exactly one of four answers, and the vocabulary is closed so you 
 | `host_only` | a registered source shares the host, but it is a **different page** |
 | `unmatched` | this registry has not considered the URL at all |
 
-**`host_only` is not coverage, and this is the one row to read carefully.** It says we can fetch that host, not that we watch your page. This registry's silence about a `host_only` URL means exactly as much as its silence about an `unmatched` one: nothing. The row names the neighbouring source so you can see *why* the host is known, and the two kinds are kept apart precisely because collapsing them is the reading a consumer wants to be true.
+**`host_only` is not coverage, and this is the one row to read carefully.** It says we can fetch that host, not that we watch your page. This registry's silence about a `host_only` URL means exactly as much as its silence about an `unmatched` one: nothing. The row names the neighboring source so you can see *why* the host is known, and the two kinds are kept apart precisely because collapsing them is the reading a consumer wants to be true.
 
 A URL differing from a registered source only by a trailing slash reports `host_only`, not `source`. `/name-change` and `/name-change/` are the same page on most servers and different pages on some, and a normalizer that guessed would tell you a page was watched when it is not.
 
@@ -477,7 +477,7 @@ A URL differing from a registered source only by a trailing slash reports `host_
 
 **What an existing consumer sees.** Four words are added to `outcome` and one is narrowed. A consumer that switched on the nine words of 1.0 meets `observed_unbaselined`, `observed_rebaselined`, `observed_unrenormalizable` and `observed_comparison_unknown`, and should treat every unknown word the way `outcome_vocabulary` describes it: the sentence for each word ships **inside every document**, so no schema fetch is needed to find out what one means.
 
-**This is a correction, not a widening.** Those four states existed before 1.1 and were published as `observed_unchanged`, *"it matched the committed baseline"*. A consumer switching on 1.0's vocabulary was not missing them; it was being given the wrong answer for them. Code that treats an unrecognised word as "not evidence of no change" is correct under both versions — that is the safe direction and it always was.
+**This is a correction, not a widening.** Those four states existed before 1.1 and were published as `observed_unchanged`, *"it matched the committed baseline"*. A consumer switching on 1.0's vocabulary was not missing them; it was being given the wrong answer for them. Code that treats an unrecognized word as "not evidence of no change" is correct under both versions — that is the safe direction and it always was.
 
 `counts` gains the four keys; it has always carried every word including the zeroes, so the object's shape is unchanged. No property is added or removed, and a 1.0 document still validates against the contract.
 - **Run health is a separate fact.** Read `status.json` before interpreting feed silence. Its `generated_at` never means a watch succeeded; use `state`, `last_attempted_run`, and `last_successful_run`. The contract is `schema/status-v1.schema.json`.

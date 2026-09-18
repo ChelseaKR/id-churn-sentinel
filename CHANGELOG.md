@@ -73,7 +73,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   whenever a run attempted anything, rather than only when a retrieval had already failed.
   Every figure is derived at render time from the outcomes printed beside it.
 
-  Two tests asserted the defect as intended behaviour and now assert the correction.
+  Two tests asserted the defect as intended behavior and now assert the correction.
   `_attempt` in `tests/test_jurisdiction_status.py` defaults to recording **no** comparison,
   because "every fixture carries the populated case" is the measured root cause of this
   defect class portfolio-wide; a test that means "read and matched" has to say so.
@@ -105,13 +105,13 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   It is a scan rather than a list of three filenames because the fact is stated in a
   fourth place no such list would have named: the header comment of
   `.github/workflows/release.yml`, wrapped across a line break behind `#` markers, which
-  is findable only after normalisation. Measured on this tree: 131 tracked prose files
+  is findable only after normalization. Measured on this tree: 131 tracked prose files
   read of 324 tracked; 5 of 5 vocabulary entries observed somewhere in the tree; 4
   statements in 3 files that a first tag would make false.
 
   Four floors keep it from passing over nothing — a non-empty vocabulary, a
   scanned-file floor, a self-limiting rule that fails until every entry is observed in
-  the tree, and a normalisation control. `CHANGELOG.md` is exempt as a *file*, because
+  the tree, and a normalization control. `CHANGELOG.md` is exempt as a *file*, because
   its sections record what was true on the day of each entry, and stays in the
   observation universe, because a phrasing recorded there is still one this project
   wrote. This module is exempt as a file too and its **docstrings** are read instead —
@@ -142,7 +142,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
   Each receipt names, per source, what the last run that *covered* that jurisdiction did to
   it — one of nine words, eight of which mean the page was not compared against its baseline —
-  with the run's own eligibility judgement and reasons, the verification status that travels
+  with the run's own eligibility judgment and reasons, the verification status that travels
   with every source in every artifact here, and the sentence each word stands for, carried in
   the document so an unfamiliar word cannot be read as benign. Counts include every word,
   zeroes included, because an omitted key is one a reader completes for themselves and the
@@ -352,7 +352,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   (2026-09-06), in `.github/workflows/ci.yml`, `.github/workflows/trufflehog.yml`
   and `tests/test_public_boundary.py`. Both workflows run on `push: [main]` and
   both keyed `concurrency` on `${{ github.ref }}` alone, so every push to `main`
-  shared a single group. With `cancel-in-progress: true`, a second push cancelled
+  shared a single group. With `cancel-in-progress: true`, a second push canceled
   the run still working on the previous commit.
 
   Push twice inside one run's duration — a merge followed by a follow-up, the
@@ -367,8 +367,8 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   pull requests keep the branch key, so each commit on `main` keeps its own run to
   completion and a superseded pull-request run is still collapsed. `codeql.yml` is
   deliberately unchanged: it has no `push:` trigger, so its ref-only key only ever
-  groups pull-request and weekly-schedule runs, where cancelling the stale run is
-  the wanted behaviour.
+  groups pull-request and weekly-schedule runs, where canceling the stale run is
+  the wanted behavior.
 
   The test asserts the property against the YAML — the established pattern here —
   and also asserts that each workflow it names really does declare a `push:`
@@ -514,7 +514,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   drifted from `description` it fails on their equality. Restored, it passes.
 
 - **A merge-blocking gate that the committed site describes the registry it
-  ships with** (2026-08-28), in `tests/test_source_labelling.py` and therefore
+  ships with** (2026-08-28), in `tests/test_source_labeling.py` and therefore
   in stage 6 of `make verify`. Every other test in that file takes a `published`
   fixture that publishes into a `tmp_path`, which proves the *publisher* is
   correct and says nothing about the *commit* — and the commit is what a
@@ -584,7 +584,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 - Seven-stage merge gate (`make verify`): ruff lint + format, mypy strict,
   pytest with a 90% branch-coverage floor, pip-audit, registry validation +
   coverage-drift check, and the two safety gates — no unreviewed drift in the
-  feed / no unlabelled source, and no automatic `substantive` classification.
+  feed / no unlabeled source, and no automatic `substantive` classification.
 - Standards-conformance sweep (2026-07-16): security workflows (CodeQL,
   TruffleHog), release gate workflow, SECURITY.md, CONTRIBUTING.md,
   CITATION.cff, pre-commit config, ADR log, this changelog, and a README
@@ -635,7 +635,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   `docs/schema/consumer-manifest-v1.schema.json`, and a `docs/CONSUMERS.md` section.
   The feed says a government page changed; it never said which of a clinic's own pages
   depend on it, and turning "Texas DPS changed on 2026-08-30" into "your Texas
-  driver's-licence page, last reviewed 2026-06-01, cites that source" was work every
+  driver's-license page, last reviewed 2026-06-01, cites that source" was work every
   consumer would otherwise script by hand, once each, differently.
 
   `sentinel stale --manifest my-site.json [--changes changes.json] [--json]` reads a
@@ -645,7 +645,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   stays on their machine and the command reads a published artifact they already have a
   copy of, defaulting to the committed `docs/changes.json` so it works from a clean
   clone. That is the same design constraint that rules out email notification here,
-  honoured rather than worked around.
+  honored rather than worked around.
 
   Three properties, each a test. **A citation this registry does not watch is never
   reported as current**: every citation is `matched`, `host_only` or `unwatched`, and the
@@ -1068,7 +1068,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   and a page that redirected to another host was read without that host's
   robots.txt ever being fetched. Both are now refused before any body is read,
   with the hops taken beforehand kept as evidence. A host's declared
-  `Crawl-delay` is also honoured now when it exceeds the 2s floor; a shorter one
+  `Crawl-delay` is also honored now when it exceeds the 2s floor; a shorter one
   does not speed us up.
 - **Two published surfaces read as "finished" while the tool watched nothing.**
   `index.html` headlined *All N sources are human-verified* and every RSS
@@ -1092,7 +1092,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   never baselined, never folded into `unchanged`, printed loudly by
   `sentinel watch` on every run it recurs, for as long as it recurs. Binary
   content (PDFs) is unaffected: an empty normalized text there is documented,
-  honest behaviour, not this failure. `sentinel sources check` also now
+  honest behavior, not this failure. `sentinel sources check` also now
   prints each reachable text/HTML source's passage count and `<title>`, so
   the same trap is visible before a source is added, without a second
   command or opening the URL by hand.
@@ -1120,7 +1120,7 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
   store, and `load_baselines` refuses to load one.
 - Normalizer end-tag matching (2026-08-01): `</script >`, `</style\t>` and
   `</script foo="bar">` are all valid ways to close an element and every
-  browser honours them, but the strip regexes required the tight `</script>`
+  browser honors them, but the strip regexes required the tight `</script>`
   spelling. On a page using any other spelling the element never matched, so
   its *body* — minified JavaScript full of cache-busting build ids, CSRF
   tokens and timestamps that re-roll on every request — was hashed as page

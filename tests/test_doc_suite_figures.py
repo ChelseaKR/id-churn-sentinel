@@ -49,7 +49,7 @@ TEST_COUNT = re.compile(r"\b([0-9][0-9,]*)[\s-]tests?\b", re.IGNORECASE)
 #:
 #: It reaches BOTH ways, and that is not symmetry for its own sake: the sentence this file
 #: exists because of writes the noun after the number ("~99% coverage"), and a
-#: backwards-only window read it as an uncontextualised percentage and let it through. The
+#: backwards-only window read it as an uncontextualized percentage and let it through. The
 #: guard test below is what caught that, which is the whole reason it is there.
 _PERCENT = re.compile(r"([0-9]+(?:\.[0-9]+)?)\s*%")
 _COVERAGE_CONTEXT = re.compile(r"coverage|branch", re.IGNORECASE)

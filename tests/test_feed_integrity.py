@@ -150,7 +150,7 @@ def test_dismissed_changes_are_not_published(
 def test_a_confirmed_but_unclassified_record_cannot_be_published(
     tmp_path: Path, observed_change: ChangeRecord, registry: Registry
 ) -> None:
-    """Defence in depth. The types and the schema both refuse to *create* this record; if
+    """Defense in depth. The types and the schema both refuse to *create* this record; if
     one were smuggled in anyway (a hand-edited DB, a bad migration), the publisher still
     refuses to emit it. `publishable` checks all three properties, not just the status."""
     smuggled = replace(

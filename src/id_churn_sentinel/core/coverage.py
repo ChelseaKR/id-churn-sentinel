@@ -261,7 +261,7 @@ def _check_baseline_hashes(relative: str, text: str, baseline_hashes: int | None
     """Every stated count of the committed baseline's hashes, checked against the file.
 
     `None` — the file is absent or unreadable — is a drift, not a pass. The tempting
-    behaviour is to skip the check when the artifact cannot be read, and that is how a gate
+    behavior is to skip the check when the artifact cannot be read, and that is how a gate
     becomes decorative: delete the file, and every claim about it sails through.
     """
     drifts: list[str] = []

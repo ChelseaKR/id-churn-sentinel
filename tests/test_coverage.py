@@ -2,14 +2,14 @@
 
 This follows the earlier watcher's derived-gate pattern, which derives the number of merge
 gates from the Makefile and fails the build if any doc states a different one. The
-principle generalises: **a self-description is a fact about the artifact, so compute it from
+principle generalizes: **a self-description is a fact about the artifact, so compute it from
 the artifact.** Here the artifact is `sources/registry.json` and the facts are how many
 sources there are, how many jurisdictions they cover, how many holes are named, and how many
 registered sources our own crawler cannot reach.
 
 The failure this prevents is not arithmetic, it is trust. Somebody adds twenty sources; the
 README still says the old number; and the most-read document in the repo is now making a
-false claim about coverage to the exact organisations deciding whether to depend on us.
+false claim about coverage to the exact organizations deciding whether to depend on us.
 Nobody lied. Nobody noticed. That is how honest projects become dishonest ones.
 
 And the invariant that matters more than any count: **every (state, core document class) pair
@@ -246,7 +246,7 @@ def test_a_correct_baseline_hash_count_passes(tmp_path: Path, real_registry: Reg
 def test_a_hash_count_nobody_can_derive_fails_rather_than_passing_quietly(
     tmp_path: Path, real_registry: Registry
 ) -> None:
-    """No baseline file on disk. The tempting behaviour is to skip the check — and that is
+    """No baseline file on disk. The tempting behavior is to skip the check — and that is
     how a gate becomes decorative: delete the artifact, and the claim about it sails through.
     An unreadable file is us not knowing, which is not the same as agreement.
     """

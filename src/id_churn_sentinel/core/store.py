@@ -530,7 +530,7 @@ END;
         # DATA-04: the attempt row becomes the complete, restorable record of what the
         # network actually did — redirect chain, final URL, distinct raw/normalized hashes,
         # byte bound and truncation, MIME (already present as content_type), extraction
-        # outcome, and a stable error class. Pre-migration attempts are labelled
+        # outcome, and a stable error class. Pre-migration attempts are labeled
         # 'legacy-unknown' rather than back-filled with invented values, mirroring the
         # 'legacy-unknown' representation versions of migration 4: an old receipt keeps its
         # evidentiary value precisely because we refuse to pretend it recorded things it
@@ -965,8 +965,8 @@ CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
         # deliberately no view that would make one convenient.
         #
         # `change_id` is a foreign key with ON DELETE RESTRICT for the same reason the review
-        # tables are: the observation a judgement was made against must outlive the judgement,
-        # or the judgement is about nothing.
+        # tables are: the observation a judgment was made against must outlive the judgment,
+        # or the judgment is about nothing.
         #
         # `candidate` reuses `canonical_actor` and the non-empty CHECK from `review_decisions`
         # so a blank name is refused at the same layer that refuses a blank review — the third
@@ -974,7 +974,7 @@ CREATE INDEX IF NOT EXISTS idx_probes_run ON probes (run_id, source_id);
         # alone. `UNIQUE (session_id, change_id)` makes a session's answer to one change
         # single and final: the append-only triggers below mean a candidate cannot revise an
         # answer after seeing the recorded decision, which would turn agreement into a number
-        # about persistence rather than judgement.
+        # about persistence rather than judgment.
         """
 CREATE TABLE IF NOT EXISTS calibration_decisions (
     calibration_id  TEXT PRIMARY KEY,
@@ -1209,7 +1209,7 @@ _V1_REQUIRED_COLUMNS = {
 # `calibration_decisions` (migration 11) is deliberately NOT audited here, for the same reason
 # `probes` (migration 10) is not: this constant is the **V1 core** contract, and a store rolled
 # back to an earlier migration prefix must not be required to carry a table that postdates it
-# (`tests/test_store.py::test_legacy_attempts_are_labelled_not_backfilled` does exactly that
+# (`tests/test_store.py::test_legacy_attempts_are_labeled_not_backfilled` does exactly that
 # rollback). The calibration table's shape is held instead by
 # `tests/test_calibrate.py::test_the_calibration_table_has_no_publishable_shaped_column`, which
 # asserts its exact column set — and asserts the *absence* of `public_copy`, `stage`,
@@ -1267,7 +1267,7 @@ class RunSourceInput:
 class RunSourceOutcome:
     """What one run recorded about one source, read back from `run_sources`.
 
-    Every field is the run's own judgement at the time, never today's. `retrieval_success`
+    Every field is the run's own judgment at the time, never today's. `retrieval_success`
     is tri-state on purpose: `None` means the run has not recorded an answer for this source
     (it is in flight, or it ended without doing so), which is a different fact from `False`.
     """
@@ -1332,7 +1332,7 @@ class FetchAttempt:
 
     ``ok`` and ``truncated`` are ``None`` for an attempt that never completed (the process
     died mid-fetch); evidence fields read ``'legacy-unknown'`` for attempts recorded before
-    the evidence migration, which is a labelled uncertainty and never a value a new write
+    the evidence migration, which is a labeled uncertainty and never a value a new write
     may claim.
     """
 
@@ -1623,7 +1623,7 @@ class SnapshotStore:
         if retention < 2:
             # Retention of 1 means the previous snapshot is evicted by the one that
             # replaces it, and the diff that justified a change record becomes
-            # irreproducible the moment it is written. That is not a store, it's a rumour.
+            # irreproducible the moment it is written. That is not a store, it's a rumor.
             raise StoreError("retention must be >= 2 so a diff is always reproducible")
         self._path = path
         self._retention = retention
@@ -2202,7 +2202,7 @@ class SnapshotStore:
         Every argument this method accepts is availability evidence. There is deliberately no
         parameter through which a body, a hash or an observation could arrive, so "a probe run
         never writes a snapshot" is a property of the signature rather than of the caller's
-        good behaviour.
+        good behavior.
         """
         self._conn.executemany(
             "INSERT OR REPLACE INTO probes (run_id, source_id, url, probed_at, as_of, outcome,"

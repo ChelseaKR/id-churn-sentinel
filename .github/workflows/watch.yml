@@ -22,7 +22,7 @@
 #
 # ── POLITENESS (docs/RESPONSIBLE-TECH-AUDITS.md §D) ──────────────────────────────────────
 # Weekly, one fetch per source. Descriptive User-Agent naming the project and linking here.
-# robots.txt honoured without appeal. Every socket bounded. These are government servers
+# robots.txt honored without appeal. Every socket bounded. These are government servers
 # funded by the public this tool serves; a watcher that hammers them is taking from the
 # commons it claims to protect. Do not lower the cron interval "just to test" — use
 # `--jurisdiction` locally instead.
@@ -524,7 +524,7 @@ jobs:
               });
             }
 
-      # Last, so the human-review issue is already filed before the job colour changes. A run
+      # Last, so the human-review issue is already filed before the job color changes. A run
       # that observed nothing is not a successful run, and a green tick next to it is the same
       # wrong "no change" the tool refuses to publish. Drift itself still exits 0 — a state
       # website being down, or a page genuinely moving, is the tool WORKING and must never look

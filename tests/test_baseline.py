@@ -63,7 +63,7 @@ def test_write_then_load_round_trips_the_hash(
     snapshot = store.latest_snapshot(source.id)
     assert snapshot is not None
     assert loaded[source.id].sha256 == snapshot.content_sha256
-    # The hash never travels without the normalizer that produced it: an unlabelled hash is
+    # The hash never travels without the normalizer that produced it: an unlabeled hash is
     # one a future build cannot tell is comparable.
     assert loaded[source.id].contract == CURRENT_CONTRACT
 
@@ -260,7 +260,7 @@ def test_no_committed_baseline_cites_a_page_the_registry_no_longer_watches() -> 
 def test_a_stored_snapshot_of_nothing_is_never_written_as_a_baseline(
     tmp_path: Path, registry: Registry, source: Source, store: SnapshotStore
 ) -> None:
-    """Defence in depth for stores written before the watcher stopped recording these.
+    """Defense in depth for stores written before the watcher stopped recording these.
     The source is named under `unmeasurable` — not `unreachable`, which would send an
     operator to look at a host that answered perfectly well."""
     store.record_snapshot(

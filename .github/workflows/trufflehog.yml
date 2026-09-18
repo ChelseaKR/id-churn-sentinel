@@ -29,7 +29,7 @@ permissions:
 
 concurrency:
   # Per-commit on push and schedule; per-branch on pull requests. See the longer note in ci.yml.
-  # This workflow runs on `push: [main]`, so under a ref-only key a second push cancelled the
+  # This workflow runs on `push: [main]`, so under a ref-only key a second push canceled the
   # history scan of the commit before it — and an unscanned commit is indistinguishable from a
   # clean one afterwards, which is the failure this scan exists to prevent.
   group: trufflehog-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
@@ -65,7 +65,7 @@ jobs:
         # Resolved forward onto the NEWER of the two, 3.96.0, which is the
         # scanner that was already running: the ref moves up to v3.96.0 and the
         # `version:` input is untouched, so no scanner change rides along and
-        # the tier widening below is the only behaviour change.
+        # the tier widening below is the only behavior change.
         uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
         with:
           path: ./

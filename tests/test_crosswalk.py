@@ -174,7 +174,7 @@ def test_a_same_host_page_is_never_reported_as_a_watched_source(tmp_path: Path) 
     """The one collapse that would make this command actively harmful.
 
     A consumer reading `host_only` as coverage would treat this registry's silence about
-    their page as evidence about their page. The row names the neighbouring source so the
+    their page as evidence about their page. The row names the neighboring source so the
     consumer can see WHY the host is known, and the match kind says plainly that it is not
     the same page.
     """

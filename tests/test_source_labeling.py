@@ -1,6 +1,6 @@
 """MERGE-BLOCKING GATE: a source cannot reach a consumer stripped of its verification status.
 
-`make no-unlabelled-source` runs exactly this file, and stage 6 of `make verify` runs it
+`make no-unlabeled-source` runs exactly this file, and stage 6 of `make verify` runs it
 alongside `test_feed_integrity.py`. The two gates are the same discipline pointed at two
 different **implicit claims**, and neither claim is one this tool has earned:
 
@@ -56,7 +56,7 @@ from id_churn_sentinel.errors import PublishError
 
 from .conftest import eligible_source
 
-pytestmark = pytest.mark.source_labelling
+pytestmark = pytest.mark.source_labeling
 
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
@@ -65,7 +65,7 @@ NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 #: the product rather than a build artifact of it.
 COMMITTED_SITE = repo_root() / "docs"
 
-# The words a reader sees. Status is never a colour and never an icon: the caseworker most
+# The words a reader sees. Status is never a color and never an icon: the caseworker most
 # likely to be reading this with a screen reader is exactly the one a red dot fails silently.
 STATUS_WORDS = ("UNVERIFIED", "VERIFIED", "REJECTED", "WITHDRAWN")
 
@@ -137,11 +137,11 @@ def test_no_source_id_appears_in_any_published_artifact_without_its_status(
             f"claim of authority nobody made."
         )
         # ...and it is *countable*, not a single blanket sentence at the top: every mentioned
-        # source is individually labelled.
+        # source is individually labeled.
         labels = lowered.count("unverified") + lowered.count("verified by")
         assert labels >= len(mentioned), (
             f"{path.name} mentions {len(mentioned)} sources but carries only {labels} status "
-            f"labels — some source in it is unlabelled."
+            f"labels — some source in it is unlabeled."
         )
 
     assert checked >= 3, "expected the site, the inventory and the change feeds to name sources"
@@ -252,7 +252,7 @@ def _source_rows(page: str) -> list[str]:
 def test_every_source_row_on_the_site_carries_a_status_word(
     published: Path, real_registry: Registry
 ) -> None:
-    """WCAG 2.2 AA, 1.4.1: status is a WORD. Not a colour, not an icon, not a tick. Every row
+    """WCAG 2.2 AA, 1.4.1: status is a WORD. Not a color, not an icon, not a tick. Every row
     of every source table says what is behind that source."""
     page = (published / "index.html").read_text()
     source_rows = _source_rows(page)
@@ -264,8 +264,8 @@ def test_every_source_row_on_the_site_carries_a_status_word(
     for row in source_rows:
         assert any(word in row for word in STATUS_WORDS), row[:120]
 
-    for colour_only in ('class="ok"', 'class="bad"', ".status-red", ".status-green", "🔴", "✅"):
-        assert colour_only not in page
+    for color_only in ('class="ok"', 'class="bad"', ".status-red", ".status-green", "🔴", "✅"):
+        assert color_only not in page
 
 
 def test_publish_cannot_be_called_without_the_registry(
@@ -346,7 +346,7 @@ def test_a_half_finished_burn_down_is_reported_as_half_finished(
 def test_a_rejected_source_is_published_as_rejected_rather_than_quietly_dropped(
     tmp_path: Path, source: Source
 ) -> None:
-    """A human found the URL is wrong. It stays, labelled REJECTED, until it is repaired —
+    """A human found the URL is wrong. It stays, labeled REJECTED, until it is repaired —
     because a consumer who picked it up last week needs to be told, and because deleting it
     silently would take the finding with it."""
     rejected = replace(

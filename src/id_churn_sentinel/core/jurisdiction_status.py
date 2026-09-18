@@ -230,7 +230,7 @@ class JurisdictionStatus:
     jurisdiction: str
     coverage: str
     #: The last run that covered this jurisdiction, or `None`. `None` is why every source
-    #: reads `not_attempted`: there is no run whose judgement could be reported.
+    #: reads `not_attempted`: there is no run whose judgment could be reported.
     run: WatchRun | None
     #: The newest run in the store, whatever its scope. Present so a `not_in_run` receipt
     #: can name the run that skipped this jurisdiction rather than only the older one that
@@ -238,7 +238,7 @@ class JurisdictionStatus:
     latest_run: WatchRun | None
     #: `(source, outcome word)` in registry order, one entry per source in the jurisdiction.
     sources: tuple[tuple[Source, str], ...]
-    #: The run's own eligibility judgement per source id, for the sources it held.
+    #: The run's own eligibility judgment per source id, for the sources it held.
     recorded: dict[str, RunSourceOutcome]
 
 
@@ -271,7 +271,7 @@ def store_unavailable_jurisdiction_status(
 
 def _blank(jurisdiction: str, registry: Registry, coverage: str) -> JurisdictionStatus:
     """A receipt with no run behind it. Every source reads `not_attempted`, which is what
-    "there is no run whose judgement could be reported" means at source level."""
+    "there is no run whose judgment could be reported" means at source level."""
     return JurisdictionStatus(
         jurisdiction=jurisdiction,
         coverage=coverage,

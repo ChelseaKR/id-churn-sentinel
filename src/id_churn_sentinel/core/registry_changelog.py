@@ -8,7 +8,7 @@ message and some README prose.
 
 That matters because of what a consumer is subscribed to. `feed-us-az.xml` names a
 jurisdiction and a document class; it does not name a URL. A clinic that subscribed in July
-has no way to learn that the page behind "AZ · driver's licence" is not the page it was
+has no way to learn that the page behind "AZ · driver's license" is not the page it was
 then — and a source swap is precisely the event that turns a stale mental model into a wrong
 assumption about what the feed's silence covers.
 

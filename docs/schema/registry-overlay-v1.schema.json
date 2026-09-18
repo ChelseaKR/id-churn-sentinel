@@ -121,7 +121,7 @@
           "type": "string",
           "format": "uri",
           "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^#]*#?$",
-          "description": "https only, and no #fragment: a fetch cannot honour one."
+          "description": "https only, and no #fragment: a fetch cannot honor one."
         },
         "authority": {
           "type": "string",

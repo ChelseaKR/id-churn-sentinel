@@ -219,6 +219,12 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Changed
 
+- **The vendored standards move from portfolio-standards v3.0.0 to v3.0.1** (2026-10-02).
+  A patch release: re-verified stamps, text corrections, and tooling fixes, with no control,
+  threshold, or gate change. `docs/standards/` is replaced as one set with upstream's
+  `vendor-standards.sh` from the signed `v3.0.1` tag and matches the release archive byte for
+  byte; the pin, the README, and the digests in `tests/test_public_boundary.py` follow.
+
 - **The vendored standards move from portfolio-standards v2.0.0 to v3.0.0** (2026-10-02).
   `docs/standards/` is replaced as one versioned set, exported with upstream's
   `vendor-standards.sh` from the signed `v3.0.0` tag and checked byte for byte against the

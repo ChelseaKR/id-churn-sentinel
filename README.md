@@ -224,7 +224,7 @@ The real risks are named and addressed in [`docs/RESPONSIBLE-TECH-AUDITS.md`](./
 
 ## Standards
 
-The repository vendors the immutable v3.0.0 public standards projection under [`docs/standards/`](./docs/standards/). The version marker and managed manifest make every projected file reviewable and testable without access to a private checkout. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
+The repository vendors the immutable v3.0.1 public standards projection under [`docs/standards/`](./docs/standards/). The version marker and managed manifest make every projected file reviewable and testable without access to a private checkout. Per-repo values live in [`docs/ROADMAP.md`](./docs/ROADMAP.md) and [`docs/RESPONSIBLE-TECH-AUDITS.md`](./docs/RESPONSIBLE-TECH-AUDITS.md).
 
 ## Standards Conformance
 

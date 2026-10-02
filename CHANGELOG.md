@@ -219,6 +219,14 @@ a pre-1.0 technical alpha, and everything below has landed on `main` untagged.
 
 ### Changed
 
+- **The vendored standards move from portfolio-standards v2.0.0 to v3.0.0** (2026-10-02).
+  `docs/standards/` is replaced as one versioned set, exported with upstream's
+  `vendor-standards.sh` from the signed `v3.0.0` tag and checked byte for byte against the
+  signed release archive. Three v2.0.0 documents (Code Quality, Quality & Metrics, and the
+  Responsible-Tech Framework) were past their 92-day recheck; upstream re-verified them. The
+  set gains the advisory `DISCOVERY-AND-ADOPTION-STANDARD.md` (17 documents), and the pin,
+  manifest, and the digests in `tests/test_public_boundary.py` follow the new bytes.
+
 - **`sources.json` is schema 2.1: every source now publishes `normalized_url` and `host`**
   (2026-09-07), issue #71. The reverse of `sentinel crosswalk` — the identity a `source` match
   is actually decided on, published so a consumer can do the join in their own language
